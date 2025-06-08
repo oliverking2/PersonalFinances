@@ -35,12 +35,12 @@ class GoCardlessCredentials:
 
     def get_access_token(self) -> str:
         """Get the access token."""
-        json = {
+        payload = {
             "secret_id": self.secret_id,
             "secret_key": self.secret_key,
         }
         response = requests.post(
-            "https://bankaccountdata.gocardless.com/api/v2/token/new/", data=json
+            "https://bankaccountdata.gocardless.com/api/v2/token/new/", json=payload
         )
         response.raise_for_status()
 

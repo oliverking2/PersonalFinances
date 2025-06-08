@@ -1,4 +1,5 @@
 services:
+  # ─── MySQL Database ────────────────────────────────────────────────────────
   mysql:
     image: mysql:8.0
     container_name: mysql
@@ -8,9 +9,39 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ./db_data:/var/lib/mysql
+      - ./data/mysql:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─── Prefect Server (API & UI) ─────────────────────────────────────────────
+  prefect-server:
+    image: prefecthq/prefect:3-python3.12
+    container_name: prefect_server
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./data/prefect_data:/root/.prefect  # Persist ~/.prefect across restarts :contentReference[oaicite:2]{index=2}
+    depends_on:
+      - mysql
+
+  streamlit:
+    build:
+      context: ./src/streamlit       # ← use the streamlit/ folder
+      dockerfile: Dockerfile
+    container_name: finance_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mysql
+    volumes:
+      - ./src/streamlit:/app       # optional, for live code reload
