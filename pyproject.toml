@@ -3,6 +3,7 @@ name = "personal_finances"
 version = "0.1.0"
 
 [tool.poetry]
+name = "personal_finances"
 readme = "README.md"
 
 package-mode = false
@@ -11,6 +12,8 @@ package-mode = false
 python = ">=3.13.2,<3.14"
 requests = "^2.32.3"
 python-dotenv = "^1.1.0"
+sqlalchemy = "^2.0.41"
+mysql-connector-python = "^9.3.0"
 
 [tool.poetry.group.checks]
 optional = true
