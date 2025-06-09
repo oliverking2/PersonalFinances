@@ -19,7 +19,7 @@ import requests
 import streamlit as st
 from sqlalchemy.orm import Session
 
-from src.mysql.gocardless import RequisitionLink
+from src.mysql.gocardless import RequisitionLink, BankAccount
 from src.utils.streamlit import get_gocardless_creds
 from src.gocardless.account_setup import get_institutions, create_link
 
@@ -279,6 +279,147 @@ def show_details(link: RequisitionLink) -> None:
                 raise
 
 
+def fetch_requisition_data(req_id: st) -> Dict[str, Any]:
+    """Fetch the full requisition JSON from GoCardless.
+
+    Retrieves the requisition data, including its status and linked account IDs, from the
+    GoCardless Bank Account Data API.
+
+    :param req_id: The requisition ID to retrieve.
+    :returns: The JSON response as a dictionary.
+    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
+    """
+    logger.info(f"Fetching requisition data from GoCardless for ID: {req_id}")
+    url = f"https://bankaccountdata.gocardless.com/api/v2/requisitions/{req_id}"
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {gocardless_creds.access_token}"})
+        r.raise_for_status()
+        logger.debug(f"Successfully retrieved requisition data for ID: {req_id}")
+        return r.json()
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch requisition data for ID {req_id}: {e!s}")
+        raise
+
+
+def fetch_account_details(account_id: str) -> Dict[str, Any]:
+    """Fetch a single bank account's details from GoCardless.
+
+    Retrieves detailed information for the given bank account ID from the GoCardless Bank Account Data API.
+
+    :param account_id: The unique identifier of the bank account.
+    :returns: The account details as a dictionary.
+    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
+    """
+    logger.info(f"Fetching account details from GoCardless for account ID: {account_id}")
+    url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}"
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {gocardless_creds.access_token}"})
+        r.raise_for_status()
+        logger.debug(f"Successfully retrieved account details for ID: {account_id}")
+        return r.json()
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch account details for ID {account_id}: {e!s}")
+        raise
+
+
+def upsert_requisition(req_id: str, new_status: str) -> RequisitionLink:
+    """Update or create the RequisitionLink record in the database.
+
+    Upserts the RequisitionLink entry for the given requisition ID with the latest status.
+
+    :param req_id: The requisition ID to upsert.
+    :param new_status: The updated status value from GoCardless.
+    :returns: The upserted RequisitionLink object.
+    :raises: Exception if there's an error updating the database
+    """
+    logger.info(f"Upserting requisition link with ID: {req_id}, new status: {new_status}")
+    try:
+        req = session.get(RequisitionLink, req_id)
+        if not req:
+            logger.info(f"Creating new requisition link for ID: {req_id}")
+            req = RequisitionLink(id=req_id, status=new_status)
+            session.add(req)
+        else:
+            logger.info(
+                f"Updating existing requisition link status from {req.status} to {new_status}"
+            )
+            req.status = new_status
+        session.commit()
+        logger.debug(f"Successfully upserted requisition link with ID: {req_id}")
+        return req
+    except Exception as e:
+        logger.error(f"Failed to upsert requisition link with ID {req_id}: {e!s}")
+        raise
+
+
+def upsert_bank_accounts(req_id: str, accounts: List[Dict[str, Any]]) -> None:
+    """Upsert each BankAccount record related to a requisition.
+
+    Iterates over account detail dictionaries, creating or updating BankAccount entries
+    linked to the specified requisition.
+
+    :param req_id: The requisition ID to associate with each account.
+    :param accounts: List of account detail dictionaries from GoCardless.
+    :returns: None
+    :raises: Exception if there's an error updating the database
+    """
+    logger.info(f"Upserting {len(accounts)} bank accounts for requisition ID: {req_id}")
+    try:
+        new_accounts = 0
+        updated_accounts = 0
+
+        for info in accounts:
+            acc_id = info.get("id")
+            acc = session.get(BankAccount, acc_id)
+            if not acc:
+                logger.debug(f"Creating new bank account record for ID: {acc_id}")
+                acc = BankAccount(id=acc_id, requisition_id=req_id)
+                session.add(acc)
+                new_accounts += 1
+            else:
+                logger.debug(f"Updating existing bank account record for ID: {acc_id}")
+                updated_accounts += 1
+
+            # Map fields from account details
+            acc.bban = info.get("bban")
+            acc.bic = info.get("bic")
+            acc.cash_account_type = info.get("cash_account_type")
+            acc.currency = info.get("currency") or acc.currency
+            acc.details = info.get("details")
+            acc.display_name = info.get("display_name")
+            acc.iban = info.get("iban")
+            acc.linked_accounts = info.get("linked_accounts")
+            acc.msisdn = info.get("msisdn")
+            acc.name = info.get("name")
+            acc.owner_address_unstructured = info.get("owner_address_unstructured")
+            acc.owner_name = info.get("owner_name")
+            acc.product = info.get("product")
+            acc.status = info.get("status")
+            acc.scan = info.get("scan")
+            acc.usage = info.get("usage")
+
+        session.commit()
+        logger.info(
+            f"Successfully upserted bank accounts: {new_accounts} new, {updated_accounts} updated"
+        )
+    except Exception as e:
+        logger.error(f"Failed to upsert bank accounts for requisition ID {req_id}: {e!s}")
+        raise
+
+
+def clear_and_rerun() -> None:
+    """Clear URL parameters and trigger a rerun of the Streamlit app.
+
+    Uses Streamlit's experimental APIs to reset query parameters and then reruns
+    the script to clear state.
+
+    :returns: None
+    """
+    logger.info("Clearing URL parameters and triggering page rerun")
+    st.query_params.clear()
+    st.rerun()
+
+
 def process_callback(params: Dict[str, Any]) -> None:
     """Process a callback from GoCardless after bank authorization.
 
@@ -287,51 +428,55 @@ def process_callback(params: Dict[str, Any]) -> None:
     requisition link status in the database, and displays a success message to the user.
 
     :param params: Query parameters from the callback URL
-    :type params: Dict[str, Any]
+    :returns None
     :raises requests.RequestException: If there's an error communicating with the GoCardless API
     :raises Exception: If there's an error processing the callback or updating the database
-    :returns: None
     """
-    req_id = params["ref"]
-    logger.info(f"Processing GoCardless callback for requisition ID: {req_id}")
+    logger.info(f"Processing GoCardless callback with params: {params}")
+    req_id = params.get("ref")
+    if not req_id:
+        logger.warning("Missing requisition reference in callback parameters")
+        st.error("Missing requisition reference in callback parameters.")
+        return
 
     try:
-        logger.info(f"Fetching requisition data from GoCardless API for ID: {req_id}")
-        resp = requests.get(
-            f"https://bankaccountdata.gocardless.com/api/v2/requisitions/{req_id}",
-            headers={"Authorization": f"Bearer {gocardless_creds.access_token}"},
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        logger.info(
-            f"Successfully retrieved data for requisition ID: {req_id}, status: {data['status']}"
-        )
+        logger.info(f"Starting callback processing for requisition ID: {req_id}")
 
-        # update DB record
-        logger.info(f"Updating requisition link status in database for ID: {req_id}")
-        req = session.get(RequisitionLink, req_id)
-        req.status = data["status"]
-        session.commit()
-        logger.info(f"Successfully updated requisition link status to: {data['status']}")
+        # 1) Fetch requisition JSON
+        requisition = fetch_requisition_data(req_id)
+        new_status = requisition["status"]
+        logger.info(f"Requisition status: {new_status}")
 
-        with st.spinner("Creating connection..."):
+        # 2) Upsert requisition status
+        upsert_requisition(req_id, new_status)
+
+        # 3) Fetch and upsert each account's details
+        account_ids = requisition.get("accounts", [])
+        logger.info(f"Found {len(account_ids)} accounts linked to requisition")
+        detailed_accounts = []
+        for acct_id in account_ids:
+            info = fetch_account_details(acct_id)
+            detailed_accounts.append(info)
+        upsert_bank_accounts(req_id, detailed_accounts)
+
+        # 4) UI feedback
+        logger.info("Displaying success message to user")
+        with st.spinner("Connecting bank account and syncing data..."):
             time.sleep(2)
+        st.success("Bank account connected and data synced!")
 
-        st.success("Bank account connected!")
+        # 5) Clear params & rerun
+        logger.info("Callback processing completed successfully, clearing parameters")
         time.sleep(1)
-
-        logger.info("GoCardless callback processing completed successfully")
-        st.query_params.clear()
-        st.rerun()
+        clear_and_rerun()
 
     except requests.RequestException as e:
-        logger.error(f"API request error during GoCardless callback: {e!s}")
-        st.error(f"Failed to connect to GoCardless API: {e!s}")
+        logger.error(f"API error during callback processing: {e!s}")
+        st.error(f"API error: {e}")
         raise
-
     except Exception as e:
-        logger.error(f"Error processing GoCardless callback: {e!s}")
-        st.error(f"Error processing callback: {e!s}")
+        logger.error(f"Unexpected error during callback processing: {e!s}")
+        st.error(f"Unexpected error: {e}")
         raise
 
 
@@ -359,6 +504,7 @@ def render_table() -> None:
 
 # catch GoCardless Callback
 # example: http://localhost:8501/connections?ref=1b3c1181-5eae-4219-881a-b3af1c1acdc1&gc_callback=1
+# chase: http://localhost:8501/connections?ref=cb84aa32-3271-4909-a546-213babd4a8ec&gc_callback=1
 params = st.query_params
 logger.info(f"Page Params - {params}")
 if params.get("gc_callback") and params.get("ref"):
