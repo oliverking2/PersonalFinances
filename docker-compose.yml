@@ -45,4 +45,6 @@ services:
       - mysql
     volumes:
       - ./src/mysql:/app/src/mysql
+      - ./src/utils:/app/src/utils
+      - ./src/gocardless:/app/src/gocardless
       - ./src/streamlit:/app       # optional, for live code reload
