@@ -27,14 +27,14 @@ services:
     ports:
       - "4200:4200"
     volumes:
-      - ./data/prefect_data:/root/.prefect  # Persist ~/.prefect across restarts :contentReference[oaicite:2]{index=2}
+      - ./data/prefect_data:/root/.prefect  # Persist ~/.prefect across restarts
     depends_on:
       - mysql
 
   streamlit:
     build:
-      context: ./src/streamlit       # ← use the streamlit/ folder
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./src/streamlit/Dockerfile
     container_name: finance_app
     restart: unless-stopped
     env_file:
@@ -44,4 +44,5 @@ services:
     depends_on:
       - mysql
     volumes:
+      - ./src/mysql:/app/src/mysql
       - ./src/streamlit:/app       # optional, for live code reload

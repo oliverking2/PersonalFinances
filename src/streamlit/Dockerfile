@@ -2,11 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# copy the entire folder (app.py + pages/)
-COPY . .
+# tell Python where to look for `src`
+ENV PYTHONPATH=/app
 
 EXPOSE 8501
 
