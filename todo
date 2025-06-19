@@ -1,2 +1,13 @@
-- Connections
-Delete requisition actually delete in gocardless
+- Streamlit
+    - Connections
+    Delete requisition actually delete in gocardless
+
+- Dagster
+Transactions
+Accounts Refresh
+Requisition Refresh
+
+
+Accounts
+- Vanguard
+- Trading 212

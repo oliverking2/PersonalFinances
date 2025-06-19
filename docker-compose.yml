@@ -16,21 +16,85 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Prefect Server (API & UI) ─────────────────────────────────────────────
-  prefect-server:
-    image: prefecthq/prefect:3-python3.12
-    container_name: prefect_server
+  # ─── Dagster Webserver (Dagit) ────────────────────────────────────────────────
+  dagster-webserver:
+    build:
+      context: ./src/dagster
+      dockerfile: Dockerfile.dagster
+    container_name: dagster_webserver
     restart: unless-stopped
     env_file:
       - .env
-    command: prefect server start --host 0.0.0.0
-    ports:
-      - "4200:4200"
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
     volumes:
-      - ./data/prefect_data:/root/.prefect  # Persist ~/.prefect across restarts
+      - ./data/dagster:/opt/dagster/dagster_home
+      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
+      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
+      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - '0.0.0.0'
+      - -p
+      - '3000'
+    ports:
+      - "3000:3000"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
+  # ─── Dagster Scheduler ────────────────────────────────────────────────────────
+  dagster-scheduler:
+    build:
+      context: ./src/dagster
+      dockerfile: Dockerfile.dagster
+    container_name: dagster_scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    volumes:
+      - ./data/dagster:/opt/dagster/dagster_home
+      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
+      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
+      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
+    entrypoint:
+      - dagster
+      - scheduler
+      - start
+    depends_on:
+      dagster-webserver:
+        condition: service_started
+
+  # ─── Dagster Daemon ───────────────────────────────────────────────────────────
+  dagster-daemon:
+    build:
+      context: ./src/dagster
+      dockerfile: Dockerfile.dagster
+    container_name: dagster_daemon
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    volumes:
+      - ./data/dagster:/opt/dagster/dagster_home
+      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
+      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
+      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
+    entrypoint:
+      - dagster-daemon
+      - run
+    depends_on:
+      dagster-webserver:
+        condition: service_started
+
+  # ─── Streamlit Finance App ────────────────────────────────────────────────────
   streamlit:
     build:
       context: .
@@ -43,6 +107,7 @@ services:
       - "8501:8501"
     depends_on:
       - mysql
+      - dagster-webserver
     volumes:
       - ./src/mysql:/app/src/mysql
       - ./src/utils:/app/src/utils

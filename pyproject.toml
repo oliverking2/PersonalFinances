@@ -9,12 +9,14 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.13.2,<3.14"
+python = ">=3.12,<3.13"
 requests = "^2.32.3"
 python-dotenv = "^1.1.0"
 sqlalchemy = "^2.0.41"
 mysql-connector-python = "^9.3.0"
 streamlit = "^1.45.1"
+streamlit-aggrid = "^1.1.5.post1"
+dagster = "^1.10.20"
 
 [tool.poetry.group.checks]
 optional = true
