@@ -19,6 +19,11 @@ import requests
 import streamlit as st
 from sqlalchemy.orm import Session
 
+from src.gocardless.api.account import fetch_account_data_by_id
+from src.gocardless.api.requisition import (
+    fetch_requisition_data_by_id,
+    delete_requisition_data_by_id,
+)
 from src.mysql.gocardless import RequisitionLink, BankAccount
 from src.utils.streamlit import get_gocardless_creds
 from src.gocardless.account_setup import get_institutions, create_link
@@ -105,6 +110,7 @@ def add_requisition_link(data: Dict[str, Any]) -> None:
     req = RequisitionLink(
         id=data["id"],
         created=datetime.fromisoformat(data["created"].replace("Z", "+00:00")),
+        updated=datetime.fromisoformat(data["created"].replace("Z", "+00:00")),
         redirect=data["redirect"],
         status=data["status"],
         institution_id=data["institution_id"],
@@ -235,8 +241,6 @@ def show_details(link: RequisitionLink) -> None:
     st.write(f"**Created:** {link.created}")
     st.write(f"**Agreement:** {link.agreement}")
     st.write(f"**Reference:** {link.reference}")
-    st.write(f"**Auth Link:** {link.link}")
-    st.write(f"**SSN:** {link.ssn or '-'}")
     st.write("---")
 
     _, middle, _ = st.columns([1, 6, 1])
@@ -262,6 +266,7 @@ def show_details(link: RequisitionLink) -> None:
         if btn2.button("Delete", key=f"del_{link.id}"):
             logger.warning(f"User requested deletion of requisition link ID: {link.id}")
             try:
+                delete_requisition_data_by_id(gocardless_creds, link.id)
                 session.delete(link)
                 session.commit()
 
@@ -277,49 +282,6 @@ def show_details(link: RequisitionLink) -> None:
                 logger.error(f"Failed to delete requisition link ID {link.id}: {e!s}")
                 st.error(f"Failed to delete connection: {e!s}")
                 raise
-
-
-def fetch_requisition_data(req_id: st) -> Dict[str, Any]:
-    """Fetch the full requisition JSON from GoCardless.
-
-    Retrieves the requisition data, including its status and linked account IDs, from the
-    GoCardless Bank Account Data API.
-
-    :param req_id: The requisition ID to retrieve.
-    :returns: The JSON response as a dictionary.
-    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
-    """
-    logger.info(f"Fetching requisition data from GoCardless for ID: {req_id}")
-    url = f"https://bankaccountdata.gocardless.com/api/v2/requisitions/{req_id}"
-    try:
-        r = requests.get(url, headers={"Authorization": f"Bearer {gocardless_creds.access_token}"})
-        r.raise_for_status()
-        logger.debug(f"Successfully retrieved requisition data for ID: {req_id}")
-        return r.json()
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch requisition data for ID {req_id}: {e!s}")
-        raise
-
-
-def fetch_account_details(account_id: str) -> Dict[str, Any]:
-    """Fetch a single bank account's details from GoCardless.
-
-    Retrieves detailed information for the given bank account ID from the GoCardless Bank Account Data API.
-
-    :param account_id: The unique identifier of the bank account.
-    :returns: The account details as a dictionary.
-    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
-    """
-    logger.info(f"Fetching account details from GoCardless for account ID: {account_id}")
-    url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}"
-    try:
-        r = requests.get(url, headers={"Authorization": f"Bearer {gocardless_creds.access_token}"})
-        r.raise_for_status()
-        logger.debug(f"Successfully retrieved account details for ID: {account_id}")
-        return r.json()
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch account details for ID {account_id}: {e!s}")
-        raise
 
 
 def upsert_requisition(req_id: str, new_status: str) -> RequisitionLink:
@@ -443,7 +405,7 @@ def process_callback(params: Dict[str, Any]) -> None:
         logger.info(f"Starting callback processing for requisition ID: {req_id}")
 
         # 1) Fetch requisition JSON
-        requisition = fetch_requisition_data(req_id)
+        requisition = fetch_requisition_data_by_id(gocardless_creds, req_id)
         new_status = requisition["status"]
         logger.info(f"Requisition status: {new_status}")
 
@@ -455,7 +417,7 @@ def process_callback(params: Dict[str, Any]) -> None:
         logger.info(f"Found {len(account_ids)} accounts linked to requisition")
         detailed_accounts = []
         for acct_id in account_ids:
-            info = fetch_account_details(acct_id)
+            info = fetch_account_data_by_id(gocardless_creds, acct_id)
             detailed_accounts.append(info)
         upsert_bank_accounts(req_id, detailed_accounts)
 
