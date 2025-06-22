@@ -1,0 +1,76 @@
+services:
+  # ─── MySQL Database ────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Dagster Webserver ────────────────────────────────────────────────
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: src/dagster/Dockerfile
+    container_name: dagster_webserver
+    env_file:
+      - .env
+    environment:
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    volumes:
+      - ./data/dagster:/opt/dagster/dagster_home
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - '0.0.0.0'
+      - -p
+      - '3000'
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ─── Dagster Daemon ───────────────────────────────────────────────────────────
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: src/dagster/Dockerfile
+    container_name: dagster_daemon
+    env_file:
+      - .env
+    environment:
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    volumes:
+      - ./data/dagster:/opt/dagster/dagster_home
+    entrypoint:
+      - dagster-daemon
+      - run
+      - -w
+      - /app/workspace.yaml
+    depends_on:
+      dagster-webserver:
+        condition: service_started
+
+  # ─── Streamlit Finance App ────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: src/streamlit/Dockerfile
+    container_name: finance_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mysql
+      - dagster-webserver

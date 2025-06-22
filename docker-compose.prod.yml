@@ -9,7 +9,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -18,20 +18,15 @@ services:
 
   # ─── Dagster Webserver (Dagit) ────────────────────────────────────────────────
   dagster-webserver:
-    build:
-      context: ./src/dagster
-      dockerfile: Dockerfile
+    image: ghcr.io/oliverking2/pf-dagster:latest
     container_name: dagster_webserver
     restart: unless-stopped
     env_file:
       - .env
     environment:
       - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
-    working_dir: /opt/dagster/src/dagster
     volumes:
-      - ./data/dagster:/opt/dagster/dagster_home
-      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
-      - ./src/dagster:/opt/dagster/src/dagster
+      - dagster_data:/opt/dagster/dagster_home
     entrypoint:
       - dagster-webserver
       - -h
@@ -46,23 +41,20 @@ services:
 
   # ─── Dagster Daemon ───────────────────────────────────────────────────────────
   dagster-daemon:
-    build:
-      context: ./src/dagster
-      dockerfile: Dockerfile
+    image: ghcr.io/oliverking2/pf-dagster:latest
     container_name: dagster_daemon
     restart: unless-stopped
     env_file:
       - .env
     environment:
       - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
-    working_dir: /opt/dagster/src/dagster
     volumes:
-      - ./data/dagster:/opt/dagster/dagster_home
-      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
-      - ./src/dagster:/opt/dagster/src/dagster
+      - dagster_data:/opt/dagster/dagster_home
     entrypoint:
       - dagster-daemon
       - run
+      - -w
+      - /app/workspace.yaml
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -79,3 +71,9 @@ services:
     depends_on:
       - mysql
       - dagster-webserver
+
+volumes:
+  mysql_data:
+    driver: local
+  dagster_data:
+    driver: local

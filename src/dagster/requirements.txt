@@ -1,0 +1,6 @@
+dagster==1.10.21
+dagster-graphql==1.10.21
+dagster-webserver==1.10.21
+dagster-mysql==0.26.21
+dagster-docker==0.26.21
+mysql-connector-python==9.3.0

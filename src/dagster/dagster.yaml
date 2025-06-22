@@ -2,21 +2,3 @@ storage:
   mysql:
     mysql_url:
       env: SQLALCHEMY_DATABASE_URI
-
-#run_storage:
-#  module: dagster_mysql.run_storage
-#  class: MySQLRunStorage
-#  config:
-#    mysql_url: ${SQLALCHEMY_DATABASE_URI}
-#
-#event_log_storage:
-#  module: dagster_mysql.event_log
-#  class: MySQLEventLogStorage
-#  config:
-#    mysql_url: ${SQLALCHEMY_DATABASE_URI}
-#
-#schedule_storage:
-#  module: dagster_mysql.scheduler
-#  class: MySQLScheduleStorage
-#  config:
-#    mysql_url: ${SQLALCHEMY_DATABASE_URI}

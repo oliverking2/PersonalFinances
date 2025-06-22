@@ -1,0 +1,1 @@
+"""GoCardless Dagster Assets."""
