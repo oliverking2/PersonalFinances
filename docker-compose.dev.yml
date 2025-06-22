@@ -1,16 +1,17 @@
 services:
-  # ─── MySQL Database ────────────────────────────────────────────────────────
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
+  # ─── Postgresql Database ────────────────────────────────────────────────────────
+  postgresql:
+    image: postgres:15
+    container_name: postgresql
+    restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "3306:3306"
+    - "5432:5432"
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - ./data/postgresql:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,12 +26,12 @@ services:
       - .env
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
-      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
       - ./src/dagster:/app/src/dagster
       - ./src/gocardless:/app/src/gocardless
-      - ./src/mysql:/app/src/mysql
+      - ./src/postgresql:/app/src/postgresql
       - ./src/utils:/app/src/utils
     entrypoint:
       - dagster-webserver
@@ -41,7 +42,7 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      mysql:
+      postgresql:
         condition: service_healthy
 
   # ─── Dagster Daemon ───────────────────────────────────────────────────────────
@@ -54,12 +55,12 @@ services:
       - .env
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
-      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
       - ./src/dagster:/app/src/dagster
       - ./src/gocardless:/app/src/gocardless
-      - ./src/mysql:/app/src/mysql
+      - ./src/postgresql:/app/src/postgresql
       - ./src/utils:/app/src/utils
     entrypoint:
       - dagster-daemon
@@ -83,5 +84,5 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - mysql
+      - postgresql
       - dagster-webserver

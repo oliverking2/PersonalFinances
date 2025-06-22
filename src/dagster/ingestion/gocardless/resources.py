@@ -27,16 +27,16 @@ def gocardless_api_resource(_context: InitResourceContext) -> Session:
 
 
 @resource
-def mysql_db_engine_resource(_context: InitResourceContext) -> Engine:
-    """SQLAlchemy engine for MySQL."""
-    url = f"mysql+mysqlconnector://root:{os.getenv('MYSQL_ROOT_PASSWORD')}@mysql:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
+def postgresql_db_engine_resource(_context: InitResourceContext) -> Engine:
+    """SQLAlchemy engine for PostgreSQL."""
+    url = f"postgresql+psycopg2://postgres:{os.getenv('POSTGRES_ROOT_PASSWORD')}@postgres:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
     return create_engine(url)
 
 
 @resource
-def mysql_db_session_resource(_context: InitResourceContext) -> Session:
-    """SQLAlchemy session for MySQL."""
-    url = f"mysql+mysqlconnector://root:{os.getenv('MYSQL_ROOT_PASSWORD')}@mysql:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
+def postgresql_db_session_resource(_context: InitResourceContext) -> Session:
+    """SQLAlchemy session for PostgreSQL."""
+    url = f"postgresql+psycopg2://postgres:{os.getenv('POSTGRES_ROOT_PASSWORD')}@postgres:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
     engine = create_engine(url)
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     return session_local()

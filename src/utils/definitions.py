@@ -19,16 +19,16 @@ logger.debug("Environment variables loaded")
 env = os.getenv("ENVIRONMENT")
 logger.info(f"Running in environment: {env}")
 
-MYSQL_HOST = "localhost" if env == "local" else os.getenv("MYSQL_HOST")
-logger.debug(f"MySQL host configured as: {MYSQL_HOST}")
+POSTGRES_HOST = "localhost" if env == "local" else os.getenv("POSTGRES_HOST")
+logger.debug(f"PostgreSQL host configured as: {POSTGRES_HOST}")
 
 DAGSTER_DATABASE_URL = (
-    f"mysql+mysqlconnector://{os.getenv('MYSQL_DAGSTER_USER')}:{os.getenv('MYSQL_DAGSTER_PASSWORD')}@"
-    f"{MYSQL_HOST}:3306/{os.getenv('MYSQL_DAGSTER_DATABASE')}"
+    f"postgresql+psycopg2://{os.getenv('POSTGRES_DAGSTER_USER')}:{os.getenv('POSTGRES_DAGSTER_PASSWORD')}@"
+    f"{POSTGRES_HOST}:5432/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
 )
 GOCARDLESS_DATABASE_URL = (
-    f"mysql+mysqlconnector://{os.getenv('MYSQL_GOCARDLESS_USER')}:{os.getenv('MYSQL_GOCARDLESS_PASSWORD')}@"
-    f"{MYSQL_HOST}:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
+    f"postgresql+psycopg2://{os.getenv('POSTGRES_GOCARDLESS_USER')}:{os.getenv('POSTGRES_GOCARDLESS_PASSWORD')}@"
+    f"{POSTGRES_HOST}:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
 )
 
 logger.debug("Database URLs configured successfully")

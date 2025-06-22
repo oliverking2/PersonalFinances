@@ -24,7 +24,7 @@ from src.gocardless.api.requisition import (
     fetch_requisition_data_by_id,
     delete_requisition_data_by_id,
 )
-from src.mysql.gocardless import RequisitionLink, BankAccount
+from src.postgresql.gocardless.models import RequisitionLink, BankAccount
 from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
 from src.gocardless.account_setup import get_institutions, create_link
 
