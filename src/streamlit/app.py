@@ -1,4 +1,9 @@
-"""Streamlit App."""
+"""Main Streamlit application entry point.
+
+This module serves as the main entry point for the Personal Finance Manager
+Streamlit web application. It sets up the basic page configuration and
+provides navigation to other pages.
+"""
 
 import sys
 from pathlib import Path

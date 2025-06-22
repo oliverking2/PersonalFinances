@@ -1,4 +1,4 @@
-"""Setup for the GoCardless database."""
+"""GoCardless database model definitions."""
 
 from sqlalchemy import (
     Column,
@@ -17,11 +17,18 @@ from src.utils.definitions import GOCARDLESS_DATABASE_URL
 
 
 class Base(DeclarativeBase):
-    """Base class for all tables."""
+    """Base class for all database tables.
+
+    Provides the declarative base for SQLAlchemy ORM models.
+    """
 
 
 class RequisitionLink(Base):
-    """Requisition link table."""
+    """Database model for GoCardless requisition links.
+
+    Stores information about bank account connection requests and their status.
+    Each requisition represents a request to connect to a specific bank account.
+    """
 
     __tablename__ = "requisition_links"
 
@@ -46,7 +53,11 @@ class RequisitionLink(Base):
 
 
 class BankAccount(Base):
-    """Bank Account table."""
+    """Database model for bank accounts.
+
+    Stores detailed information about bank accounts retrieved from GoCardless API.
+    Each account is linked to a requisition and can have multiple transactions and balances.
+    """
 
     __tablename__ = "bank_accounts"
 
@@ -90,7 +101,11 @@ class BankAccount(Base):
 
 
 class Transaction(Base):
-    """Transaction table."""
+    """Database model for bank transactions.
+
+    Stores individual transaction records retrieved from bank accounts via GoCardless API.
+    Each transaction belongs to a specific bank account and contains payment details.
+    """
 
     __tablename__ = "transactions"
 
@@ -118,7 +133,11 @@ class Transaction(Base):
 
 
 class Balance(Base):
-    """Balance table."""
+    """Database model for account balances.
+
+    Stores balance information for bank accounts retrieved from GoCardless API.
+    Each balance record represents the account balance at a specific point in time.
+    """
 
     __tablename__ = "balances"
 

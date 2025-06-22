@@ -1,4 +1,8 @@
-"""Module containing functions for managing requisitions with GoCardless."""
+"""Module containing functions for managing bank accounts with GoCardless.
+
+This module provides functions to interact with GoCardless Bank Account Data API
+for account management, including fetching account details and information.
+"""
 
 from typing import Dict, Any
 import logging
@@ -23,10 +27,10 @@ def fetch_account_data_by_id(creds: GoCardlessCredentials, account_id: str) -> D
 
     Retrieves detailed information for the given bank account ID from the GoCardless Bank Account Data API.
 
-    :param account_id: The unique identifier of the bank account.
-        :param creds: GoCardlessCredentials object.
-    :returns: The account details as a dictionary.
-    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
+    :param creds: GoCardlessCredentials object for authentication
+    :param account_id: The unique identifier of the bank account
+    :returns: The account details as a dictionary
+    :raises requests.RequestException: If there's an error communicating with the GoCardless API
     """
     logger.info(f"Fetching account details from GoCardless for account ID: {account_id}")
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}"
