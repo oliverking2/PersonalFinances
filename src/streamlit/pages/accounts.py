@@ -5,14 +5,14 @@ from sqlalchemy.orm import Session
 from streamlit.delta_generator import DeltaGenerator
 
 from src.mysql.gocardless import BankAccount
+from src.streamlit.utils import get_gocardless_session
 
 # Page config
 st.set_page_config(page_title="Accounts", layout="wide")
 st.title("Your Bank Accounts")
 
 # Connect to your database
-conn = st.connection("mysql_local")
-session: Session = conn.session
+session: Session = get_gocardless_session()
 
 # Fetch all accounts
 accounts = session.query(BankAccount).all()

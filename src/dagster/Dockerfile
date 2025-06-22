@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./src/gocardless /app/src/gocardless
 COPY ./src/mysql /app/src/mysql
 COPY ./src/dagster /app/src/dagster
+COPY ./src/utils /app/src/utils
 
 COPY src/dagster/workspace.yaml /app/workspace.yaml
 

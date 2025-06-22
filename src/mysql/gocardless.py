@@ -1,8 +1,5 @@
 """Setup for the GoCardless database."""
 
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import (
     Column,
     String,
@@ -15,6 +12,8 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase
+
+from src.utils.definitions import GOCARDLESS_DATABASE_URL
 
 
 class Base(DeclarativeBase):
@@ -139,11 +138,7 @@ class Balance(Base):
 
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    DATABASE_URL = f"mysql+mysqlconnector://root:{os.getenv('MYSQL_ROOT_PASSWORD')}@localhost:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
-
-    engine = create_engine(DATABASE_URL, echo=True, future=True)
+    engine = create_engine(GOCARDLESS_DATABASE_URL, echo=True, future=True)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=engine)

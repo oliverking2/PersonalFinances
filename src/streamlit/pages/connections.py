@@ -25,7 +25,7 @@ from src.gocardless.api.requisition import (
     delete_requisition_data_by_id,
 )
 from src.mysql.gocardless import RequisitionLink, BankAccount
-from src.utils.streamlit import get_gocardless_creds
+from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
 from src.gocardless.account_setup import get_institutions, create_link
 
 # Configure logging
@@ -44,8 +44,7 @@ logger.info("Connections page initialized")
 
 # ─── Load connections from DB ─────────────────────────────────────────────────
 logger.info("Connecting to MySQL database")
-conn = st.connection("mysql_local")
-session: Session = conn.session
+session: Session = get_gocardless_session()
 
 logger.info("Retrieving GoCardless credentials")
 gocardless_creds = get_gocardless_creds()
