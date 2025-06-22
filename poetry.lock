@@ -419,6 +419,21 @@ starlette = "*"
 test = ["dagster-test"]
 
 [[package]]
+name = "dagster-mysql"
+version = "0.26.21"
+description = "A Dagster integration for MySQL"
+optional = false
+python-versions = "<3.13,>=3.9"
+files = [
+    {file = "dagster_mysql-0.26.21-py3-none-any.whl", hash = "sha256:48754887d4d16fdff19e7e188ed3d7ab2cbadc9391baea464bf91bd9c4b21dd3"},
+    {file = "dagster_mysql-0.26.21.tar.gz", hash = "sha256:d7fc894ca768a3769f981013802a6726020a289cbd6cfb31fc9484b8c507a48e"},
+]
+
+[package.dependencies]
+dagster = "1.10.21"
+mysql-connector-python = "*"
+
+[[package]]
 name = "dagster-pipes"
 version = "1.10.21"
 description = "Toolkit for Dagster integrations with transform logic outside of Dagster"
@@ -3483,4 +3498,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "256453b85676980969bb8f3ce178094b563a210feab65566a632520afe5f6679"
+content-hash = "087eb87e8ee1836fd04bfe815e0883665cd52d42adf1443322bef13e186f59d9"

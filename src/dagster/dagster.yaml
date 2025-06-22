@@ -1,4 +1,4 @@
 storage:
   mysql:
     mysql_url:
-      env: SQLALCHEMY_DATABASE_URI
+      env: DAGSTER_DATABASE_URL

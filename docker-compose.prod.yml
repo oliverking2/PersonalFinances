@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
     volumes:
       - dagster_data:/opt/dagster/dagster_home
     entrypoint:
@@ -47,7 +47,7 @@ services:
     env_file:
       - .env
     environment:
-      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
     volumes:
       - dagster_data:/opt/dagster/dagster_home
     entrypoint:

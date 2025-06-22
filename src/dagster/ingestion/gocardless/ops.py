@@ -13,7 +13,7 @@ def fetch_requisition_ids(context: OpExecutionContext) -> Iterator[DynamicOutput
 
     Returns list of integers.
     """
-    session = context.resources.mysql_db
+    session = context.resources.mysql_db.session
     ids = session.query(RequisitionLink.id).all()
     id_list = [i[0] for i in ids]
     context.log.info(f"Fetched {len(id_list)} requisition IDs to refresh")
