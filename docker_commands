@@ -1,0 +1,2 @@
+docker build -t ghcr.io/oliverking2/pf-streamlit:latest -f src/streamlit/Dockerfile .
+docker push ghcr.io/oliverking2/pf-streamlit:latest

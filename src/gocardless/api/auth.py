@@ -19,13 +19,13 @@ class GoCardlessCredentials:
         """Initialise the credentials class."""
         load_dotenv()
 
-        secret_id = os.getenv("SECRET_ID")
-        secret_key = os.getenv("SECRET_KEY")
+        secret_id = os.getenv("GOCARDLESS_API_SECRET_ID")
+        secret_key = os.getenv("GOCARDLESS_API_SECRET_KEY")
 
         if secret_id is None:
-            raise EnvironmentError("SECRET_ID not set.")
+            raise EnvironmentError("GOCARDLESS_API_SECRET_ID not set.")
         if secret_key is None:
-            raise EnvironmentError("SECRET_KEY not set.")
+            raise EnvironmentError("GOCARDLESS_API_SECRET_KEY not set.")
 
         self.secret_id: str = secret_id
         self.secret_key: str = secret_key

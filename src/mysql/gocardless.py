@@ -28,6 +28,7 @@ class RequisitionLink(Base):
 
     id = Column(String(36), primary_key=True)
     created = Column(DateTime, nullable=False)
+    updated = Column(DateTime, nullable=False)
     redirect = Column(String(255), nullable=False)
     status = Column(String(4), nullable=False)
     institution_id = Column(String(50), nullable=False)

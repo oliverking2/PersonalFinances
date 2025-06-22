@@ -20,19 +20,18 @@ services:
   dagster-webserver:
     build:
       context: ./src/dagster
-      dockerfile: Dockerfile.dagster
+      dockerfile: Dockerfile
     container_name: dagster_webserver
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - DAGSTER_HOME=${DAGSTER_HOME}
       - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    working_dir: /opt/dagster/src/dagster
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
-      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
-      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
-      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
+      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
+      - ./src/dagster:/opt/dagster/src/dagster
     entrypoint:
       - dagster-webserver
       - -h
@@ -45,48 +44,22 @@ services:
       mysql:
         condition: service_healthy
 
-  # ─── Dagster Scheduler ────────────────────────────────────────────────────────
-  dagster-scheduler:
-    build:
-      context: ./src/dagster
-      dockerfile: Dockerfile.dagster
-    container_name: dagster_scheduler
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - DAGSTER_HOME=${DAGSTER_HOME}
-      - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
-    volumes:
-      - ./data/dagster:/opt/dagster/dagster_home
-      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
-      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
-      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
-    entrypoint:
-      - dagster
-      - scheduler
-      - start
-    depends_on:
-      dagster-webserver:
-        condition: service_started
-
   # ─── Dagster Daemon ───────────────────────────────────────────────────────────
   dagster-daemon:
     build:
       context: ./src/dagster
-      dockerfile: Dockerfile.dagster
+      dockerfile: Dockerfile
     container_name: dagster_daemon
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - DAGSTER_HOME=${DAGSTER_HOME}
       - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+    working_dir: /opt/dagster/src/dagster
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
-      - ./src/dagster/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
-      - ./src/dagster/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml:ro
-      - ./src/dagster/standard_code_location:/opt/dagster/app/standard_code_location:ro
+      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml:ro
+      - ./src/dagster:/opt/dagster/src/dagster
     entrypoint:
       - dagster-daemon
       - run
@@ -96,9 +69,7 @@ services:
 
   # ─── Streamlit Finance App ────────────────────────────────────────────────────
   streamlit:
-    build:
-      context: .
-      dockerfile: ./src/streamlit/Dockerfile
+    image: ghcr.io/oliverking2/pf-streamlit:latest
     container_name: finance_app
     restart: unless-stopped
     env_file:
@@ -108,8 +79,3 @@ services:
     depends_on:
       - mysql
       - dagster-webserver
-    volumes:
-      - ./src/mysql:/app/src/mysql
-      - ./src/utils:/app/src/utils
-      - ./src/gocardless:/app/src/gocardless
-      - ./src/streamlit:/app       # optional, for live code reload
