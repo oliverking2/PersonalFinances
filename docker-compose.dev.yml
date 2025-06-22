@@ -24,9 +24,14 @@ services:
     env_file:
       - .env
     environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
       - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
+      - ./src/dagster:/app/src/dagster
+      - ./src/gocardless:/app/src/gocardless
+      - ./src/mysql:/app/src/mysql
+      - ./src/utils:/app/src/utils
     entrypoint:
       - dagster-webserver
       - -h
@@ -48,9 +53,14 @@ services:
     env_file:
       - .env
     environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
       - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
+      - ./src/dagster:/app/src/dagster
+      - ./src/gocardless:/app/src/gocardless
+      - ./src/mysql:/app/src/mysql
+      - ./src/utils:/app/src/utils
     entrypoint:
       - dagster-daemon
       - run
@@ -66,7 +76,8 @@ services:
       context: .
       dockerfile: src/streamlit/Dockerfile
     container_name: finance_app
-    restart: unless-stopped
+    volumes:
+      - ./src:/app/src
     env_file:
       - .env
     ports:
