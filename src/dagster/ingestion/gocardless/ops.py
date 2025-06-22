@@ -49,7 +49,7 @@ def refresh_and_update_record(context: OpExecutionContext, rc_id: str) -> None:
         data = fetch_requisition_data_by_id(creds, rc_id)
     except Exception as e:
         context.log.error(f"Failed to fetch data for requisition {rc_id}: {e}")
-        return
+        raise
 
     if not data:
         context.log.error(f"No data returned for requisition {rc_id}")
