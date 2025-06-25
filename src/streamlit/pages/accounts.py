@@ -61,6 +61,10 @@ for row in rows:
 if st.session_state.get("selected_account"):
     sel_id = st.session_state.selected_account
     sel = session.get(BankAccount, sel_id)
+    if sel is None:
+        st.error("Selected account not found in database")
+        st.stop()
+
     st.write("---")
     st.subheader(f"Details for {sel.display_name or sel.name}")
     st.write(f"**Account ID:** {sel.id}")

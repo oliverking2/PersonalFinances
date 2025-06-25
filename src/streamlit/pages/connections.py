@@ -18,6 +18,7 @@ from typing import Dict, Any, List
 import requests
 import streamlit as st
 from sqlalchemy.orm import Session
+from streamlit.runtime.state import QueryParamsProxy
 
 from src.gocardless.api.account import fetch_account_data_by_id
 from src.gocardless.api.requisition import (
@@ -342,22 +343,22 @@ def upsert_bank_accounts(req_id: str, accounts: List[Dict[str, Any]]) -> None:
                 updated_accounts += 1
 
             # Map fields from account details
-            acc.bban = info.get("bban")
-            acc.bic = info.get("bic")
-            acc.cash_account_type = info.get("cash_account_type")
-            acc.currency = info.get("currency") or acc.currency
-            acc.details = info.get("details")
-            acc.display_name = info.get("display_name")
-            acc.iban = info.get("iban")
-            acc.linked_accounts = info.get("linked_accounts")
-            acc.msisdn = info.get("msisdn")
-            acc.name = info.get("name")
-            acc.owner_address_unstructured = info.get("owner_address_unstructured")
-            acc.owner_name = info.get("owner_name")
-            acc.product = info.get("product")
-            acc.status = info.get("status")
-            acc.scan = info.get("scan")
-            acc.usage = info.get("usage")
+            acc.bban = info["bban"]
+            acc.bic = info["bic"]
+            acc.cash_account_type = info["cash_account_type"]
+            acc.currency = info["currency"] or acc.currency
+            acc.details = info["details"]
+            acc.display_name = info["display_name"]
+            acc.iban = info["iban"]
+            acc.linked_accounts = info["linked_accounts"]
+            acc.msisdn = info["msisdn"]
+            acc.name = info["name"]
+            acc.owner_address_unstructured = info["owner_address_unstructured"]
+            acc.owner_name = info["owner_name"]
+            acc.product = info["product"]
+            acc.status = info["status"]
+            acc.scan = info["scan"]
+            acc.usage = info["usage"]
 
         session.commit()
         logger.info(
@@ -381,7 +382,7 @@ def clear_and_rerun() -> None:
     st.rerun()
 
 
-def process_callback(params: Dict[str, Any]) -> None:
+def process_callback(params: QueryParamsProxy) -> None:
     """Process a callback from GoCardless after bank authorization.
 
     Handles the callback from GoCardless after a user has authorized a bank connection.

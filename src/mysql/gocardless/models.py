@@ -1,7 +1,9 @@
 """GoCardless database model definitions."""
 
+from datetime import datetime
+from typing import List, Optional, Dict, Any
+
 from sqlalchemy import (
-    Column,
     String,
     DateTime,
     Numeric,
@@ -11,7 +13,7 @@ from sqlalchemy import (
     Boolean,
     create_engine,
 )
-from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase
+from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, mapped_column, Mapped
 
 from src.utils.definitions import GOCARDLESS_DATABASE_URL
 
@@ -32,23 +34,22 @@ class RequisitionLink(Base):
 
     __tablename__ = "requisition_links"
 
-    id = Column(String(36), primary_key=True)
-    created = Column(DateTime, nullable=False)
-    updated = Column(DateTime, nullable=False)
-    redirect = Column(String(255), nullable=False)
-    status = Column(String(4), nullable=False)
-    institution_id = Column(String(50), nullable=False)
-    agreement = Column(String(36), nullable=False)
-    reference = Column(String(36), nullable=False)
-    link = Column(String(512), nullable=False)
-    ssn = Column(String(64), nullable=True)
-    account_selection = Column(Boolean, nullable=False)
-    redirect_immediate = Column(Boolean, nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    created: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    redirect: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(4), nullable=False)
+    institution_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    agreement: Mapped[str] = mapped_column(String(36), nullable=False)
+    reference: Mapped[str] = mapped_column(String(36), nullable=False)
+    link: Mapped[str] = mapped_column(String(512), nullable=False)
+    ssn: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    account_selection: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    redirect_immediate: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # one-to-many → BankAccount.requisition_id
-    accounts = relationship(
-        "BankAccount",
-        back_populates="requisition",
+    accounts: Mapped[List["BankAccount"]] = relationship(
+        "BankAccount", back_populates="requisition"
     )
 
 
@@ -60,43 +61,34 @@ class BankAccount(Base):
     """
 
     __tablename__ = "bank_accounts"
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    bban: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    bic: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    cash_account_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    display_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    iban: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    linked_accounts: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    msisdn: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    owner_address_unstructured: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    owner_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    product: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    scan: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
+    usage: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
 
-    id = Column(String(128), primary_key=True)
-    bban = Column(String(128), nullable=True)
-    bic = Column(String(128), nullable=True)
-    cash_account_type = Column(String(50), nullable=True)
-    currency = Column(String(3), nullable=True)
-    details = Column(String(512), nullable=True)
-    display_name = Column(String(128), nullable=True)
-    iban = Column(String(100), nullable=True)
-    linked_accounts = Column(String(128), nullable=True)
-    msisdn = Column(String(64), nullable=True)
-    name = Column(String(128), nullable=True)
-    owner_address_unstructured = Column(String(256), nullable=True)
-    owner_name = Column(String(256), nullable=True)
-    product = Column(String(64), nullable=True)
-    status = Column(String(7), nullable=True)
-    scan = Column(String(14), nullable=True)
-    usage = Column(String(4), nullable=True)
-
-    requisition_id = Column(
-        String(36),
-        ForeignKey("requisition_links.id"),
-        nullable=True,
+    requisition_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("requisition_links.id"), nullable=True
     )
 
-    # relationships
-    transactions = relationship(
-        "Transaction",
-        back_populates="account",
+    transactions: Mapped[List["Transaction"]] = relationship(
+        "Transaction", back_populates="account"
     )
-    balances = relationship(
-        "Balance",
-        back_populates="account",
-    )
-    requisition = relationship(
-        "RequisitionLink",
-        back_populates="accounts",
+    balances: Mapped[List["Balance"]] = relationship("Balance", back_populates="account")
+    requisition: Mapped[Optional[RequisitionLink]] = relationship(
+        "RequisitionLink", back_populates="accounts"
     )
 
 
@@ -109,27 +101,27 @@ class Transaction(Base):
 
     __tablename__ = "transactions"
 
-    id = Column(String(32), primary_key=True)
-    account_id = Column(
-        String(128),
-        ForeignKey("bank_accounts.id"),
-        nullable=False,
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    account_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("bank_accounts.id"), nullable=False
     )
-    booking_date = Column(DateTime, nullable=True)
-    booking_date_time = Column(DateTime, nullable=True)
-    value_date = Column(DateTime, nullable=True)
-    value_date_time = Column(DateTime, nullable=True)
-    transaction_amount = Column(Numeric(12, 2), nullable=False)
-    transaction_currency = Column(String(3), nullable=False)
-    creditor_name = Column(String(176), nullable=True)
-    debtor_name = Column(String(176), nullable=True)
-    end_to_end_id = Column(String(35), nullable=True)
-    entry_reference = Column(String(128), nullable=True)
-    additional_information = Column(String(512), nullable=True)
-    additional_data_structured = Column(JSON, nullable=True)
-    balance_after = Column(JSON, nullable=True)
+    booking_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    booking_date_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    value_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    value_date_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    transaction_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    transaction_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    creditor_name: Mapped[Optional[str]] = mapped_column(String(176), nullable=True)
+    debtor_name: Mapped[Optional[str]] = mapped_column(String(176), nullable=True)
+    end_to_end_id: Mapped[Optional[str]] = mapped_column(String(35), nullable=True)
+    entry_reference: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    additional_information: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    additional_data_structured: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    balance_after: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    account = relationship("BankAccount", back_populates="transactions")
+    account: Mapped[BankAccount] = relationship("BankAccount", back_populates="transactions")
 
 
 class Balance(Base):
@@ -141,19 +133,17 @@ class Balance(Base):
 
     __tablename__ = "balances"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    account_id = Column(
-        String(128),
-        ForeignKey("bank_accounts.id"),
-        nullable=False,
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("bank_accounts.id"), nullable=False
     )
-    balance_amount = Column(Numeric(12, 2), nullable=False)
-    balance_currency = Column(String(3), nullable=False)
-    balance_type = Column(String(50), nullable=False)
-    credit_limit_included = Column(Boolean, nullable=True)
-    last_change_date = Column(DateTime, nullable=True)
+    balance_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    balance_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    credit_limit_included: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    last_change_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    account = relationship("BankAccount", back_populates="balances")
+    account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ load_dotenv()
 
 
 @resource
-def gocardless_api_resource(_context: InitResourceContext) -> Session:
+def gocardless_api_resource(_context: InitResourceContext) -> requests.Session:
     """Create a GoCardlessCredentials Session with the access token."""
     creds = GoCardlessCredentials()
     session = requests.Session()

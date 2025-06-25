@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Poetry
         run: |
@@ -32,9 +32,9 @@ jobs:
       - name: Run ${{ matrix.tool }}
         run: |
           case "${{ matrix.tool }}" in
-            ruff)   poetry run ruff .          ;;
+            ruff)   poetry run ruff check . ;;
             black)  poetry run black --check . ;;
-            mypy)   poetry run mypy .          ;;
+            mypy)   poetry run mypy . --install-types --non-interactive ;;
           esac
 
   tests:
