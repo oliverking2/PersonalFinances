@@ -27,7 +27,7 @@ jobs:
           pip install poetry
 
       - name: Install dependencies
-        run: poetry install --no-interaction --no-ansi
+        run: poetry install --no-interaction --no-ansi --with checks
 
       - name: Run ${{ matrix.tool }}
         run: |
