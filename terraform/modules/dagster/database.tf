@@ -20,7 +20,7 @@ resource "aws_rds_cluster" "aurora" {
   database_name        = "dagster"
 
   serverlessv2_scaling_configuration {
-    min_capacity             = 0.5           # when active, scales down to 0.5 ACUs
+    min_capacity             = 0           # when active, scales down to 0 ACUs
     max_capacity             = 1
     seconds_until_auto_pause = 300
   }
