@@ -22,12 +22,14 @@ output "vpc_id" {
   value = aws_vpc.dagster.id
 }
 
-output "public_subnet_id" {
-  value = aws_subnet.public.id
+output "public_subnet_ids" {
+  description = "List of public subnet IDs"
+  value       = [for s in aws_subnet.public : s.id]
 }
 
-output "private_subnet_id" {
-  value = aws_subnet.private.id
+output "private_subnet_ids" {
+  description = "List of private subnet IDs"
+  value       = [for s in aws_subnet.private : s.id]
 }
 
 output "aurora_endpoint" {

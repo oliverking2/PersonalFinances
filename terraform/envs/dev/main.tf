@@ -1,7 +1,3 @@
-provider "aws" {
-  region = "eu-west-2"
-}
-
 module "postgres" {
   source         = "../../modules/postgres"
   db_name       = "dagster_app"
@@ -12,10 +8,10 @@ module "postgres" {
 
 module "dagster" {
   source       = "../../modules/dagster"
-  dagster_home = ""
-  dagster_image = ""
-  db_username = ""
-  region = ""
+  dagster_home = "/opt/dagster/dagster_home"
+  dagster_image = "ghcr.io/oliverking2/pf-dagster:latest"
+  db_username = "master_user"
+  region = "eu-west-2"
   dagster_db_username = module.postgres.dagster_db_username
   dagster_db_password = module.postgres.dagster_db_password
 }

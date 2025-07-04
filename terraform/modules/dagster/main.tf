@@ -82,7 +82,7 @@ resource "aws_ecs_service" "dagster_daemon" {
   task_definition = aws_ecs_task_definition.dagster_daemon.arn
 
   network_configuration {
-    subnets          = [aws_subnet.private.id, aws_subnet.public.id]
+    subnets          = local.private_subnet_ids
     security_groups  = [aws_security_group.dagster.id]
     assign_public_ip = false
   }
@@ -143,7 +143,7 @@ resource "aws_ecs_service" "dagster-webserver" {
   task_definition = aws_ecs_task_definition.dagster_webserver.arn
 
   network_configuration {
-    subnets          = [aws_subnet.public.id]
+    subnets          = local.private_subnet_ids
     security_groups  = [aws_security_group.dagster.id]
     assign_public_ip = false
   }
