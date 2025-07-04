@@ -32,6 +32,11 @@ resource "aws_security_group" "dagster" {
   }
 }
 
+# New ECS cluster for Dagster
+resource "aws_ecs_cluster" "dagster_cluster" {
+  name = "dagster_cluster"
+}
+
 resource "aws_ecs_task_definition" "dagster_daemon" {
   family                   = "dagster-daemon"
   network_mode             = "awsvpc"
@@ -71,13 +76,13 @@ resource "aws_ecs_task_definition" "dagster_daemon" {
 
 resource "aws_ecs_service" "dagster_daemon" {
   name            = "dagster-daemon"
-  cluster         = var.ecs_cluster_id
+  cluster         = aws_ecs_cluster.dagster_cluster.id
   desired_count   = 1
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.dagster_daemon.arn
 
   network_configuration {
-    subnets          = [aws_subnet.private, aws_subnet.public]
+    subnets          = [aws_subnet.private.id, aws_subnet.public.id]
     security_groups  = [aws_security_group.dagster.id]
     assign_public_ip = false
   }
@@ -130,16 +135,15 @@ resource "aws_ecs_task_definition" "dagster_webserver" {
   ])
 }
 
-
 resource "aws_ecs_service" "dagster-webserver" {
   name            = "dagster-webserver"
-  cluster         = var.ecs_cluster_id
+  cluster         = aws_ecs_cluster.dagster_cluster.id
   desired_count   = 1
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.dagster_webserver.arn
 
   network_configuration {
-    subnets          = aws_subnet.public
+    subnets          = [aws_subnet.public.id]
     security_groups  = [aws_security_group.dagster.id]
     assign_public_ip = false
   }

@@ -10,7 +10,7 @@ resource "aws_lb" "dagster_webserver" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.dagster.id]
-  subnets            = aws_subnet.public.id
+  subnets            = [aws_subnet.public.id]
 }
 
 resource "aws_lb_target_group" "dagster_webserver" {
