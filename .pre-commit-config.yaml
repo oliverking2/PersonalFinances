@@ -6,7 +6,7 @@ repos:
         language_version: python3.11
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.0
+    rev: v0.12.2
     hooks:
     # Run the linter.
     - id: ruff-check
@@ -23,3 +23,12 @@ repos:
     rev: 2.1.3
     hooks:
     -   id: poetry-check
+
+-   repo: https://github.com/bridgecrewio/checkov
+    rev: 3.2.447
+    hooks:
+      - id: checkov
+        name: checkov (terraform)
+        entry: checkov --framework terraform --quiet
+        language: python
+        files: '\.tf$'
