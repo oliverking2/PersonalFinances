@@ -12,8 +12,7 @@ stores connection data in a MySQL database.
 
 import time
 import logging
-from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 import requests
 import streamlit as st
@@ -24,7 +23,13 @@ from src.gocardless.api.requisition import (
     fetch_requisition_data_by_id,
     delete_requisition_data_by_id,
 )
-from src.postgresql.gocardless.models import RequisitionLink, BankAccount
+from src.postgresql.gocardless.models import RequisitionLink
+from src.postgresql.gocardless.operations.bank_accounts import upsert_bank_accounts
+from src.postgresql.gocardless.operations.requisitions import (
+    add_requisition_link,
+    fetch_requisition_links,
+    upsert_requisition_status,
+)
 from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
 from src.gocardless.account_setup import get_institutions, create_link
 
@@ -93,43 +98,6 @@ def get_institution_mapping() -> Dict[str, str]:
     return {inst["name"]: inst["id"] for inst in institutions}
 
 
-def add_requisition_link(data: Dict[str, Any]) -> None:
-    """Add a new requisition link to the database.
-
-    Creates a new RequisitionLink object from the provided data and adds it to the database.
-    The data typically comes from a successful response from the GoCardless API when
-    creating a new bank connection.
-
-    :param data: Dictionary containing requisition link data from GoCardless API
-    :type data: Dict[str, Any]
-    :raises: Exception if there's an error adding the requisition link to the database
-    :returns: None
-    """
-    logger.info(f"Adding new requisition link for institution: {data['institution_id']}")
-    req = RequisitionLink(
-        id=data["id"],
-        created=datetime.fromisoformat(data["created"].replace("Z", "+00:00")),
-        updated=datetime.fromisoformat(data["created"].replace("Z", "+00:00")),
-        redirect=data["redirect"],
-        status=data["status"],
-        institution_id=data["institution_id"],
-        agreement=data["agreement"],
-        reference=data["reference"],
-        link=data["link"],
-        ssn=data["ssn"],
-        account_selection=data["account_selection"],
-        redirect_immediate=data["redirect_immediate"],
-    )
-
-    try:
-        session.add(req)
-        session.commit()
-        logger.info(f"Successfully added requisition link with ID: {data['id']}")
-    except Exception as e:
-        logger.error(f"Failed to add requisition link: {e!s}")
-        raise
-
-
 @st.dialog("New Connection", width="large")
 def new_connection_modal() -> None:
     """Create a popup dialog for adding a new bank connection.
@@ -156,7 +124,7 @@ def new_connection_modal() -> None:
         try:
             logger.info(f"Creating link for institution ID: {inst_mapping[institution]}")
             link_data = create_link(gocardless_creds, callback, inst_mapping[institution])
-            add_requisition_link(link_data)
+            add_requisition_link(session, link_data)
 
             with st.spinner("Creating Connection..."):
                 time.sleep(1)
@@ -171,26 +139,6 @@ def new_connection_modal() -> None:
             logger.error(f"Failed to create connection for {institution}: {e!s}")
             st.error(f"Failed to create connection: {e!s}")
             raise
-
-
-def fetch_links() -> List[RequisitionLink]:
-    """Fetch all requisition links from the database, ordered by creation date.
-
-    Retrieves all RequisitionLink records from the database and orders them
-    by creation date in descending order (newest first).
-
-    :returns: A list of RequisitionLink objects ordered by creation date (newest first)
-    :rtype: List[RequisitionLink]
-    :raises: Exception if there's an error querying the database
-    """
-    logger.info("Fetching requisition links from database")
-    try:
-        links = session.query(RequisitionLink).order_by(RequisitionLink.created.desc()).all()
-        logger.info(f"Retrieved {len(links)} requisition links")
-        return links
-    except Exception as e:
-        logger.error(f"Error fetching requisition links: {e!s}")
-        raise
 
 
 def render_row_button(link: RequisitionLink) -> None:
@@ -283,91 +231,6 @@ def show_details(link: RequisitionLink) -> None:
                 raise
 
 
-def upsert_requisition(req_id: str, new_status: str) -> RequisitionLink:
-    """Update or create the RequisitionLink record in the database.
-
-    Upserts the RequisitionLink entry for the given requisition ID with the latest status.
-
-    :param req_id: The requisition ID to upsert.
-    :param new_status: The updated status value from GoCardless.
-    :returns: The upserted RequisitionLink object.
-    :raises: Exception if there's an error updating the database
-    """
-    logger.info(f"Upserting requisition link with ID: {req_id}, new status: {new_status}")
-    try:
-        req = session.get(RequisitionLink, req_id)
-        if not req:
-            logger.info(f"Creating new requisition link for ID: {req_id}")
-            req = RequisitionLink(id=req_id, status=new_status)
-            session.add(req)
-        else:
-            logger.info(
-                f"Updating existing requisition link status from {req.status} to {new_status}"
-            )
-            req.status = new_status
-        session.commit()
-        logger.debug(f"Successfully upserted requisition link with ID: {req_id}")
-        return req
-    except Exception as e:
-        logger.error(f"Failed to upsert requisition link with ID {req_id}: {e!s}")
-        raise
-
-
-def upsert_bank_accounts(req_id: str, accounts: List[Dict[str, Any]]) -> None:
-    """Upsert each BankAccount record related to a requisition.
-
-    Iterates over account detail dictionaries, creating or updating BankAccount entries
-    linked to the specified requisition.
-
-    :param req_id: The requisition ID to associate with each account.
-    :param accounts: List of account detail dictionaries from GoCardless.
-    :returns: None
-    :raises: Exception if there's an error updating the database
-    """
-    logger.info(f"Upserting {len(accounts)} bank accounts for requisition ID: {req_id}")
-    try:
-        new_accounts = 0
-        updated_accounts = 0
-
-        for info in accounts:
-            acc_id = info.get("id")
-            acc = session.get(BankAccount, acc_id)
-            if not acc:
-                logger.debug(f"Creating new bank account record for ID: {acc_id}")
-                acc = BankAccount(id=acc_id, requisition_id=req_id)
-                session.add(acc)
-                new_accounts += 1
-            else:
-                logger.debug(f"Updating existing bank account record for ID: {acc_id}")
-                updated_accounts += 1
-
-            # Map fields from account details
-            acc.bban = info.get("bban")
-            acc.bic = info.get("bic")
-            acc.cash_account_type = info.get("cash_account_type")
-            acc.currency = info.get("currency") or acc.currency
-            acc.details = info.get("details")
-            acc.display_name = info.get("display_name")
-            acc.iban = info.get("iban")
-            acc.linked_accounts = info.get("linked_accounts")
-            acc.msisdn = info.get("msisdn")
-            acc.name = info.get("name")
-            acc.owner_address_unstructured = info.get("owner_address_unstructured")
-            acc.owner_name = info.get("owner_name")
-            acc.product = info.get("product")
-            acc.status = info.get("status")
-            acc.scan = info.get("scan")
-            acc.usage = info.get("usage")
-
-        session.commit()
-        logger.info(
-            f"Successfully upserted bank accounts: {new_accounts} new, {updated_accounts} updated"
-        )
-    except Exception as e:
-        logger.error(f"Failed to upsert bank accounts for requisition ID {req_id}: {e!s}")
-        raise
-
-
 def clear_and_rerun() -> None:
     """Clear URL parameters and trigger a rerun of the Streamlit app.
 
@@ -409,7 +272,7 @@ def process_callback(params: Dict[str, Any]) -> None:
         logger.info(f"Requisition status: {new_status}")
 
         # 2) Upsert requisition status
-        upsert_requisition(req_id, new_status)
+        upsert_requisition_status(session, req_id, new_status)
 
         # 3) Fetch and upsert each account's details
         account_ids = requisition.get("accounts", [])
@@ -418,7 +281,7 @@ def process_callback(params: Dict[str, Any]) -> None:
         for acct_id in account_ids:
             info = fetch_account_data_by_id(gocardless_creds, acct_id)
             detailed_accounts.append(info)
-        upsert_bank_accounts(req_id, detailed_accounts)
+        upsert_bank_accounts(session, req_id, detailed_accounts)
 
         # 4) UI feedback
         logger.info("Displaying success message to user")
@@ -435,6 +298,7 @@ def process_callback(params: Dict[str, Any]) -> None:
         logger.error(f"API error during callback processing: {e!s}")
         st.error(f"API error: {e}")
         raise
+
     except Exception as e:
         logger.error(f"Unexpected error during callback processing: {e!s}")
         st.error(f"Unexpected error: {e}")
@@ -453,7 +317,7 @@ def render_table() -> None:
     :returns: None
     """
     logger.info("Rendering requisition links table")
-    links = fetch_links()
+    links = fetch_requisition_links(session)
     if not links:
         logger.info("No requisition links found in database")
         st.error("No connections, press 'Add Connection' to add a new connection.")

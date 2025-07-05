@@ -7,10 +7,20 @@ database URLs for different services.
 
 import os
 
-import dagster
 from dotenv import load_dotenv
 
-logger = dagster.get_dagster_logger()
+try:
+    # try import and use dagster logger
+    import dagster
+
+    logger = dagster.get_dagster_logger()
+
+except ModuleNotFoundError:
+    # fallback on standard logger
+    import logging
+
+    logger = logging.getLogger(__name__)
+
 
 # Load environment variables
 load_dotenv()
