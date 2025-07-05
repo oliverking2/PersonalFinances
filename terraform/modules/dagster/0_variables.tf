@@ -51,3 +51,14 @@ variable "dagster_db_password" {
   description = "Password for connecting to Dagster"
   type        = string
 }
+
+variable "github_user" {
+  description = "GitHub username for GHCR auth"
+  type        = string
+}
+
+variable "github_pat" {
+  type        = string
+  description = "GitHub Personal Access Token with read:packages scope"
+  sensitive   = true
+}

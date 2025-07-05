@@ -25,6 +25,9 @@ resource "aws_ecs_task_definition" "dagster_daemon" {
           "awslogs-stream-prefix" = "dagster-daemon"
         }
       }
+      repositoryCredentials = {
+        credentialsParameter = aws_secretsmanager_secret.ghcr_pat.arn
+      }
       command = ["dagster-daemon", "run", "-w", "${var.dagster_home}/workspace.yaml"]
       environment = concat(
         [
@@ -77,6 +80,9 @@ resource "aws_ecs_task_definition" "dagster_webserver" {
           "awslogs-region"        = var.region
           "awslogs-stream-prefix" = "dagster-webserver"
         }
+      }
+      repositoryCredentials = {
+        credentialsParameter = aws_secretsmanager_secret.ghcr_pat.arn
       }
       portMappings = [
         {

@@ -131,3 +131,21 @@ resource "aws_iam_role_policy_attachment" "dagster-ecs-execution-role-policy-att
   role       = aws_iam_role.execution[0].name
   policy_arn = aws_iam_policy.execution[0].arn
 }
+
+data "aws_iam_policy_document" "ecs_exec_ghcr_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [
+      aws_secretsmanager_secret.ghcr_pat.arn
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_exec_read_ghcr_pat" {
+  name   = "ecs-exec-read-ghcr-pat"
+  role   = aws_iam_role.execution[0].name
+  policy = data.aws_iam_policy_document.ecs_exec_ghcr_access.json
+}

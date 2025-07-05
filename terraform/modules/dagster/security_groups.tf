@@ -29,7 +29,7 @@ resource "aws_security_group" "dagster_alb" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["83.167.185.120/30"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {

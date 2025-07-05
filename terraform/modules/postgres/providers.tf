@@ -5,4 +5,7 @@ provider "postgresql" {
   username        = var.postgres_master_username              # your master user
   password        = var.postgres_master_password
   sslmode         = "require"
+
+  # Aurora Serverless users are NOT superusers
+  superuser       = false
 }

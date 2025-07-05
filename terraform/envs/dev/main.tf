@@ -14,4 +14,6 @@ module "dagster" {
   aurora_db_username = "master_user"
   dagster_db_username = module.postgres.dagster_db_username
   dagster_db_password = module.postgres.dagster_db_password
+  github_user = var.github_user
+  github_pat = var.github_pat
 }
