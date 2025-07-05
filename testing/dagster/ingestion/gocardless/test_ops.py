@@ -5,7 +5,10 @@ from unittest.mock import Mock, patch
 
 from dagster import DynamicOutput, build_op_context
 
-from src.dagster.ingestion.gocardless.ops import fetch_requisition_ids, refresh_and_update_record
+from src.dagster.ingestion.gocardless.requisitions.ops import (
+    fetch_requisition_ids,
+    refresh_and_update_record,
+)
 
 
 class TestGoCardlessDagsterOps(unittest.TestCase):

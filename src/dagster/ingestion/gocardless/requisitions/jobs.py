@@ -2,7 +2,10 @@
 
 from dagster import job
 
-from src.dagster.ingestion.gocardless.ops import fetch_requisition_ids, refresh_and_update_record
+from src.dagster.ingestion.gocardless.requisitions.ops import (
+    fetch_requisition_ids,
+    refresh_and_update_record,
+)
 from src.dagster.ingestion.gocardless.resources import postgres_db_session_resource
 
 
