@@ -1,5 +1,7 @@
 .idea
 .env
 data
-terraform/envs/dev/.terraform
-terraform/envs/dev/terraform.tfvars
+terraform_example/envs/dev/.terraform
+terraform_example/envs/dev/terraform.tfvars
+terraform/envs/local/.terraform
+terraform/envs/local/terraform.tfvars

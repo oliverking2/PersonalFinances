@@ -1,4 +1,4 @@
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "terraform_example init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/cyrilgdn/postgresql" {
