@@ -25,6 +25,7 @@ output "dagster_webserver_lb_dns_name" {
 output "postgres_master_username" {
   value = module.dagster.postgres_master_username
 }
+
 output "postgres_master_password" {
   value = module.dagster.postgres_master_password
   sensitive = true
