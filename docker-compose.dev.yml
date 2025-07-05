@@ -25,7 +25,7 @@ services:
       - .env
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
-      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRES_DAGSTER_USER}:${POSTGRES_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRES_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
       - ./src/dagster:/app/src/dagster
@@ -54,7 +54,7 @@ services:
       - .env
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
-      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRES_DAGSTER_USER}:${POSTGRES_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRES_DAGSTER_DATABASE}
     volumes:
       - ./data/dagster:/opt/dagster/dagster_home
       - ./src/dagster:/app/src/dagster

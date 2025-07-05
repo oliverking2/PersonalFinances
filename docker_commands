@@ -3,3 +3,6 @@ docker push ghcr.io/oliverking2/pf-streamlit:latest
 
 docker build -t ghcr.io/oliverking2/pf-dagster:latest -f src/dagster/Dockerfile .
 docker push ghcr.io/oliverking2/pf-dagster:latest
+
+docker-compose -f docker-compose.dev.yml build --no-cache streamlit
+docker-compose -f docker-compose.dev.yml up -d streamlit
