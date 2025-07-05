@@ -25,9 +25,15 @@ resource "postgresql_database" "dagster_db" {
 }
 
 resource "random_password" "gocardless" {
-  length           = 16
+  length           = 20
+  lower   = true
+  upper   = true
+  special = false
 }
 
 resource "random_password" "dagster" {
-  length           = 16
+  length           = 20
+  lower   = true
+  upper   = true
+  special = false
 }
