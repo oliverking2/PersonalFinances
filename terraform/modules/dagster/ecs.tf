@@ -1,37 +1,3 @@
-locals {
-  task_role_arn      = aws_iam_role.task[0].arn
-  execution_role_arn = aws_iam_role.execution[0].arn
-}
-
-resource "aws_security_group" "dagster" {
-  name_prefix = "dagster-sg-"
-  vpc_id      = aws_vpc.dagster.id
-
-  # Allow traffic for webserver (HTTP)
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow traffic for gRPC services (from other containers)
-  ingress {
-    from_port   = 4000
-    to_port     = 4000
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.dagster.cidr_block]
-  }
-
-  # Egress allows all outbound traffic (common default)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
 # New ECS cluster for Dagster
 resource "aws_ecs_cluster" "dagster_cluster" {
   name = "dagster_cluster"
@@ -64,7 +30,7 @@ resource "aws_ecs_task_definition" "dagster_daemon" {
         [
           { name = "DAGSTER_HOME", value = var.dagster_home },
           { name = "DAGSTER_POSTGRES_HOST", value = aws_rds_cluster.aurora.endpoint },
-          { name = "POSTGRES_DAGSTER_USER", value = var.dagster_db_username },
+          { name = "DAGSTER_POSTGRES_USER", value = var.dagster_db_username },
           { name = "DAGSTER_POSTGRES_PASSWORD", value = var.dagster_db_password }
         ],
         var.environment
@@ -83,7 +49,7 @@ resource "aws_ecs_service" "dagster_daemon" {
 
   network_configuration {
     subnets          = local.private_subnet_ids
-    security_groups  = [aws_security_group.dagster.id]
+    security_groups  = [aws_security_group.dagster_ecs.id]
     assign_public_ip = false
   }
 
@@ -125,7 +91,7 @@ resource "aws_ecs_task_definition" "dagster_webserver" {
         [
           { name = "DAGSTER_HOME", value = var.dagster_home },
           { name = "DAGSTER_POSTGRES_HOST", value = aws_rds_cluster.aurora.endpoint },
-          { name = "POSTGRES_DAGSTER_USER", value = var.dagster_db_username },
+          { name = "DAGSTER_POSTGRES_USER", value = var.dagster_db_username },
           { name = "DAGSTER_POSTGRES_PASSWORD", value = var.dagster_db_password }
         ],
         var.environment
@@ -144,7 +110,7 @@ resource "aws_ecs_service" "dagster-webserver" {
 
   network_configuration {
     subnets          = local.private_subnet_ids
-    security_groups  = [aws_security_group.dagster.id]
+    security_groups  = [aws_security_group.dagster_ecs.id]
     assign_public_ip = false
   }
 

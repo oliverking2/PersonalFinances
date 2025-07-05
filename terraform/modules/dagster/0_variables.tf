@@ -31,7 +31,7 @@ variable "secrets" {
   default = []
 }
 
-variable "db_username" {
+variable "aurora_db_username" {
   description = "Master username for Aurora"
   type        = string
 }

@@ -8,10 +8,10 @@ module "postgres" {
 
 module "dagster" {
   source       = "../../modules/dagster"
+  region = "eu-west-2"
   dagster_home = "/opt/dagster/dagster_home"
   dagster_image = "ghcr.io/oliverking2/pf-dagster:latest"
-  db_username = "master_user"
-  region = "eu-west-2"
+  aurora_db_username = "master_user"
   dagster_db_username = module.postgres.dagster_db_username
   dagster_db_password = module.postgres.dagster_db_password
 }

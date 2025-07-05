@@ -1,5 +1,4 @@
 locals {
-  dagster_webserver_lb_dns_name = aws_lb.dagster_webserver[0].dns_name
   lb_target_group_arn = aws_lb_target_group.dagster_webserver[0].arn
 }
 
@@ -9,7 +8,7 @@ resource "aws_lb" "dagster_webserver" {
   name_prefix        = "dgweb-"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.dagster.id]
+  security_groups = [aws_security_group.dagster_alb.id]
   subnets            = local.public_subnet_ids
 }
 

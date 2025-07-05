@@ -1,3 +1,8 @@
+locals {
+  task_role_arn      = aws_iam_role.task[0].arn
+  execution_role_arn = aws_iam_role.execution[0].arn
+}
+
 resource "aws_iam_role" "task" {
   count       = 1
   name_prefix = "dagster-ecs-task-"

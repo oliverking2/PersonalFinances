@@ -13,10 +13,10 @@ resource "aws_rds_cluster" "aurora" {
   cluster_identifier   = "dagster-aurora-${var.environment_name}"
   engine               = "aurora-postgresql"
   engine_mode          = "provisioned"        # v2
-  master_username      = var.db_username
+  master_username      = var.aurora_db_username
   master_password      = random_password.postgres_master.result
   db_subnet_group_name = aws_db_subnet_group.aurora.name
-  vpc_security_group_ids = [aws_security_group.db.id]
+  vpc_security_group_ids = [aws_security_group.aurora_db.id]
   database_name        = "dagster"
 
   serverlessv2_scaling_configuration {
