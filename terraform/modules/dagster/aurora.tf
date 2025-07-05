@@ -5,7 +5,7 @@ resource "random_password" "postgres_master" {
 
 resource "aws_db_subnet_group" "aurora" {
   name       = "dagster-db-subnet-group-${var.environment_name}"
-  subnet_ids = local.private_subnet_ids
+  subnet_ids = local.public_subnet_ids
   tags = { Name = "dagster-db-subnets-${var.environment_name}" }
 }
 

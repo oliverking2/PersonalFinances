@@ -1,13 +1,22 @@
 resource "aws_security_group" "aurora_db" {
   name        = "dagster-db-sg-${var.environment_name}"
-  description = "Allow ECS tasks to talk to DB"
+  description = "Security rules for Aurora DB"
   vpc_id      = aws_vpc.dagster.id
 
   ingress {
+    description = "Allow ECS tasks to talk to DB"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.dagster_ecs.id]
+  }
+
+  ingress {
+    description = "Access from Home + a bit of a range either side"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"]
   }
 }
 
@@ -16,11 +25,11 @@ resource "aws_security_group" "dagster_alb" {
   vpc_id      = aws_vpc.dagster.id
 
   ingress {
-    description = "Allow HTTP from my IP"
+    description = "Allow HTTP from my IP + a bit of a range either side"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["83.167.185.120/30"]
   }
 
   egress {
