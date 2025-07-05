@@ -1,15 +1,15 @@
-"""Unit tests for MySQL operations."""
+"""Unit tests for PostgreSQL operations."""
 
 import unittest
 from typing import Dict
 from unittest.mock import Mock
 from datetime import datetime
 
-from src.mysql.gocardless.operations import get_all_requisition_ids, update_requisition_record
+from src.postgresql.gocardless.operations import get_all_requisition_ids, update_requisition_record
 
 
-class TestMySQLOperations(unittest.TestCase):
-    """Test cases for MySQL database operations."""
+class TestPostgreSQLOperations(unittest.TestCase):
+    """Test cases for PostgreSQL database operations."""
 
     def setUp(self) -> None:
         """Set up test fixtures."""

@@ -1,17 +1,17 @@
 services:
-  # ─── MySQL Database ────────────────────────────────────────────────────────
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
+  # ─── Postgresql Database ────────────────────────────────────────────────────────
+  postgresql:
+    image: postgres:15
+    container_name: postgresql
     restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "3306:3306"
+    - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgresql_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
     volumes:
       - dagster_data:/opt/dagster/dagster_home
     entrypoint:
@@ -36,7 +36,7 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      mysql:
+      postgresql:
         condition: service_healthy
 
   # ─── Dagster Daemon ───────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ services:
     env_file:
       - .env
     environment:
-      - DAGSTER_DATABASE_URL=mysql+mysqlconnector://${MYSQL_DAGSTER_USER}:${MYSQL_DAGSTER_PASSWORD}@mysql:3306/${MYSQL_DAGSTER_DATABASE}
+      - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRESQL_DAGSTER_USER}:${POSTGRESQL_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRESQL_DAGSTER_DATABASE}
     volumes:
       - dagster_data:/opt/dagster/dagster_home
     entrypoint:
@@ -69,11 +69,11 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - mysql
+      - postgresql
       - dagster-webserver
 
 volumes:
-  mysql_data:
+  postgresql_data:
     driver: local
   dagster_data:
     driver: local

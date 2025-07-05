@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
-from src.mysql.gocardless.models import RequisitionLink
+from src.postgresql.gocardless.models import RequisitionLink
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,8 @@ from src.gocardless.api.auth import GoCardlessCredentials
 
 from datetime import datetime
 
-from src.mysql.gocardless.operations import update_requisition_record
-from src.mysql.gocardless.models import RequisitionLink
+from src.postgresql.gocardless.operations import update_requisition_record
+from src.postgresql.gocardless.models import RequisitionLink
 from src.utils.definitions import GOCARDLESS_DATABASE_URL
 
 from sqlalchemy import create_engine
