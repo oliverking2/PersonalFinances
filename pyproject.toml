@@ -21,7 +21,10 @@ plotly = "^6.1.2"
 dash = "^3.0.4"
 dash-bootstrap-components = "^2.0.3"
 dagster-webserver = "^1.10.21"
-dagster-postgres = "^0.26.21"
+dagster-aws = "^0.27.1"
+dagster-postgres = "^0.27.1"
+dagster-docker = "^0.27.1"
+dagster-graphql = "^1.11.1"
 
 [tool.poetry.group.checks]
 optional = true
