@@ -2,3 +2,4 @@
 .env
 data
 terraform/envs/dev/.terraform
+terraform/envs/dev/terraform.tfvars
