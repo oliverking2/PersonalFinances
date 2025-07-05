@@ -12,6 +12,7 @@ module "dagster" {
   dagster_home = "/opt/dagster/dagster_home"
   dagster_image = "ghcr.io/oliverking2/pf-dagster:latest"
   aurora_db_username = "master_user"
+  dagster_db_name = module.postgres.dagster_db_name
   dagster_db_username = module.postgres.dagster_db_username
   dagster_db_password = module.postgres.dagster_db_password
   github_user = var.github_user

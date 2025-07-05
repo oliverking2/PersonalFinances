@@ -42,6 +42,11 @@ variable "environment_name" {
   default     = "dev"
 }
 
+variable "dagster_db_name" {
+  description = "Dagster DB Name"
+  type        = string
+}
+
 variable "dagster_db_username" {
   description = "Username for connecting to Dagster"
   type        = string

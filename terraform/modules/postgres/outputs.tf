@@ -13,3 +13,7 @@ output "dagster_db_password" {
   value       = random_password.dagster_db.result
   sensitive   = true
 }
+
+output "dagster_db_name" {
+  value = var.db_name
+}

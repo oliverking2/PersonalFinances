@@ -1,3 +1,13 @@
+locals {
+  dagster_database_url = format(
+    "postgresql://%s:%s@%s:5432/%s",
+    var.dagster_db_username,
+    var.dagster_db_password,
+    aws_rds_cluster.aurora.endpoint,
+    var.dagster_db_name,
+  )
+}
+
 # New ECS cluster for Dagster
 resource "aws_ecs_cluster" "dagster_cluster" {
   name = "dagster_cluster"
@@ -28,13 +38,11 @@ resource "aws_ecs_task_definition" "dagster_daemon" {
       repositoryCredentials = {
         credentialsParameter = aws_secretsmanager_secret.ghcr_pat.arn
       }
-      command = ["dagster-daemon", "run", "-w", "${var.dagster_home}/workspace.yaml"]
+      command = ["dagster-daemon", "run", "-w", "/app/workspace.yaml"]
       environment = concat(
         [
           { name = "DAGSTER_HOME", value = var.dagster_home },
-          { name = "DAGSTER_POSTGRES_HOST", value = aws_rds_cluster.aurora.endpoint },
-          { name = "DAGSTER_POSTGRES_USER", value = var.dagster_db_username },
-          { name = "DAGSTER_POSTGRES_PASSWORD", value = var.dagster_db_password }
+          { name = "DAGSTER_DATABASE_URL",  value = local.dagster_database_url },
         ],
         var.environment
       )
@@ -92,13 +100,11 @@ resource "aws_ecs_task_definition" "dagster_webserver" {
           name          = "http"
         }
       ]
-      command = ["dagster-webserver", "--host", "0.0.0.0", "--port", "80", "-w", "${var.dagster_home}/workspace.yaml"]
+      command = ["dagster-webserver", "--host", "0.0.0.0", "--port", "80", "-w", "/app/workspace.yaml"]
       environment = concat(
         [
           { name = "DAGSTER_HOME", value = var.dagster_home },
-          { name = "DAGSTER_POSTGRES_HOST", value = aws_rds_cluster.aurora.endpoint },
-          { name = "DAGSTER_POSTGRES_USER", value = var.dagster_db_username },
-          { name = "DAGSTER_POSTGRES_PASSWORD", value = var.dagster_db_password }
+          { name = "DAGSTER_DATABASE_URL",  value = local.dagster_database_url },
         ],
         var.environment
       )
