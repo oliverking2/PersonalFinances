@@ -9,7 +9,7 @@ from src.gocardless.api.requisition import fetch_requisition_data_by_id
 from src.gocardless.api.auth import GoCardlessCredentials
 
 
-@op(required_resource_keys={"postgresql_db"}, out=DynamicOut())
+@op(required_resource_keys={"postgres_db"}, out=DynamicOut())
 def fetch_requisition_ids(context: OpExecutionContext) -> Iterator[DynamicOutput[str]]:
     """Fetch all requisition_link IDs needing update.
 
@@ -17,7 +17,7 @@ def fetch_requisition_ids(context: OpExecutionContext) -> Iterator[DynamicOutput
     :returns: Iterator of DynamicOutput containing requisition ID strings
     :raises: Database exceptions if query fails
     """
-    session = context.resources.postgresql_db
+    session = context.resources.postgres_db
     id_list = get_all_requisition_ids(session)
     context.log.info(f"Fetched {len(id_list)} requisition IDs to refresh")
     for rc_id in id_list:
@@ -27,7 +27,7 @@ def fetch_requisition_ids(context: OpExecutionContext) -> Iterator[DynamicOutput
 
 
 @op(
-    required_resource_keys={"postgresql_db"},
+    required_resource_keys={"postgres_db"},
     retry_policy=RetryPolicy(max_retries=3, delay=10),
 )
 def refresh_and_update_record(context: OpExecutionContext, rc_id: str) -> None:
@@ -56,7 +56,7 @@ def refresh_and_update_record(context: OpExecutionContext, rc_id: str) -> None:
         return
 
     # Update database record
-    session = context.resources.postgresql_db
+    session = context.resources.postgres_db
     success = update_requisition_record(session, rc_id, data)
 
     if success:

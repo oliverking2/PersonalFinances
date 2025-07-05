@@ -14,7 +14,7 @@ from datetime import datetime
 
 from src.postgresql.gocardless.operations import update_requisition_record
 from src.postgresql.gocardless.models import RequisitionLink
-from src.utils.definitions import GOCARDLESS_DATABASE_URL
+from src.utils.definitions import gocardless_database_url
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -206,7 +206,7 @@ class TestGoCardlessRequisitionAPIReal(unittest.TestCase):
         """Initialise the test class."""
         cls.requisition_id = "testingid"
 
-        engine = create_engine(GOCARDLESS_DATABASE_URL, echo=False)
+        engine = create_engine(gocardless_database_url(), echo=False)
         cls.session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
 
         existing_record = cls.session.get(RequisitionLink, cls.requisition_id)

@@ -3,13 +3,13 @@
 from dagster import job
 
 from src.dagster.ingestion.gocardless.ops import fetch_requisition_ids, refresh_and_update_record
-from src.dagster.ingestion.gocardless.resources import mysql_db_session_resource
+from src.dagster.ingestion.gocardless.resources import postgres_db_session_resource
 
 
 @job(
     name="requisition_sync_job",
     resource_defs={
-        "mysql_db": mysql_db_session_resource,
+        "postgres_db": postgres_db_session_resource,
     },
 )
 def requisition_sync_job() -> None:

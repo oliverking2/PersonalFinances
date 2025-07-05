@@ -13,7 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase
 
-from src.utils.definitions import GOCARDLESS_DATABASE_URL
+from src.utils.definitions import gocardless_database_url
 
 
 class Base(DeclarativeBase):
@@ -157,7 +157,7 @@ class Balance(Base):
 
 
 if __name__ == "__main__":
-    engine = create_engine(GOCARDLESS_DATABASE_URL, echo=True, future=True)
+    engine = create_engine(gocardless_database_url(), echo=True, future=True)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=engine)

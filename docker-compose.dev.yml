@@ -5,10 +5,12 @@ services:
     container_name: postgresql
     env_file:
       - .env
+    environment:
+      - ENVIRONMENT=docker
     ports:
     - "5432:5432"
     volumes:
-      - ./data/postgresql:/var/lib/postgresql
+      - ./data/postgresql:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -24,6 +26,7 @@ services:
     env_file:
       - .env
     environment:
+      - ENVIRONMENT=docker
       - DAGSTER_HOME=/opt/dagster/dagster_home
       - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRES_DAGSTER_USER}:${POSTGRES_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRES_DAGSTER_DATABASE}
     volumes:
@@ -53,6 +56,7 @@ services:
     env_file:
       - .env
     environment:
+      - ENVIRONMENT=docker
       - DAGSTER_HOME=/opt/dagster/dagster_home
       - DAGSTER_DATABASE_URL=postgresql+psycopg2://${POSTGRES_DAGSTER_USER}:${POSTGRES_DAGSTER_PASSWORD}@postgresql:5432/${POSTGRES_DAGSTER_DATABASE}
     volumes:
@@ -80,6 +84,8 @@ services:
       - ./src:/app/src
     env_file:
       - .env
+    environment:
+      - ENVIRONMENT=docker
     ports:
       - "8501:8501"
     depends_on:
