@@ -9,17 +9,9 @@ import os
 
 from dotenv import load_dotenv
 
-try:
-    # try import and use dagster logger
-    import dagster
+from src.utils.logging import get_logger
 
-    logger = dagster.get_dagster_logger()
-
-except ModuleNotFoundError:
-    # fallback on standard logger
-    import logging
-
-    logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Load environment variables

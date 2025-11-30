@@ -1,13 +1,14 @@
 """GoCardless Requisition database operations."""
 
-import logging
 from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
 from src.postgresql.gocardless.models import RequisitionLink
 
-logger = logging.getLogger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def fetch_requisition_links(session: Session) -> List[RequisitionLink]:

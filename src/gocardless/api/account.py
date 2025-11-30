@@ -11,14 +11,7 @@ import requests
 
 from src.gocardless.api.auth import GoCardlessCredentials
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-    ],
-)
+
 logger = logging.getLogger("gocardless_api_account")
 
 

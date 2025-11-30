@@ -1,14 +1,16 @@
 """Module containing the Auth for GoCardless."""
 
-import logging
-import os
 import time
 from typing import Optional
 
 from dotenv import load_dotenv
 import requests
+import boto3
 
-logger = logging.getLogger(__name__)
+from src.aws.ssm_parameters import get_parameter_data_from_ssm
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class GoCardlessError(Exception):
@@ -31,27 +33,22 @@ class GoCardlessCredentials:
         :raises EnvironmentError: If required environment variables are not set
         """
         logger.debug("Initialising GoCardless credentials")
+
+        ssm_client = boto3.client("ssm")
         load_dotenv()
 
-        secret_id = os.getenv("GOCARDLESS_API_SECRET_ID")
-        secret_key = os.getenv("GOCARDLESS_API_SECRET_KEY")
+        secret_id = get_parameter_data_from_ssm(ssm_client, "/secrets/gocardless/secret_id")
+        secret_key = get_parameter_data_from_ssm(ssm_client, "/secrets/gocardless/secret_key")
 
-        if secret_id is None:
-            logger.error("GOCARDLESS_API_SECRET_ID environment variable not set")
-            raise EnvironmentError("GOCARDLESS_API_SECRET_ID not set.")
-        if secret_key is None:
-            logger.error("GOCARDLESS_API_SECRET_KEY environment variable not set")
-            raise EnvironmentError("GOCARDLESS_API_SECRET_KEY not set.")
-
-        self.secret_id: str = secret_id
-        self.secret_key: str = secret_key
+        self._secret_id: str = secret_id
+        self._secret_key: str = secret_key
 
         self._access_token: Optional[str] = None
-        self.access_token_expiry: Optional[float] = None
+        self._access_token_expiry: Optional[float] = None
 
         logger.info("GoCardless credentials initialised successfully")
 
-    def get_access_token(self) -> str:
+    def _get_access_token(self) -> str:
         """Fetch a new access token from GoCardless API.
 
         :returns: New access token string
@@ -60,8 +57,8 @@ class GoCardlessCredentials:
         """
         logger.debug("Requesting new access token from GoCardless API")
         payload = {
-            "secret_id": self.secret_id,
-            "secret_key": self.secret_key,
+            "secret_id": self._secret_id,
+            "secret_key": self._secret_key,
         }
 
         try:
@@ -73,7 +70,7 @@ class GoCardlessCredentials:
             response_json = response.json()
 
             self._access_token = response_json["access"]
-            self.access_token_expiry = time.time() + response_json["access_expires"] - 10
+            self._access_token_expiry = time.time() + response_json["access_expires"] - 10
 
             logger.info("Successfully obtained new access token")
             return self._access_token
@@ -93,15 +90,15 @@ class GoCardlessCredentials:
         :returns: Valid access token string
         :raises ValueError: If token cannot be obtained
         """
-        if self.access_token_expiry is None:
+        if self._access_token_expiry is None:
             # initial run, get a token
             logger.debug("No token expiry set, fetching initial token")
-            return self.get_access_token()
+            return self._get_access_token()
 
-        if time.time() > self.access_token_expiry:
+        if time.time() > self._access_token_expiry:
             # if expired, get a new one
             logger.debug("Access token expired, refreshing")
-            return self.get_access_token()
+            return self._get_access_token()
 
         if self._access_token is not None:
             logger.debug("Using existing valid access token")

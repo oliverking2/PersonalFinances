@@ -1,0 +1,49 @@
+concurrency:
+  runs:
+    max_concurrent_runs: 10
+  pools:
+    default_limit: 1
+
+# Use Postgres (from docker-compose) for all Dagster metadata
+run_storage:
+  module: dagster_postgres.run_storage
+  class: PostgresRunStorage
+  config:
+    postgres_db:
+      hostname:
+        env: POSTGRES_HOSTNAME
+      db_name: dagster
+      username:
+        env: POSTGRES_USERNAME
+      password:
+        env: POSTGRES_PASSWORD
+      port: 5432
+
+event_log_storage:
+  module: dagster_postgres.event_log
+  class: PostgresEventLogStorage
+  config:
+    postgres_db:
+      hostname:
+        env: POSTGRES_HOSTNAME
+      db_name: dagster
+      username:
+        env: POSTGRES_USERNAME
+      password:
+        env: POSTGRES_PASSWORD
+      port: 5432
+
+schedule_storage:
+  module: dagster_postgres.schedule_storage
+  class: PostgresScheduleStorage
+  config:
+    postgres_db:
+      hostname:
+        env: POSTGRES_HOSTNAME
+      db_name: dagster
+      username:
+        env: POSTGRES_USERNAME
+      password:
+        env: POSTGRES_PASSWORD
+      port: 5432
+

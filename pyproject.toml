@@ -12,10 +12,19 @@ package-mode = false
 python = ">=3.12,<3.13"
 requests = "^2.32.3"
 python-dotenv = "^1.1.0"
+boto3 = "^1.41.5"
 
+[tool.poetry.group.db]
+optional = true
+
+[tool.poetry.group.db.dependencies]
 sqlalchemy = "^2.0.41"
 psycopg2 = "^2.9.9"
 
+[tool.poetry.group.ui]
+optional = true
+
+[tool.poetry.group.ui.dependencies]
 streamlit = "^1.45.1"
 streamlit-aggrid = "^1.1.5.post1"
 
@@ -23,12 +32,16 @@ plotly = "^6.1.2"
 dash = "^3.0.4"
 dash-bootstrap-components = "^2.0.3"
 
-dagster = "^1.10.20"
-dagster-webserver = "^1.10.21"
-dagster-aws = "^0.27.1"
-dagster-postgres = "^0.27.1"
-dagster-docker = "^0.27.1"
-dagster-graphql = "^1.11.1"
+[tool.poetry.group.dagster]
+optional = true
+
+[tool.poetry.group.dagster.dependencies]
+dagster = "^1.12.3"
+dagster-webserver = "^1.12.3"
+dagster-graphql = "^1.12.3"
+
+dagster-aws = "^0.28.3"
+dagster-postgres = "^0.28.3"
 
 [tool.poetry.group.checks]
 optional = true
@@ -38,6 +51,7 @@ ruff = "^0.7.2"
 pre-commit = "^4.0.1"
 black = "^24.10.0"
 mypy = "^1.13.0"
+boto3-stubs = {extras = ["s3", "ssm"], version = "^1.41.5"}
 
 [tool.black]
 line-length = 100

@@ -1,11 +1,3 @@
 .idea
 .env
 data
-terraform_example/envs/dev/.terraform
-terraform_example/envs/dev/terraform.tfvars
-terraform_example/envs/dev/terraform.tfstate
-terraform_example/envs/dev/terraform.tfstate.backup
-terraform/envs/local/.terraform
-terraform/envs/local/terraform.tfvars
-terraform/envs/local/terraform.tfstate
-terraform/envs/local/terraform.tfstate.backup

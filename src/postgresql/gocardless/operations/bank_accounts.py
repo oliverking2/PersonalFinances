@@ -1,12 +1,13 @@
 """GoCardless Bank Account database operations."""
 
-import logging
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
 from src.postgresql.gocardless.models import BankAccount
 
-logger = logging.getLogger(__name__)
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str, Any]]) -> None:
