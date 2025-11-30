@@ -1,15 +1,15 @@
 """GoCardless Dagster Resources."""
 
-import os
 import requests
-from dagster import resource, InitResourceContext
-from dotenv import load_dotenv
+from dagster import resource, InitResourceContext, get_dagster_logger
 
 from src.gocardless.api.auth import GoCardlessCredentials
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
-load_dotenv()
+from src.utils.definitions import gocardless_database_url
+
+logger = get_dagster_logger()
 
 
 @resource
@@ -27,16 +27,16 @@ def gocardless_api_resource(_context: InitResourceContext) -> requests.Session:
 
 
 @resource
-def mysql_db_engine_resource(_context: InitResourceContext) -> Engine:
-    """SQLAlchemy engine for MySQL."""
-    url = f"mysql+mysqlconnector://root:{os.getenv('MYSQL_ROOT_PASSWORD')}@mysql:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
-    return create_engine(url)
+def postgres_db_engine_resource(_context: InitResourceContext) -> Engine:
+    """SQLAlchemy engine for PostgreSQL."""
+    logger.info(f"Database URL: {gocardless_database_url()}")
+    return create_engine(gocardless_database_url())
 
 
 @resource
-def mysql_db_session_resource(_context: InitResourceContext) -> Session:
-    """SQLAlchemy session for MySQL."""
-    url = f"mysql+mysqlconnector://root:{os.getenv('MYSQL_ROOT_PASSWORD')}@mysql:3306/{os.getenv('MYSQL_GOCARDLESS_DATABASE')}"
-    engine = create_engine(url)
+def postgres_db_session_resource(_context: InitResourceContext) -> Session:
+    """SQLAlchemy session for PostgreSQL."""
+    logger.info(f"Database URL: {gocardless_database_url()}")
+    engine = create_engine(gocardless_database_url())
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     return session_local()

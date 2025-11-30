@@ -4,7 +4,7 @@ This module provides functions to interact with GoCardless Bank Account Data API
 for requisition management, including fetching and deleting requisition data.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 import requests
@@ -20,6 +20,28 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("gocardless_api_requisition")
+
+
+def fetch_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:
+    """Fetch all requisition JSON data from GoCardless.
+
+    Retrieves the requisition data, including its status and linked account IDs, from the
+    GoCardless Bank Account Data API.
+
+    :param creds: GoCardlessCredentials object.
+    :returns: The JSON response as a dictionary.
+    :raises requests.RequestException: If there's an error communicating with the GoCardless API.
+    """
+    logger.info("Fetching requisition data from GoCardless")
+    url = "https://bankaccountdata.gocardless.com/api/v2/requisitions"
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {creds.access_token}"})
+        r.raise_for_status()
+        logger.debug("Successfully retrieved requisition data")
+        return r.json()["results"]
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch requisition data: {e!s}")
+        raise
 
 
 def fetch_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dict[str, Any]:

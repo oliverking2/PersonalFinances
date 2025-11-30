@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code into image
 COPY ./src /app/src
 
+ENV PYTHONPATH=/app
+
 # Expose Streamlit port
 EXPOSE 8501
 

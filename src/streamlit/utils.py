@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.gocardless.api.auth import GoCardlessCredentials
-from src.utils.definitions import GOCARDLESS_DATABASE_URL
+from src.utils.definitions import gocardless_database_url
 
 
 @st.cache_resource
@@ -14,7 +14,7 @@ def get_gocardless_engine() -> Engine:
 
     MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE.
     """
-    return create_engine(GOCARDLESS_DATABASE_URL)
+    return create_engine(gocardless_database_url())
 
 
 # Cache the Session factory and return a scoped session

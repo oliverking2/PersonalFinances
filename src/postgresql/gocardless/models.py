@@ -13,9 +13,9 @@ from sqlalchemy import (
     Boolean,
     create_engine,
 )
-from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import relationship, DeclarativeBase, mapped_column, Mapped
 
-from src.utils.definitions import GOCARDLESS_DATABASE_URL
+from src.utils.definitions import gocardless_database_url
 
 
 class Base(DeclarativeBase):
@@ -68,7 +68,7 @@ class BankAccount(Base):
     currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
     details: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     display_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    iban: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    iban: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     linked_accounts: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     msisdn: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
@@ -147,7 +147,7 @@ class Balance(Base):
 
 
 if __name__ == "__main__":
-    engine = create_engine(GOCARDLESS_DATABASE_URL, echo=True, future=True)
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    engine = create_engine(gocardless_database_url(), echo=True, future=True)
+    # session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=engine)

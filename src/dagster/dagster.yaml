@@ -1,4 +1,4 @@
 storage:
-  mysql:
-    mysql_url:
+  postgres:
+    postgres_url:
       env: DAGSTER_DATABASE_URL
