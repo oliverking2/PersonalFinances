@@ -5,14 +5,15 @@ for account management, including fetching account details and information.
 """
 
 from typing import Dict, Any
-import logging
 
 import requests
 
 from src.gocardless.api.auth import GoCardlessCredentials
 
 
-logger = logging.getLogger("gocardless_api_account")
+from src.utils.logging import get_logger
+
+logger = get_logger("gocardless_api_account")
 
 
 def fetch_account_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:

@@ -3,9 +3,9 @@
 from src.gocardless.api.account import fetch_account_data_by_id
 from src.gocardless.api.auth import GoCardlessCredentials
 from src.gocardless.api.requisition import fetch_all_requisition_data
-from src.postgresql.gocardless.models import RequisitionLink
-from src.postgresql.gocardless.operations.bank_accounts import upsert_bank_accounts
-from src.postgresql.gocardless.operations.requisitions import add_requisition_link
+from src.postgres.gocardless.models import RequisitionLink
+from src.postgres.gocardless.operations.bank_accounts import upsert_bank_accounts
+from src.postgres.gocardless.operations.requisitions import add_requisition_link
 from src.streamlit.utils import get_gocardless_session
 
 

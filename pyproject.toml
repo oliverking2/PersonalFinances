@@ -13,13 +13,15 @@ python = ">=3.12,<3.13"
 requests = "^2.32.3"
 python-dotenv = "^1.1.0"
 boto3 = "^1.41.5"
+inflection = "^0.5.1"
+alembic = "^1.17.2"
 
 [tool.poetry.group.db]
 optional = true
 
 [tool.poetry.group.db.dependencies]
 sqlalchemy = "^2.0.41"
-psycopg2 = "^2.9.9"
+psycopg2-binary = "2.9.9"
 
 [tool.poetry.group.ui]
 optional = true
@@ -88,6 +90,7 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    "alembic"
 ]
 lint.per-file-ignores = {"__init__.py" = ["D"]}
 
@@ -105,6 +108,7 @@ target-version = "py310"
 max-complexity = 10
 
 [tool.mypy]
+exclude = ["alembic"]
 warn_redundant_casts = true
 
 disallow_incomplete_defs = true

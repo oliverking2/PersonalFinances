@@ -13,16 +13,10 @@ from sqlalchemy import (
     Boolean,
     create_engine,
 )
-from sqlalchemy.orm import relationship, DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import relationship, mapped_column, Mapped
 
 from src.utils.definitions import gocardless_database_url
-
-
-class Base(DeclarativeBase):
-    """Base class for all database tables.
-
-    Provides the declarative base for SQLAlchemy ORM models.
-    """
+from src.postgres.core import Base
 
 
 class RequisitionLink(Base):

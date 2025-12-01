@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
-from src.postgresql.gocardless.models import RequisitionLink
+from src.postgres.gocardless.models import RequisitionLink
 
 from src.utils.logging import get_logger
 

@@ -11,7 +11,6 @@ stores connection data in a MySQL database.
 """
 
 import time
-import logging
 from typing import Dict
 
 import requests
@@ -24,9 +23,9 @@ from src.gocardless.api.requisition import (
     fetch_requisition_data_by_id,
     delete_requisition_data_by_id,
 )
-from src.postgresql.gocardless.models import RequisitionLink
-from src.postgresql.gocardless.operations.bank_accounts import upsert_bank_accounts
-from src.postgresql.gocardless.operations.requisitions import (
+from src.postgres.gocardless.models import RequisitionLink
+from src.postgres.gocardless.operations.bank_accounts import upsert_bank_accounts
+from src.postgres.gocardless.operations.requisitions import (
     add_requisition_link,
     fetch_requisition_links,
     upsert_requisition_status,
@@ -35,14 +34,10 @@ from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
 from src.gocardless.account_setup import get_institutions, create_link
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger("connections_page")
+
+from src.utils.logging import get_logger
+
+logger = get_logger("connections_page")
 
 # page config
 st.set_page_config(page_title="Connections", layout="wide")

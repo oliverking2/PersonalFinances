@@ -4,7 +4,7 @@ import streamlit as st
 from sqlalchemy.orm import Session
 from streamlit.delta_generator import DeltaGenerator
 
-from src.postgresql.gocardless.models import BankAccount
+from src.postgres.gocardless.models import BankAccount
 from src.streamlit.utils import get_gocardless_session
 
 # Page config

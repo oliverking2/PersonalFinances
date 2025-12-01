@@ -5,21 +5,16 @@ for requisition management, including fetching and deleting requisition data.
 """
 
 from typing import Dict, Any, List
-import logging
 
 import requests
 
 from src.gocardless.api.auth import GoCardlessCredentials
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger("gocardless_api_requisition")
+
+from src.utils.logging import get_logger
+
+logger = get_logger("gocardless_api_requisition")
 
 
 def fetch_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:
