@@ -44,7 +44,7 @@ def dagster_database_url() -> str:
     """
     host = get_host()
     url = (
-        f"postgres+psycopg2://{os.getenv('POSTGRES_DAGSTER_USER')}:{os.getenv('POSTGRES_DAGSTER_PASSWORD')}@"
+        f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:5432/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
     )
     logger.info(f"Database URL: {url}")
@@ -58,7 +58,7 @@ def gocardless_database_url() -> str:
     """
     host = get_host()
     url = (
-        f"postgres+psycopg2://{os.getenv('POSTGRES_GOCARDLESS_USER')}:{os.getenv('POSTGRES_GOCARDLESS_PASSWORD')}@"
+        f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
     )
     logger.info(f"Database URL: {url}")

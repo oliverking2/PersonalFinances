@@ -1,21 +1,18 @@
 """GoCardless database model definitions."""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 from sqlalchemy import (
     String,
     DateTime,
     Numeric,
-    JSON,
     ForeignKey,
     Integer,
     Boolean,
-    create_engine,
 )
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 
-from src.utils.definitions import gocardless_database_url
 from src.postgres.core import Base
 
 
@@ -77,45 +74,10 @@ class BankAccount(Base):
         String(36), ForeignKey("requisition_links.id"), nullable=True
     )
 
-    transactions: Mapped[List["Transaction"]] = relationship(
-        "Transaction", back_populates="account"
-    )
     balances: Mapped[List["Balance"]] = relationship("Balance", back_populates="account")
     requisition: Mapped[Optional[RequisitionLink]] = relationship(
         "RequisitionLink", back_populates="accounts"
     )
-
-
-class Transaction(Base):
-    """Database model for bank transactions.
-
-    Stores individual transaction records retrieved from bank accounts via GoCardless API.
-    Each transaction belongs to a specific bank account and contains payment details.
-    """
-
-    __tablename__ = "transactions"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    account_id: Mapped[str] = mapped_column(
-        String(128), ForeignKey("bank_accounts.id"), nullable=False
-    )
-    booking_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    booking_date_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    value_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    value_date_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    transaction_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
-    transaction_currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    creditor_name: Mapped[Optional[str]] = mapped_column(String(176), nullable=True)
-    debtor_name: Mapped[Optional[str]] = mapped_column(String(176), nullable=True)
-    end_to_end_id: Mapped[Optional[str]] = mapped_column(String(35), nullable=True)
-    entry_reference: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    additional_information: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    additional_data_structured: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON, nullable=True
-    )
-    balance_after: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
-
-    account: Mapped[BankAccount] = relationship("BankAccount", back_populates="transactions")
 
 
 class Balance(Base):
@@ -138,10 +100,3 @@ class Balance(Base):
     last_change_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
-
-
-if __name__ == "__main__":
-    engine = create_engine(gocardless_database_url(), echo=True, future=True)
-    # session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-    Base.metadata.create_all(bind=engine)
