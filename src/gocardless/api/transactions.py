@@ -37,6 +37,6 @@ if __name__ == "__main__":
     creds = GoCardlessCredentials()
     print(
         get_transaction_data_for_account(
-            creds, "73ed675f-12fe-4d85-88d3-d439976ec662", "2025-11-01", "2025-11-30"
+            creds, "b200ae31-e334-4918-814e-147aab73318b", "2025-11-01", "2025-11-30"
         )
     )

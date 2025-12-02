@@ -67,6 +67,11 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str,
         raise
 
 
+def get_active_accounts(session: Session) -> List[BankAccount]:
+    """Get a list of active bank accounts."""
+    return session.query(BankAccount).filter(BankAccount.status == "READY").all()
+
+
 def get_transaction_watermark(session: Session, account_id: str) -> Optional[datetime]:
     """Get the watermark for the most recent extract for a given bank account."""
     account = session.get(BankAccount, account_id)
