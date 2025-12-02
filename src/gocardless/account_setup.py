@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 import requests
 
-from src.gocardless.api.auth import GoCardlessCredentials
+from src.gocardless.api.core import GoCardlessCredentials
 
 # status: https://developer.gocardless.com/bank-account-data/statuses
 

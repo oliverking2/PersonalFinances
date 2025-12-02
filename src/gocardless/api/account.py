@@ -6,9 +6,8 @@ for account management, including fetching account details and information.
 
 from typing import Dict, Any
 
-import requests
 
-from src.gocardless.api.auth import GoCardlessCredentials
+from src.gocardless.api.core import GoCardlessCredentials
 
 
 from src.utils.logging import get_logger
@@ -16,7 +15,7 @@ from src.utils.logging import get_logger
 logger = get_logger("gocardless_api_account")
 
 
-def fetch_account_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
+def get_account_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
     """Fetch a single bank account's details from GoCardless.
 
     Retrieves detailed information for the given bank account ID from the GoCardless Bank Account Data API.
@@ -28,11 +27,5 @@ def fetch_account_data_by_id(creds: GoCardlessCredentials, account_id: str) -> D
     """
     logger.info(f"Fetching account details from GoCardless for account ID: {account_id}")
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}"
-    try:
-        r = requests.get(url, headers={"Authorization": f"Bearer {creds.access_token}"})
-        r.raise_for_status()
-        logger.debug(f"Successfully retrieved account details for ID: {account_id}")
-        return r.json()
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch account details for ID {account_id}: {e!s}")
-        raise
+
+    return creds.make_get_request(url)

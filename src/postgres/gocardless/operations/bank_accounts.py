@@ -1,6 +1,7 @@
 """GoCardless Bank Account database operations."""
 
-from typing import List, Dict, Any
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import BankAccount
@@ -64,3 +65,21 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str,
     except Exception as e:
         logger.error(f"Failed to upsert bank accounts for requisition ID {req_id}: {e!s}")
         raise
+
+
+def get_transaction_watermark(session: Session, account_id: str) -> Optional[datetime]:
+    """Get the watermark for the most recent extract for a given bank account."""
+    account = session.get(BankAccount, account_id)
+    if account is None:
+        raise ValueError(f"Bank account with ID {account_id} not found")
+
+    return account.dg_transaction_extract_date
+
+
+if __name__ == "__main__":
+    from src.postgres.utils import create_session
+    from src.utils.definitions import gocardless_database_url
+
+    session = create_session(gocardless_database_url())
+
+    print(get_transaction_watermark(session, "73ed675f-12fe-4d85-88d3-d439976ec662"))

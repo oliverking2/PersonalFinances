@@ -18,9 +18,9 @@ import streamlit as st
 from sqlalchemy.orm import Session
 from streamlit.runtime.state import QueryParamsProxy
 
-from src.gocardless.api.account import fetch_account_data_by_id
+from src.gocardless.api.account import get_account_data_by_id
 from src.gocardless.api.requisition import (
-    fetch_requisition_data_by_id,
+    get_requisition_data_by_id,
     delete_requisition_data_by_id,
 )
 from src.postgres.gocardless.models import RequisitionLink
@@ -263,7 +263,7 @@ def process_callback(params: QueryParamsProxy) -> None:
         logger.info(f"Starting callback processing for requisition ID: {req_id}")
 
         # 1) Fetch requisition JSON
-        requisition = fetch_requisition_data_by_id(gocardless_creds, req_id)
+        requisition = get_requisition_data_by_id(gocardless_creds, req_id)
         new_status = requisition["status"]
         logger.info(f"Requisition status: {new_status}")
 
@@ -275,7 +275,7 @@ def process_callback(params: QueryParamsProxy) -> None:
         logger.info(f"Found {len(account_ids)} accounts linked to requisition")
         detailed_accounts = []
         for acct_id in account_ids:
-            info = fetch_account_data_by_id(gocardless_creds, acct_id)
+            info = get_account_data_by_id(gocardless_creds, acct_id)
             detailed_accounts.append(info)
         upsert_bank_accounts(session, req_id, detailed_accounts)
 

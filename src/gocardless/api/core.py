@@ -1,7 +1,7 @@
 """Module containing the Auth for GoCardless."""
 
 import time
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from dotenv import load_dotenv
 import requests
@@ -11,6 +11,9 @@ from src.aws.ssm_parameters import get_parameter_data_from_ssm
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+SUCCESS_STATUS_CODE = 200
 
 
 class GoCardlessError(Exception):
@@ -106,6 +109,58 @@ class GoCardlessCredentials:
 
         logger.error("Access token failure - unable to obtain valid token")
         raise ValueError("Access Token Failure.")
+
+    def make_get_request(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Make a GET request to the specified URL using the current access token."""
+        r = requests.get(
+            url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
+        )
+        if r.status_code != SUCCESS_STATUS_CODE:
+            raise GoCardlessError(f"Error fetching data from GoCardless API: {r.text}")
+
+        return r.json()
+
+    def make_post_request(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        body: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Make a POST request to the specified URL using the current access token."""
+        r = requests.post(
+            url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body
+        )
+        if r.status_code != SUCCESS_STATUS_CODE:
+            raise GoCardlessError(f"Error posting data to GoCardless API: {r.text}")
+
+        return r.json()
+
+    def make_delete_request(
+        self, url: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Make a DELETE request to the specified URL using the current access token."""
+        r = requests.delete(
+            url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
+        )
+        if r.status_code != SUCCESS_STATUS_CODE:
+            raise GoCardlessError(f"Error deleting data from GoCardless API: {r.text}")
+
+        return r.json()
+
+    def make_put_request(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        body: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Make a PUT request to the specified URL using the current access token."""
+        r = requests.put(
+            url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body
+        )
+        if r.status_code != SUCCESS_STATUS_CODE:
+            raise GoCardlessError(f"Error putting data to GoCardless API: {r.text}")
+
+        return r.json()
 
 
 if __name__ == "__main__":

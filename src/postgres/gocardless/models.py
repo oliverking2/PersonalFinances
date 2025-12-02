@@ -23,7 +23,7 @@ class RequisitionLink(Base):
     Each requisition represents a request to connect to a specific bank account.
     """
 
-    __tablename__ = "requisition_links"
+    __tablename__ = "gc_requisition_links"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     created: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -51,7 +51,9 @@ class BankAccount(Base):
     Each account is linked to a requisition and can have multiple transactions and balances.
     """
 
-    __tablename__ = "bank_accounts"
+    __tablename__ = "gc_bank_accounts"
+
+    # Gocardless columns
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     bban: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     bic: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
@@ -70,8 +72,12 @@ class BankAccount(Base):
     scan: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
     usage: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
 
+    # Dagster tracking columns
+    dg_transaction_extract_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
     requisition_id: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("requisition_links.id"), nullable=True
+        String(36), ForeignKey("gc_requisition_links.id"), nullable=True
     )
 
     balances: Mapped[List["Balance"]] = relationship("Balance", back_populates="account")
@@ -87,11 +93,11 @@ class Balance(Base):
     Each balance record represents the account balance at a specific point in time.
     """
 
-    __tablename__ = "balances"
+    __tablename__ = "gc_balances"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     account_id: Mapped[str] = mapped_column(
-        String(128), ForeignKey("bank_accounts.id"), nullable=False
+        String(128), ForeignKey("gc_bank_accounts.id"), nullable=False
     )
     balance_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
@@ -100,3 +106,18 @@ class Balance(Base):
     last_change_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
+
+
+class EndUserAgreement(Base):
+    """Database model for end user agreements."""
+
+    __tablename__ = "gc_end_user_agreements"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    created: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    institution_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    max_historical_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    access_valid_for_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    access_scope: Mapped[str] = mapped_column(String(200), nullable=False)
+    accepted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    reconfirmation: Mapped[bool] = mapped_column(Boolean, nullable=False)
