@@ -17,11 +17,11 @@ inflection = "^0.5.1"
 alembic = "^1.17.2"
 
 [tool.poetry.group.db]
-optional = true
+optional = false
 
 [tool.poetry.group.db.dependencies]
 sqlalchemy = "^2.0.41"
-psycopg2-binary = "2.9.9"
+psycopg2-binary = "^2.9.9"
 
 [tool.poetry.group.ui]
 optional = true
@@ -29,13 +29,12 @@ optional = true
 [tool.poetry.group.ui.dependencies]
 streamlit = "^1.45.1"
 streamlit-aggrid = "^1.1.5.post1"
-
 plotly = "^6.1.2"
 dash = "^3.0.4"
 dash-bootstrap-components = "^2.0.3"
 
 [tool.poetry.group.dagster]
-optional = true
+optional = false
 
 [tool.poetry.group.dagster.dependencies]
 dagster = "^1.12.3"
