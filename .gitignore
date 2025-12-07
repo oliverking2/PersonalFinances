@@ -2,5 +2,11 @@
 .env
 data
 .tmp_dagster_home_*
+
 *.duckdb
 *.duckdb-wal
+
+dbt/logs/
+dbt/target/
+dbt/dbt_packages/
+dbt/.user.yml

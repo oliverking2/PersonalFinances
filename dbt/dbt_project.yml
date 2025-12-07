@@ -1,0 +1,40 @@
+name: dbt_project
+version: "1.0"
+profile: duckdb_local
+
+on-run-start:
+  - "INSTALL httpfs; LOAD httpfs;"
+  - |
+    CREATE OR REPLACE SECRET s3_creds (
+        TYPE S3,
+        PROVIDER CONFIG,
+        KEY_ID '{{ env_var('AWS_ACCESS_KEY_ID') }}',
+        SECRET '{{ env_var('AWS_SECRET_ACCESS_KEY') }}',
+        REGION '{{ env_var('AWS_REGION') }}'
+    );
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+target-path: "target"
+log-path: "logs"
+packages-install-path: "dbt_packages"
+
+clean-targets:
+  - "target"
+  - "logs"
+  - "dbt_packages"
+
+models:
+  dbt_project:
+    +materialized: view
+
+    1_bronze:
+      +materialized: table
+      +schema: bronze
+
+    2_silver:
+      +schema: silver
+
+    3_gold:
+      +schema: gold
