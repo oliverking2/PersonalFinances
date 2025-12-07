@@ -32,9 +32,18 @@ models:
     1_bronze:
       +materialized: table
       +schema: bronze
+      +meta:
+        dagster:
+          group: dbt_bronze
 
     2_silver:
       +schema: silver
+      +meta:
+        dagster:
+          group: dbt_silver
 
     3_gold:
       +schema: gold
+      +meta:
+        dagster:
+          group: dbt_gold

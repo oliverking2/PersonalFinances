@@ -1,0 +1,11 @@
+sources:
+  - name: dagster
+    tables:
+      - name: gocardless_raw_transactions
+        meta:
+          dagster:
+            asset_key:
+            - source
+            - gocardless
+            - extract
+            - transactions

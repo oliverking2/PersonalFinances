@@ -3,7 +3,6 @@
 import json
 import os
 from datetime import date
-from typing import TYPE_CHECKING
 import uuid
 from io import BytesIO
 
@@ -11,8 +10,8 @@ from dagster import (
     asset,
     AutomationCondition,
     AssetExecutionContext,
-    AssetsDefinition,
     Definitions,
+    AssetKey,
 )
 from dateutil.relativedelta import relativedelta
 from mypy_boto3_s3 import S3Client
@@ -30,71 +29,63 @@ from src.postgres.gocardless.operations.bank_accounts import (
 from src.postgres.utils import create_session
 from src.utils.definitions import gocardless_database_url
 
-if TYPE_CHECKING:
-    from src.postgres.gocardless.models import BankAccount
 
+@asset(
+    key=AssetKey(["source", "gocardless", "extract", "transactions"]),
+    group_name="gocardless",
+    description="Extract transactions from GoCardless.",
+    required_resource_keys={"s3", "gocardless_api", "postgres_database"},
+    automation_condition=AutomationCondition.on_cron("0 4 * * *"),
+)
+def gocardless_extract_transactions(context: AssetExecutionContext) -> None:
+    """Extract transactions from account."""
+    creds: GoCardlessCredentials = context.resources.gocardless_api
+    s3: S3Client = context.resources.s3
+    postgres_database: PostgresDatabase = context.resources.postgres_database
 
-def create_extract_transaction_asset(account: "BankAccount") -> AssetsDefinition:
-    """Create extract transaction assets."""
+    today = date.today()
 
-    @asset(
-        name=f"extract_transactions_account_{account.id}",
-        description=f"Extract transactions for account {account.requisition.institution_id} {account.name}",
-        required_resource_keys={"s3", "gocardless_api", "postgres_database"},
-        automation_condition=AutomationCondition.on_cron("0 4 * * *"),
-    )
-    def _asset(context: AssetExecutionContext) -> None:
-        """Extract transactions from account 1."""
-        creds: GoCardlessCredentials = context.resources.gocardless_api
-        s3: S3Client = context.resources.s3
-        postgres_database: PostgresDatabase = context.resources.postgres_database
-
-        today = date.today()
-
-        with postgres_database.get_session() as session:
+    with postgres_database.get_session() as session:
+        for account in get_active_accounts(session):
             watermark = get_transaction_watermark(session, account.id)
 
-        context.log.info(f"Watermark for account {account.id}: {watermark}")
-        date_start = today + relativedelta(days=-90) if watermark is None else watermark
+            context.log.info(f"Watermark for account {account.id}: {watermark}")
+            date_start = today + relativedelta(days=-90) if watermark is None else watermark
 
-        # go a few days further back to add some overlap incase any data was missed
-        date_start += relativedelta(days=-3)
+            # go a few days further back to add some overlap incase any data was missed
+            date_start += relativedelta(days=-3)
 
-        context.log.info(
-            f"Extracting transactions for account {account.id} from {date_start} to {today}"
-        )
+            context.log.info(
+                f"Extracting transactions for account {account.id} from {date_start} to {today}"
+            )
 
-        # get data from watermark till today
-        raw_transactions = get_transaction_data_for_account(
-            creds, account.id, date_start.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")
-        )
+            # get data from watermark till today
+            raw_transactions = get_transaction_data_for_account(
+                creds, account.id, date_start.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")
+            )
 
-        raw_data = json.dumps(raw_transactions).encode("utf-8")
+            # add the account ID to the data
+            raw_transactions["account_id"] = account.id
 
-        # Upload to S3
-        upload_bytes_to_s3(
-            s3_client=s3,
-            bucket_name=os.environ["S3_BUCKET_NAME"],
-            prefix=f"extracts/gocardless/{account.id}/{today.year}/{today.month:02d}/{today.day:02d}",
-            file_name=f"transactions_{uuid.uuid4()}.json",
-            file_obj=BytesIO(raw_data),
-        )
-        context.log.info(f"Successfully uploaded transactions for account {account.id}")
+            raw_data = json.dumps(raw_transactions).encode("utf-8")
 
-        with postgres_database.get_session() as session:
+            # Upload to S3
+            upload_bytes_to_s3(
+                s3_client=s3,
+                bucket_name=os.environ["S3_BUCKET_NAME"],
+                prefix=f"extracts/gocardless/{account.id}/{today.year}/{today.month:02d}/{today.day:02d}",
+                file_name=f"transactions_{uuid.uuid4()}.json",
+                file_obj=BytesIO(raw_data),
+            )
+            context.log.info(f"Successfully uploaded transactions for account {account.id}")
+
             update_transaction_watermark(session, account.id, today)
 
-        context.log.info(
-            f"Successfully updated watermark for account {account.id} with date {today}"
-        )
-
-    return _asset
+            context.log.info(
+                f"Successfully updated watermark for account {account.id} with date {today}"
+            )
 
 
 db_session = create_session(gocardless_database_url())
 
-extraction_asset_defs = Definitions(
-    assets=[
-        create_extract_transaction_asset(account) for account in get_active_accounts(db_session)
-    ]
-)
+extraction_asset_defs = Definitions(assets=[gocardless_extract_transactions])
