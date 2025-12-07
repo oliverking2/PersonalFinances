@@ -1,7 +1,7 @@
 """Module for working with AWS S3."""
 
 import tempfile
-from io import StringIO
+from io import StringIO, BytesIO
 from pathlib import Path
 import json
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Literal, Tuple
@@ -88,6 +88,33 @@ def upload_file_to_s3(
     s3_key = f"{prefix}/{file_name}"
     logger.info(f"Uploading file to S3: bucket={bucket_name}, key={s3_key}")
     s3_client.upload_file(str(file_path), bucket_name, s3_key)
+    logger.info(f"Data uploaded to S3. bucket={bucket_name}, key={s3_key}")
+    return s3_key
+
+
+def upload_bytes_to_s3(
+    s3_client: "S3Client",
+    bucket_name: str,
+    prefix: str,
+    file_name: str,
+    file_obj: BytesIO,
+) -> str:
+    """Upload a file to an Amazon S3 bucket with a specified prefix.
+
+    This function takes a valid S3 client, bucket name, key prefix, file name,
+    and file path to upload the specified file to the S3 bucket. It returns the
+    full path of the uploaded S3 object as a string.
+
+    :param s3_client: A pre-configured S3 client object to interact with the S3 service.
+    :param bucket_name: The name of the S3 bucket where the file will be uploaded.
+    :param prefix: The prefix or directory inside the S3 bucket under which the file will be stored.
+    :param file_name: The name the file should have in the S3 bucket.
+    :param file_obj: The file object to be uploaded to S3.
+    :return: The full path of the uploaded object on S3 as a string.
+    """
+    s3_key = f"{prefix}/{file_name}"
+    logger.info(f"Uploading file to S3: bucket={bucket_name}, key={s3_key}")
+    s3_client.upload_fileobj(file_obj, bucket_name, s3_key)
     logger.info(f"Data uploaded to S3. bucket={bucket_name}, key={s3_key}")
     return s3_key
 

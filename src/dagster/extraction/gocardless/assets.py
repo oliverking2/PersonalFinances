@@ -1,23 +1,25 @@
 """GoCardless Dagster Assets."""
 
 import json
-import tempfile
+import os
 from datetime import date
-from pathlib import Path
 from typing import TYPE_CHECKING
 import uuid
+from io import BytesIO
 
 from dagster import (
     asset,
     AutomationCondition,
     AssetExecutionContext,
     AssetsDefinition,
-    EnvVar,
     Definitions,
 )
 from dateutil.relativedelta import relativedelta
+from mypy_boto3_s3 import S3Client
 
-from src.aws.s3 import upload_file_to_s3
+from src.aws.s3 import upload_bytes_to_s3
+from src.dagster.resources import PostgresDatabase
+from src.gocardless.api.core import GoCardlessCredentials
 from src.gocardless.api.transactions import get_transaction_data_for_account
 
 from src.postgres.gocardless.operations.bank_accounts import (
@@ -42,13 +44,14 @@ def create_extract_transaction_asset(account: "BankAccount") -> AssetsDefinition
     )
     def _asset(context: AssetExecutionContext) -> None:
         """Extract transactions from account 1."""
-        creds = context.resources.gocardless_api
-        s3 = context.resources.s3
-        postgres_database = context.resources.postgres_database
+        creds: GoCardlessCredentials = context.resources.gocardless_api
+        s3: S3Client = context.resources.s3
+        postgres_database: PostgresDatabase = context.resources.postgres_database
 
         today = date.today()
 
-        watermark = get_transaction_watermark(postgres_database, account.id)
+        with postgres_database.get_session() as session:
+            watermark = get_transaction_watermark(session, account.id)
         date_start = today + relativedelta(days=-90) if watermark is None else watermark
 
         # go a few days further back to add some overlap incase any data was missed
@@ -59,20 +62,16 @@ def create_extract_transaction_asset(account: "BankAccount") -> AssetsDefinition
             creds, account.id, date_start.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")
         )
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=True) as temp_file:
-            json.dump(raw_transactions, temp_file)
+        raw_data = json.dumps(raw_transactions).encode("utf-8")
 
-            # Use the temporary file path
-            temp_file_path = Path(temp_file.name)
-
-            # Upload to S3
-            upload_file_to_s3(
-                s3_client=s3,
-                bucket_name=EnvVar("S3_BUCKET_NAME"),
-                prefix=f"extracts/gocardless/{account.id}/{today.year}/{today.month:02d}/{today.day:02d}",
-                file_name=f"transactions_{uuid.uuid4()}.json",
-                file_path=temp_file_path,
-            )
+        # Upload to S3
+        upload_bytes_to_s3(
+            s3_client=s3,
+            bucket_name=os.environ["S3_BUCKET_NAME"],
+            prefix=f"extracts/gocardless/{account.id}/{today.year}/{today.month:02d}/{today.day:02d}",
+            file_name=f"transactions_{uuid.uuid4()}.json",
+            file_obj=BytesIO(raw_data),
+        )
 
     return _asset
 

@@ -195,7 +195,7 @@ version = "1.42.4"
 description = "Type annotations for boto3 1.42.4 generated with mypy-boto3-builder 8.12.0"
 optional = false
 python-versions = ">=3.9"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "boto3_stubs-1.42.4-py3-none-any.whl", hash = "sha256:b489ed82a55e71d72d2ae7aee7fedd05e22bc8836360ef9c6d55b610f3bf45d2"},
     {file = "boto3_stubs-1.42.4.tar.gz", hash = "sha256:c6c2853e51b3d330fe9862ffaa38e004bede8247e79d97a89bea09df8d0c3608"},
@@ -653,7 +653,7 @@ version = "1.42.4"
 description = "Type annotations and code completion for botocore"
 optional = false
 python-versions = ">=3.9"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "botocore_stubs-1.42.4-py3-none-any.whl", hash = "sha256:0b6711abe0ceffe32fa572c0c683e93d9a17b2c4cff1b47a7b48bb784fe2dbcc"},
     {file = "botocore_stubs-1.42.4.tar.gz", hash = "sha256:5b8e63a1f62800945dcc824514fa0465f78ad2c8fe7a592b59f77ca19f1aa10b"},
@@ -2160,7 +2160,7 @@ version = "1.42.3"
 description = "Type annotations for boto3 S3 1.42.3 service generated with mypy-boto3-builder 8.12.0"
 optional = false
 python-versions = ">=3.9"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "mypy_boto3_s3-1.42.3-py3-none-any.whl", hash = "sha256:97c5171928a2ae8c7b60a60700f395407cb5eca60704c7ab6a1ff0861f4db997"},
     {file = "mypy_boto3_s3-1.42.3.tar.gz", hash = "sha256:2507bdfa17829f1f422b8bf334db836689b0529fbe6635af4e0f3aaa72f92806"},
@@ -2172,7 +2172,7 @@ version = "1.42.3"
 description = "Type annotations for boto3 SSM 1.42.3 service generated with mypy-boto3-builder 8.12.0"
 optional = false
 python-versions = ">=3.9"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "mypy_boto3_ssm-1.42.3-py3-none-any.whl", hash = "sha256:23b9fa94a832ec4ebe498e0d90fc508581bea80b5a6fed9c8aba441db01cc260"},
     {file = "mypy_boto3_ssm-1.42.3.tar.gz", hash = "sha256:d8831e8f4f2946616ea461b75d985c8498f0050ca7a5c3c2e8b4c3df02a99237"},
@@ -2245,7 +2245,7 @@ version = "2.3.5"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.11"
-groups = ["ui"]
+groups = ["main", "ui"]
 files = [
     {file = "numpy-2.3.5-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:de5672f4a7b200c15a4127042170a694d4df43c992948f5e1af57f0174beed10"},
     {file = "numpy-2.3.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:acfd89508504a19ed06ef963ad544ec6664518c863436306153e13e94605c218"},
@@ -2341,7 +2341,7 @@ version = "2.3.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
 optional = false
 python-versions = ">=3.9"
-groups = ["ui"]
+groups = ["main", "ui"]
 files = [
     {file = "pandas-2.3.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:376c6446ae31770764215a6c937f72d917f214b43560603cd60da6408f183b6c"},
     {file = "pandas-2.3.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e19d192383eab2f4ceb30b412b22ea30690c9e618f78870357ae1d682912015a"},
@@ -2898,7 +2898,7 @@ version = "22.0.0"
 description = "Python library for Apache Arrow"
 optional = false
 python-versions = ">=3.10"
-groups = ["ui"]
+groups = ["main", "ui"]
 files = [
     {file = "pyarrow-22.0.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:77718810bd3066158db1e95a63c160ad7ce08c6b0710bc656055033e39cdad88"},
     {file = "pyarrow-22.0.0-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:44d2d26cda26d18f7af7db71453b7b783788322d756e81730acb98f24eb90ace"},
@@ -3207,7 +3207,7 @@ version = "2025.2"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
-groups = ["dagster", "ui"]
+groups = ["main", "dagster", "ui"]
 files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
     {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
@@ -3982,7 +3982,7 @@ version = "0.29.2"
 description = "Type annotations and code completion for awscrt"
 optional = false
 python-versions = ">=3.8"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "types_awscrt-0.29.2-py3-none-any.whl", hash = "sha256:3f5d1e6c99b0b551af6365f9c04d8ce2effbcfe18bb719a34501efea279ae7bb"},
     {file = "types_awscrt-0.29.2.tar.gz", hash = "sha256:41e01e14d646877bd310e7e3c49ff193f8361480b9568e97b1639775009bbefa"},
@@ -3994,7 +3994,7 @@ version = "0.15.0"
 description = "Type annotations and code completion for s3transfer"
 optional = false
 python-versions = ">=3.8"
-groups = ["checks"]
+groups = ["main"]
 files = [
     {file = "types_s3transfer-0.15.0-py3-none-any.whl", hash = "sha256:1e617b14a9d3ce5be565f4b187fafa1d96075546b52072121f8fda8e0a444aed"},
     {file = "types_s3transfer-0.15.0.tar.gz", hash = "sha256:43a523e0c43a88e447dfda5f4f6b63bf3da85316fdd2625f650817f2b170b5f7"},
@@ -4033,7 +4033,7 @@ version = "2025.2"
 description = "Provider of IANA time zone data"
 optional = false
 python-versions = ">=2"
-groups = ["dagster", "ui"]
+groups = ["main", "dagster", "ui"]
 files = [
     {file = "tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8"},
     {file = "tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9"},
@@ -4622,4 +4622,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "270440f05ee9759b7aca95d602fd678cef277ce202713d3d3bdb8f8ad2fd0a04"
+content-hash = "2f7840a5c40cd973d972ed4ce44ed70e5ca5bf5cd3ba87141b360d6add1773d9"
