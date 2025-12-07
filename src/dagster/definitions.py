@@ -7,7 +7,7 @@ Dagster deployment.
 
 from dagster import Definitions
 
-from src.dagster.dbt.assets import dbt_defs
+from src.dagster.dbt.definitions import dbt_defs
 from src.dagster.extraction.gocardless.assets import extraction_asset_defs
 from src.dagster.resources import resource_defs
 

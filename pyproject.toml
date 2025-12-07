@@ -43,12 +43,13 @@ dash-bootstrap-components = "^2.0.3"
 optional = false
 
 [tool.poetry.group.dagster.dependencies]
-dagster = "^1.12.3"
-dagster-webserver = "^1.12.3"
-dagster-graphql = "^1.12.3"
+dagster = "^1.12.4"
+dagster-webserver = "^1.12.4"
+dagster-graphql = "^1.12.4"
 
-dagster-aws = "^0.28.3"
-dagster-postgres = "^0.28.3"
+dagster-aws = "^0.28.4"
+dagster-postgres = "^0.28.4"
+dagster-dbt = "^0.28.4"
 
 [tool.poetry.group.checks]
 optional = true
@@ -137,6 +138,6 @@ max_line_length = 120
 ignore_templated_areas = true
 
 [tool.sqlfluff.templater.dbt]
-#project_dir = "dbt"
-#profiles_dir = "dbt"
+project_dir = "dbt"
+profiles_dir = "dbt"
 profile = "duckdb_local"
