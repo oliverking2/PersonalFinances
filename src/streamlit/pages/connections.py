@@ -11,13 +11,14 @@ stores connection data in a MySQL database.
 """
 
 import time
-from typing import Dict
 
 import requests
 import streamlit as st
 from sqlalchemy.orm import Session
 from streamlit.runtime.state import QueryParamsProxy
+from dotenv import load_dotenv
 
+from filepaths import ROOT_DIR
 from src.gocardless.api.account import get_account_metadata_by_id
 from src.gocardless.api.requisition import (
     get_requisition_data_by_id,
@@ -26,16 +27,18 @@ from src.gocardless.api.requisition import (
 from src.postgres.gocardless.models import RequisitionLink
 from src.postgres.gocardless.operations.bank_accounts import upsert_bank_accounts
 from src.postgres.gocardless.operations.requisitions import (
-    add_requisition_link,
     fetch_requisition_links,
     upsert_requisition_status,
+    create_new_requisition_link,
 )
 from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
-from src.gocardless.account_setup import get_institutions, create_link
+from src.gocardless.api.institutions import get_institution_mapping
 
 from src.streamlit.utils import get_streamlit_logger
 
 logger = get_streamlit_logger("connections_page")
+
+load_dotenv(ROOT_DIR / ".env")
 
 # page config
 st.set_page_config(page_title="Connections", layout="wide")
@@ -74,24 +77,6 @@ STATUS_EMOJIS = {
 }
 
 
-@st.cache_data
-def get_institution_mapping() -> Dict[str, str]:
-    """Fetch and cache a mapping of institution names to their IDs from GoCardless.
-
-    This function retrieves all available banking institutions from the GoCardless API
-    and creates a dictionary mapping institution names to their unique identifiers.
-    The result is cached by Streamlit to improve performance on subsequent calls.
-
-    :returns: A dictionary mapping institution names to their IDs
-    :rtype: Dict[str, str]
-    :raises: Exception if the API call to GoCardless fails
-    """
-    logger.info("Fetching institution mapping from GoCardless")
-    institutions = get_institutions(gocardless_creds)
-    logger.debug(f"Retrieved {len(institutions)} institutions")
-    return {inst["name"]: inst["id"] for inst in institutions}
-
-
 @st.dialog("New Connection", width="large")
 def new_connection_modal() -> None:
     """Create a popup dialog for adding a new bank connection.
@@ -106,19 +91,26 @@ def new_connection_modal() -> None:
     :returns: None
     """
     logger.info("Opening new connection modal")
-    inst_mapping = get_institution_mapping()
+    inst_mapping = get_institution_mapping(gocardless_creds)
 
     st.write("Please fill in your details:")
     institution = st.selectbox(
         "Bank", options=inst_mapping, help="Start typing or scroll to pick your bank"
     )
+    friendly_name = st.text_input(
+        "Friendly Name",
+        help="The friendly name for the account you are connecting",
+    )
     if st.button("Create Connection"):
+        if friendly_name == "":
+            st.error("Please enter a friendly name for your account")
+            return
+
         logger.info(f"User initiated connection creation for institution: {institution}")
-        callback = "http://localhost:8501/connections?gc_callback=1"
         try:
             logger.info(f"Creating link for institution ID: {inst_mapping[institution]}")
-            link_data = create_link(gocardless_creds, callback, inst_mapping[institution])
-            add_requisition_link(session, link_data)
+            institution_id = inst_mapping[institution]
+            create_new_requisition_link(session, gocardless_creds, institution_id)
 
             with st.spinner("Creating Connection..."):
                 time.sleep(1)
@@ -150,10 +142,19 @@ def render_row_button(link: RequisitionLink) -> None:
     logger.debug(f"Rendering button for requisition link ID: {link.id}")
     code = link.status
     name = STATUS_NAMES.get(code, code)
-    dot = STATUS_EMOJIS.get(code, "⬜")  # grey square fallback
-    emoji = "✔️" if code == "LN" else "❌"
+    link_status_dot = STATUS_EMOJIS.get(code, "⬜")  # grey square fallback
+    account_status_dot = STATUS_EMOJIS.get("EX" if link.dg_account_expired else "LN")
 
-    label = f"{link.id} | {link.institution_id} | {dot} {emoji} {name}"
+    # \u00A0|\u00A0 adds a bit more space between the different elements
+    label = (
+        f""
+        f"{link} "
+        f"\u00a0|\u00a0 {link.institution_id} "
+        f"\u00a0|\u00a0 {link_status_dot} {name} "
+    )
+    if name == "Linked":
+        label += f"\u00a0|\u00a0 {account_status_dot} {'Account Expired' if link.dg_account_expired else 'Account Valid'}"
+
     if st.button(label, key=f"btn_{link.id}", use_container_width=True):
         logger.info(f"User clicked on requisition link ID: {link.id}")
         show_details(link)

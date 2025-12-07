@@ -1,9 +1,12 @@
 """GoCardless Requisition database operations."""
 
+import os
 from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
+from src.gocardless.api.core import GoCardlessCredentials
+from src.gocardless.api.requisition import create_link
 from src.postgres.gocardless.models import RequisitionLink
 
 from src.utils.logging import setup_dagster_logger
@@ -49,7 +52,7 @@ def fetch_all_requisition_ids(session: Session) -> List[str]:
         raise
 
 
-def add_requisition_link(session: Session, data: Dict[str, Any]) -> None:
+def add_requisition_link(session: Session, data: Dict[str, Any]) -> RequisitionLink:
     """Add a new requisition link to the database.
 
     Creates a new RequisitionLink object from the provided data and adds it to the database.
@@ -86,6 +89,8 @@ def add_requisition_link(session: Session, data: Dict[str, Any]) -> None:
         logger.error(f"Failed to add requisition link: {e!s}")
         raise
 
+    return req
+
 
 def update_requisition_record(session: Session, requisition_id: str, data: Dict[str, Any]) -> bool:
     """Update a requisition record with new data from the API.
@@ -114,6 +119,7 @@ def update_requisition_record(session: Session, requisition_id: str, data: Dict[
             "ssn",
             "account_selection",
             "redirect_immediate",
+            "dg_account_expired",
         }
 
         updated_fields = []
@@ -167,3 +173,16 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
     except Exception as e:
         logger.error(f"Failed to upsert requisition link with ID {req_id}: {e!s}")
         raise
+
+
+def create_new_requisition_link(
+    session: Session, creds: GoCardlessCredentials, institution_id: str
+) -> RequisitionLink:
+    """Create a new RequisitionLink record in the database."""
+    callback = os.environ["GC_CALLBACK_URL"]
+    link_data = create_link(creds, callback, institution_id)
+
+    link = add_requisition_link(session, link_data)
+    logger.info(f"Created new requisition link with ID: {link.id}")
+
+    return link

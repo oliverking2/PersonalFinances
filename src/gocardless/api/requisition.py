@@ -29,7 +29,11 @@ def get_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any
     logger.info("Fetching requisition data from GoCardless")
     url = "https://bankaccountdata.gocardless.com/api/v2/requisitions"
 
-    return creds.make_get_request(url)["results"]
+    resp = creds.make_get_request(url)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp["results"]
 
 
 def get_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dict[str, Any]:
@@ -46,7 +50,11 @@ def get_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dic
     logger.info(f"Fetching requisition data from GoCardless for ID: {req_id}")
     url = f"https://bankaccountdata.gocardless.com/api/v2/requisitions/{req_id}"
 
-    return creds.make_get_request(url)
+    resp = creds.make_get_request(url)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp
 
 
 def delete_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dict[str, Any]:
@@ -61,6 +69,21 @@ def delete_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> 
     url = f"https://bankaccountdata.gocardless.com/api/v2/requisitions/{req_id}"
 
     return creds.make_delete_request(url)
+
+
+def create_link(creds: GoCardlessCredentials, callback: str, institution_id: str) -> Dict[str, Any]:
+    """Create a link with GoCardless.
+
+    :param creds: GoCardlessCredentials object for authentication
+    :param callback: The callback URL to redirect to after the user completes the requisition flow
+    :param institution_id: The ID of the institution to connect to
+    :returns: The JSON response as a dictionary
+    """
+    payload = {"redirect": callback, "institution_id": institution_id}
+
+    return creds.make_post_request(
+        "https://bankaccountdata.gocardless.com/api/v2/requisitions/", body=payload
+    )
 
 
 if __name__ == "__main__":

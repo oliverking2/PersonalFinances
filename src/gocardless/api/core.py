@@ -1,7 +1,7 @@
 """Module containing the Auth for GoCardless."""
 
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 
 from dotenv import load_dotenv
 import requests
@@ -13,7 +13,6 @@ from src.utils.logging import setup_dagster_logger
 logger = setup_dagster_logger(__name__)
 
 
-SUCCESS_STATUS_CODE = 200
 RATE_LIMIT_STATUS_CODE = 429
 
 
@@ -115,7 +114,9 @@ class GoCardlessCredentials:
         logger.error("Access token failure - unable to obtain valid token")
         raise ValueError("Access Token Failure.")
 
-    def make_get_request(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def make_get_request(
+        self, url: str, params: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """Make a GET request to the specified URL using the current access token."""
         r = requests.get(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
@@ -123,8 +124,7 @@ class GoCardlessCredentials:
         if r.status_code == RATE_LIMIT_STATUS_CODE:
             raise GoCardlessRateLimitError(f"Error fetching data from GoCardless API: {r.text}")
 
-        if r.status_code != SUCCESS_STATUS_CODE:
-            raise GoCardlessError(f"Error fetching data from GoCardless API: {r.text}")
+        r.raise_for_status()
 
         return r.json()
 
@@ -138,8 +138,7 @@ class GoCardlessCredentials:
         r = requests.post(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body
         )
-        if r.status_code != SUCCESS_STATUS_CODE:
-            raise GoCardlessError(f"Error posting data to GoCardless API: {r.text}")
+        r.raise_for_status()
 
         return r.json()
 
@@ -150,8 +149,7 @@ class GoCardlessCredentials:
         r = requests.delete(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
         )
-        if r.status_code != SUCCESS_STATUS_CODE:
-            raise GoCardlessError(f"Error deleting data from GoCardless API: {r.text}")
+        r.raise_for_status()
 
         return r.json()
 
@@ -165,8 +163,7 @@ class GoCardlessCredentials:
         r = requests.put(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body
         )
-        if r.status_code != SUCCESS_STATUS_CODE:
-            raise GoCardlessError(f"Error putting data to GoCardless API: {r.text}")
+        r.raise_for_status()
 
         return r.json()
 

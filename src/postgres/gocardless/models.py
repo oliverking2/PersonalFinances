@@ -40,6 +40,7 @@ class RequisitionLink(Base):
     redirect_immediate: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # Dagster tracking columns
+    friendly_name: Mapped[str] = mapped_column(String(128), nullable=False)
     dg_account_expired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # one-to-many → BankAccount.requisition_id

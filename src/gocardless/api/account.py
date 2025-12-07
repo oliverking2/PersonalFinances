@@ -28,7 +28,11 @@ def get_account_metadata_by_id(creds: GoCardlessCredentials, account_id: str) ->
     logger.info(f"Fetching account details from GoCardless for account ID: {account_id}")
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}"
 
-    return creds.make_get_request(url)
+    resp = creds.make_get_request(url)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp
 
 
 def get_transaction_data_by_id(
@@ -52,7 +56,11 @@ def get_transaction_data_by_id(
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}/transactions"
     params = {"date_from": date_from, "date_to": date_to}
 
-    return creds.make_get_request(url, params)
+    resp = creds.make_get_request(url, params=params)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp
 
 
 def get_balance_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
@@ -64,7 +72,11 @@ def get_balance_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dic
     """
     logger.info("Fetching balance data from GoCardless")
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}/balances"
-    return creds.make_get_request(url)
+    resp = creds.make_get_request(url)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp
 
 
 def get_account_details_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
@@ -76,7 +88,11 @@ def get_account_details_by_id(creds: GoCardlessCredentials, account_id: str) -> 
     """
     logger.info("Fetching account details from GoCardless")
     url = f"https://bankaccountdata.gocardless.com/api/v2/accounts/{account_id}/details"
-    return creds.make_get_request(url)
+    resp = creds.make_get_request(url)
+    if not isinstance(resp, dict):
+        raise ValueError("Response from GoCardless not in expected format.")
+
+    return resp
 
 
 if __name__ == "__main__":
