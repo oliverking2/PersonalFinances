@@ -2,3 +2,5 @@
 .env
 data
 .tmp_dagster_home_*
+*.duckdb
+*.duckdb-wal

@@ -1,0 +1,19 @@
+name: dbt_project
+version: "1.0"
+profile: duckdb_local
+
+model-paths: ["src/dbt/models"]
+seed-paths: ["src/dbt/seeds"]
+macro-paths: ["src/dbt/macros"]
+
+models:
+  +materialized: view
+
+  1_bronze:
+    +schema: bronze
+
+  2_silver:
+    +schema: silver
+
+  3_gold:
+    +schema: gold
