@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from streamlit.delta_generator import DeltaGenerator
 
 from src.postgres.gocardless.models import BankAccount
+from src.postgres.gocardless.operations.bank_accounts import get_active_accounts
 from src.streamlit.utils import get_gocardless_session
 
 # Page config
@@ -15,7 +16,7 @@ st.title("Your Bank Accounts")
 session: Session = get_gocardless_session()
 
 # Fetch all accounts
-accounts = session.query(BankAccount).all()
+accounts = get_active_accounts(session)
 if not accounts:
     st.info("No bank accounts found. Please connect one via the Connections page.")
     st.stop()

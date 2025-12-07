@@ -17,12 +17,12 @@ import pyarrow.dataset
 from pyarrow.fs import S3FileSystem, FileSelector
 
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
-logger = get_logger("s3")
+logger = setup_dagster_logger("s3")
 
 # read any .env files and load them into the environment
 load_dotenv()

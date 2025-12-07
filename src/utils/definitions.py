@@ -9,9 +9,9 @@ import os
 
 from dotenv import load_dotenv
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger(__name__)
+logger = setup_dagster_logger(__name__)
 
 
 # Load environment variables

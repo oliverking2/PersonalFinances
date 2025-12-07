@@ -10,9 +10,9 @@ from typing import Dict, Any
 from src.gocardless.api.core import GoCardlessCredentials
 
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger("gocardless_api_account")
+logger = setup_dagster_logger("gocardless_api_account")
 
 
 def get_account_metadata_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:

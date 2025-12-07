@@ -2,7 +2,7 @@
 
 SELECT
     account_id,
-    account,
+    balances,
     _extract_dt
 FROM
     READ_JSON(

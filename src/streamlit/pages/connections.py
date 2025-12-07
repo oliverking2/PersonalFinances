@@ -33,11 +33,9 @@ from src.postgres.gocardless.operations.requisitions import (
 from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
 from src.gocardless.account_setup import get_institutions, create_link
 
-# Configure logging
+from src.streamlit.utils import get_streamlit_logger
 
-from src.utils.logging import get_logger
-
-logger = get_logger("connections_page")
+logger = get_streamlit_logger("connections_page")
 
 # page config
 st.set_page_config(page_title="Connections", layout="wide")

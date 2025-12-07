@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import RequisitionLink
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger(__name__)
+logger = setup_dagster_logger(__name__)
 
 
 def fetch_requisition_links(session: Session) -> List[RequisitionLink]:

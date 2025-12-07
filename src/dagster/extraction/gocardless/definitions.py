@@ -1,1 +1,0 @@
-"""GoCardless Dagster Definitions."""

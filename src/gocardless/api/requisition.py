@@ -11,9 +11,9 @@ from src.gocardless.api.core import GoCardlessCredentials
 
 # Configure logging
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger("gocardless_api_requisition")
+logger = setup_dagster_logger("gocardless_api_requisition")
 
 
 def get_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:

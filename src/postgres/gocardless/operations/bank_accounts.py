@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import BankAccount
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger(__name__)
+logger = setup_dagster_logger(__name__)
 
 
 def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str, Any]]) -> None:

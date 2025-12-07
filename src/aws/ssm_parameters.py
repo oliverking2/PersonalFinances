@@ -3,13 +3,13 @@
 from typing import TYPE_CHECKING
 
 
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_ssm import SSMClient
 
 
-logger = get_logger("aws_ssm_parameters")
+logger = setup_dagster_logger("aws_ssm_parameters")
 
 
 def get_parameter_data_from_ssm(ssm_client: "SSMClient", parameter_name: str) -> str:

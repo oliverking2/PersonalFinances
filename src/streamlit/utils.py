@@ -1,5 +1,7 @@
 """Streamlit utils module."""
 
+import logging
+
 import streamlit as st
 from sqlalchemy.orm import Session
 
@@ -20,3 +22,10 @@ def get_gocardless_creds() -> GoCardlessCredentials:
     if "gocardless_creds" not in st.session_state:
         st.session_state.gocardless_creds = GoCardlessCredentials()
     return st.session_state.gocardless_creds
+
+
+def get_streamlit_logger(name: str) -> logging.Logger:
+    """Get the Streamlit logger."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    return logger

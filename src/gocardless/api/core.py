@@ -8,9 +8,9 @@ import requests
 import boto3
 
 from src.aws.ssm_parameters import get_parameter_data_from_ssm
-from src.utils.logging import get_logger
+from src.utils.logging import setup_dagster_logger
 
-logger = get_logger(__name__)
+logger = setup_dagster_logger(__name__)
 
 
 SUCCESS_STATUS_CODE = 200

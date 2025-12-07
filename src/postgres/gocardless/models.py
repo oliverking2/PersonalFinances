@@ -39,6 +39,9 @@ class RequisitionLink(Base):
     account_selection: Mapped[bool] = mapped_column(Boolean, nullable=False)
     redirect_immediate: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
+    # Dagster tracking columns
+    dg_account_expired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # one-to-many → BankAccount.requisition_id
     accounts: Mapped[List["BankAccount"]] = relationship(
         "BankAccount", back_populates="requisition"
