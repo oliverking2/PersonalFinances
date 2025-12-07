@@ -5,11 +5,15 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
+from dotenv import load_dotenv
+
 from src.gocardless.api.core import GoCardlessCredentials
 from src.gocardless.api.requisition import create_link
 from src.postgres.gocardless.models import RequisitionLink
-
 from src.utils.logging import setup_dagster_logger
+from filepaths import ROOT_DIR
+
+load_dotenv(ROOT_DIR / ".env")
 
 logger = setup_dagster_logger(__name__)
 

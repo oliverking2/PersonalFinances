@@ -14,11 +14,8 @@ import time
 
 import requests
 import streamlit as st
-from sqlalchemy.orm import Session
 from streamlit.runtime.state import QueryParamsProxy
-from dotenv import load_dotenv
 
-from filepaths import ROOT_DIR
 from src.gocardless.api.account import get_account_metadata_by_id
 from src.gocardless.api.requisition import (
     get_requisition_data_by_id,
@@ -38,19 +35,11 @@ from src.streamlit.utils import get_streamlit_logger
 
 logger = get_streamlit_logger("connections_page")
 
-load_dotenv(ROOT_DIR / ".env")
-
-# page config
-st.set_page_config(page_title="Connections", layout="wide")
-logger.info("Connections page initialized")
-
-# ─── Load connections from DB ─────────────────────────────────────────────────
 logger.info("Connecting to MySQL database")
-session: Session = get_gocardless_session()
+session = get_gocardless_session()
 
 logger.info("Retrieving GoCardless credentials")
 gocardless_creds = get_gocardless_creds()
-
 
 # 2-letter → full status name
 STATUS_NAMES = {
@@ -66,14 +55,20 @@ STATUS_NAMES = {
 
 # 2-letter → colour emoji
 STATUS_EMOJIS = {
-    "CR": "🔵",  # blue
-    "GC": "🟠",  # orange
-    "UA": "🟠",  # orange
-    "RJ": "🔴",  # red
-    "SA": "🔵",  # blue
-    "GA": "🔵",  # blue
-    "LN": "🟢",  # green
-    "EX": "🔴",  # red
+    "CR": "🔵",
+    "GC": "🟠",
+    "UA": "🟠",
+    "RJ": "🔴",
+    "SA": "🔵",
+    "GA": "🔵",
+    "LN": "🟢",
+    "EX": "🔴",
+}
+
+INSTITUTION_MAPPING = {
+    "NATIONWIDE_NAIAGB21": "Nationwide",
+    "CHASE_CHASGB2L": "Chase",
+    "AMERICAN_EXPRESS_AESUGB21": "American Express",
 }
 
 
@@ -130,13 +125,9 @@ def new_connection_modal() -> None:
 def render_row_button(link: RequisitionLink) -> None:
     """Render a requisition link as a clickable button in the UI.
 
-    Creates a button for a single requisition link with a formatted label showing:
-    [ID] | [Institution] | [colour-dot] [✔️/❌] [STATUS_NAME]
-
     When clicked, the button opens a details dialog for the requisition link.
 
     :param link: The requisition link to render
-    :type link: RequisitionLink
     :returns: None
     """
     logger.debug(f"Rendering button for requisition link ID: {link.id}")
@@ -147,9 +138,8 @@ def render_row_button(link: RequisitionLink) -> None:
 
     # \u00A0|\u00A0 adds a bit more space between the different elements
     label = (
-        f""
-        f"{link} "
-        f"\u00a0|\u00a0 {link.institution_id} "
+        f"{INSTITUTION_MAPPING[link.institution_id]} "
+        f"\u00a0|\u00a0 {link.friendly_name} "
         f"\u00a0|\u00a0 {link_status_dot} {name} "
     )
     if name == "Linked":
@@ -246,6 +236,10 @@ def process_callback(params: QueryParamsProxy) -> None:
     Retrieves the updated requisition data from the GoCardless API, updates the
     requisition link status in the database, and displays a success message to the user.
 
+    # example: http://localhost:8501/connections?ref=1b3c1181-5eae-4219-881a-b3af1c1acdc1&gc_callback=1
+    # chase: http://localhost:8501/connections?ref=cb84aa32-3271-4909-a546-213babd4a8ec&gc_callback=1
+
+
     :param params: Query parameters from the callback URL
     :returns None
     :raises requests.RequestException: If there's an error communicating with the GoCardless API
@@ -322,9 +316,8 @@ def render_table() -> None:
             render_row_button(link)
 
 
-# catch GoCardless Callback
-# example: http://localhost:8501/connections?ref=1b3c1181-5eae-4219-881a-b3af1c1acdc1&gc_callback=1
-# chase: http://localhost:8501/connections?ref=cb84aa32-3271-4909-a546-213babd4a8ec&gc_callback=1
+st.set_page_config(page_title="Connections", layout="wide")
+
 params = st.query_params
 logger.info(f"Page Params - {params}")
 if params.get("gc_callback") and params.get("ref"):
@@ -332,7 +325,7 @@ if params.get("gc_callback") and params.get("ref"):
 
 # ─── Top bar with "+ Connection" on the right ─────────────────────────────────
 logger.info("Initializing UI components")
-st.markdown("# Your Connections")
+st.title("Your Connections")
 if st.button("Add Connection"):
     logger.info("User clicked 'Add Connection' button")
     new_connection_modal()

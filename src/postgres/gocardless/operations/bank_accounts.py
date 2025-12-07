@@ -33,7 +33,7 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str,
             acc = session.get(BankAccount, acc_id)
             if not acc:
                 logger.debug(f"Creating new bank account record for ID: {acc_id}")
-                acc = BankAccount(id=acc_id, requisition_id=req_id)
+                acc = BankAccount(id=acc_id)
                 session.add(acc)
                 new_accounts += 1
             else:
@@ -41,6 +41,7 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str,
                 updated_accounts += 1
 
             # Map fields from account details
+            acc.requisition_id = req_id
             acc.bban = info.get("bban")
             acc.bic = info.get("bic")
             acc.cash_account_type = info.get("cash_account_type")
