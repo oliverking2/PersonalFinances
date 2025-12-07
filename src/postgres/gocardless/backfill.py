@@ -8,12 +8,13 @@ from src.postgres.gocardless.models import RequisitionLink
 from src.postgres.gocardless.operations.agreements import upsert_agreement
 from src.postgres.gocardless.operations.bank_accounts import upsert_bank_accounts
 from src.postgres.gocardless.operations.requisitions import add_requisition_link
-from src.streamlit.utils import get_gocardless_session
+from src.postgres.utils import create_session
+from src.utils.definitions import gocardless_database_url
 
 
 if __name__ == "__main__":
     creds = GoCardlessCredentials()
-    session = get_gocardless_session()
+    session = create_session(gocardless_database_url())
 
     requisitions = get_all_requisition_data(creds)
 
