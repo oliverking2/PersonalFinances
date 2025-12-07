@@ -1,6 +1,6 @@
 """GoCardless Bank Account database operations."""
 
-from datetime import datetime
+from datetime import date
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
@@ -72,13 +72,24 @@ def get_active_accounts(session: Session) -> List[BankAccount]:
     return session.query(BankAccount).filter(BankAccount.status == "READY").all()
 
 
-def get_transaction_watermark(session: Session, account_id: str) -> Optional[datetime]:
+def get_transaction_watermark(session: Session, account_id: str) -> Optional[date]:
     """Get the watermark for the most recent extract for a given bank account."""
     account = session.get(BankAccount, account_id)
     if account is None:
         raise ValueError(f"Bank account with ID {account_id} not found")
 
     return account.dg_transaction_extract_date
+
+
+def update_transaction_watermark(session: Session, account_id: str, date: date) -> None:
+    """Update the watermark for the most recent extract for a given bank account."""
+    account = session.get(BankAccount, account_id)
+    if account is None:
+        raise ValueError(f"Bank account with ID {account_id} not found")
+
+    account.dg_transaction_extract_date = date
+    session.commit()
+    logger.info(f"Updated watermark for bank account {account_id}: {date}")
 
 
 if __name__ == "__main__":

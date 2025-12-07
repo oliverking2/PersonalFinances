@@ -25,6 +25,7 @@ from src.gocardless.api.transactions import get_transaction_data_for_account
 from src.postgres.gocardless.operations.bank_accounts import (
     get_transaction_watermark,
     get_active_accounts,
+    update_transaction_watermark,
 )
 from src.postgres.utils import create_session
 from src.utils.definitions import gocardless_database_url
@@ -52,10 +53,16 @@ def create_extract_transaction_asset(account: "BankAccount") -> AssetsDefinition
 
         with postgres_database.get_session() as session:
             watermark = get_transaction_watermark(session, account.id)
+
+        context.log.info(f"Watermark for account {account.id}: {watermark}")
         date_start = today + relativedelta(days=-90) if watermark is None else watermark
 
         # go a few days further back to add some overlap incase any data was missed
         date_start += relativedelta(days=-3)
+
+        context.log.info(
+            f"Extracting transactions for account {account.id} from {date_start} to {today}"
+        )
 
         # get data from watermark till today
         raw_transactions = get_transaction_data_for_account(
@@ -71,6 +78,14 @@ def create_extract_transaction_asset(account: "BankAccount") -> AssetsDefinition
             prefix=f"extracts/gocardless/{account.id}/{today.year}/{today.month:02d}/{today.day:02d}",
             file_name=f"transactions_{uuid.uuid4()}.json",
             file_obj=BytesIO(raw_data),
+        )
+        context.log.info(f"Successfully uploaded transactions for account {account.id}")
+
+        with postgres_database.get_session() as session:
+            update_transaction_watermark(session, account.id, today)
+
+        context.log.info(
+            f"Successfully updated watermark for account {account.id} with date {today}"
         )
 
     return _asset

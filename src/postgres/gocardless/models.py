@@ -1,6 +1,6 @@
 """GoCardless database model definitions."""
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 
 from sqlalchemy import (
@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Boolean,
+    Date,
 )
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 
@@ -73,7 +74,7 @@ class BankAccount(Base):
     usage: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
 
     # Dagster tracking columns
-    dg_transaction_extract_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    dg_transaction_extract_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     # Relationships
     requisition_id: Mapped[Optional[str]] = mapped_column(
