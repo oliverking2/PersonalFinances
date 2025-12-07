@@ -1,45 +1,55 @@
-select
-bookings.unnest.transactionId,
-'booked' as transactionType,
-bookings.unnest.bookingDate,
-bookings.unnest.valueDate,
-bookings.unnest.bookingDateTime,
-bookings.unnest.valueDateTime,
-bookings.unnest.transactionAmount.amount as transactionAmount,
-bookings.unnest.transactionAmount.currency as transactionAmountCurrency,
-bookings.unnest.debtorAccount,
-bookings.unnest.remittanceInformationUnstructured,
-bookings.unnest.proprietaryBankTransactionCode,
-bookings.unnest.internalTransactionId,
-bookings.unnest.entryReference,
-bookings.unnest.creditorName,
-bookings.unnest.debtorName,
-bookings.unnest.additionalInformation,
-bookings.unnest.creditorAccount,
-bookings.unnest.currencyExchange.instructedAmount.amount as currencyExchangeInstructedAmount,
-bookings.unnest.currencyExchange.instructedAmount.currency as currencyExchangeInstructedAmountCurrency,
-bookings.unnest.currencyExchange.sourceCurrency as currencyExchangeSourceCurrency,
-bookings.unnest.currencyExchange.exchangeRate as currencyExchangeRate,
+with raw_data as (
+    select * from {{ ref('bronze_raw_transactions') }}
+),
+
+booked as (
+    select UNNEST(STRUCT_EXTRACT(transactions, 'booked')) as txn
+    from raw_data
+),
+
+pending as (
+    select UNNEST(STRUCT_EXTRACT(transactions, 'pending')) as txn
+    from raw_data
+)
+
+select  -- noqa: AM07
+    txn.transactionid,
+    'booked' as transactiontype,
+    txn.bookingdate,
+    txn.valuedate,
+    txn.bookingdatetime,
+    txn.valuedatetime,
+    txn.transactionamount.amount as transactionamount,
+    txn.transactionamount.currency as transactionamountcurrency,
+    txn.debtoraccount,
+    txn.remittanceinformationunstructured,
+    txn.proprietarybanktransactioncode,
+    txn.internaltransactionid,
+    txn.entryreference,
+    txn.creditorname,
+    txn.debtorname,
+    txn.additionalinformation,
+    txn.creditoraccount,
+    txn.currencyexchange.instructedamount.amount as currencyexchangeinstructedamount,
+    txn.currencyexchange.instructedamount.currency as currencyexchangeinstructedamountcurrency,
+    txn.currencyexchange.sourcecurrency as currencyexchangesourcecurrency,
+    txn.currencyexchange.exchangerate as currencyexchangerate
 from
-{{ ref('bronze_raw_transactions') }},
-UNNEST(struct_extract(transactions,
-'booked')) AS bookings
+    booked
 
 union all by name
 
 select
-bookings.unnest.transactionId,
-'pending' as transactionType,
-bookings.unnest.bookingDate,
-bookings.unnest.bookingDateTime,
-bookings.unnest.transactionAmount.amount as transactionAmount,
-bookings.unnest.transactionAmount.currency as transactionAmountCurrency,
-bookings.unnest.debtorAccount,
-bookings.unnest.remittanceInformationUnstructured,
-bookings.unnest.proprietaryBankTransactionCode,
-bookings.unnest.creditorName,
-bookings.unnest.debtorName,
+    txn.transactionid,
+    'pending' as transactiontype,
+    txn.bookingdate,
+    txn.bookingdatetime,
+    txn.transactionamount.amount as transactionamount,
+    txn.transactionamount.currency as transactionamountcurrency,
+    txn.debtoraccount,
+    txn.remittanceinformationunstructured,
+    txn.proprietarybanktransactioncode,
+    txn.creditorname,
+    txn.debtorname
 from
-{{ ref('bronze_raw_transactions') }},
-UNNEST(struct_extract(transactions,
-'pending')) AS bookings
+    pending
