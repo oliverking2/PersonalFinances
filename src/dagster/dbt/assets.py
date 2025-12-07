@@ -23,11 +23,13 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 
         # Eager: run whenever any upstream updates
         if "auto_eager" in tags:
-            return AutomationCondition.eager()
+            return AutomationCondition.eager() | AutomationCondition.code_version_changed()
 
         # Cron: run once per cron tick, after upstreams have updated
         if "auto_hourly" in tags:
-            return AutomationCondition.on_cron("@hourly")
+            return (
+                AutomationCondition.on_cron("@hourly") | AutomationCondition.code_version_changed()
+            )
 
         # No automation for everything else; manual or scheduled via jobs
         return None
@@ -42,7 +44,5 @@ def dbt_models(
     Dagster treats each dbt model as a software defined asset.
     """
     yield from (
-        dbt.cli(["build"], context=context).stream()
-        # .fetch_row_counts()
-        # .fetch_column_metadata()
+        dbt.cli(["build"], context=context).stream().fetch_row_counts().fetch_column_metadata()
     )

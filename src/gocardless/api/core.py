@@ -14,6 +14,7 @@ logger = get_logger(__name__)
 
 
 SUCCESS_STATUS_CODE = 200
+RATE_LIMIT_STATUS_CODE = 429
 
 
 class GoCardlessError(Exception):
@@ -21,6 +22,10 @@ class GoCardlessError(Exception):
 
     This exception is raised when GoCardless API operations fail.
     """
+
+
+class GoCardlessRateLimitError(GoCardlessError):
+    """Custom exception class for GoCardless API Rate Limit errors."""
 
 
 class GoCardlessCredentials:
@@ -115,6 +120,9 @@ class GoCardlessCredentials:
         r = requests.get(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
         )
+        if r.status_code == RATE_LIMIT_STATUS_CODE:
+            raise GoCardlessRateLimitError(f"Error fetching data from GoCardless API: {r.text}")
+
         if r.status_code != SUCCESS_STATUS_CODE:
             raise GoCardlessError(f"Error fetching data from GoCardless API: {r.text}")
 

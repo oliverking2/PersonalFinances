@@ -3,15 +3,16 @@ with raw_data as (
 ),
 
 booked as (
-    select UNNEST(STRUCT_EXTRACT(transactions, 'booked')) as txn
+    select UNNEST(STRUCT_EXTRACT(transactions, 'booked')) as txn, last_updated, _extract_dt
     from raw_data
 ),
 
 pending as (
-    select UNNEST(STRUCT_EXTRACT(transactions, 'pending')) as txn
+    select UNNEST(STRUCT_EXTRACT(transactions, 'pending')) as txn, last_updated, _extract_dt
     from raw_data
-)
+),
 
+all_transactions as (
 select  -- noqa: AM07
     txn.transactionid as transaction_id,
     'booked' as transaction_type,
@@ -33,7 +34,8 @@ select  -- noqa: AM07
     txn.currencyexchange.instructedamount.amount as currency_exchange_instructed_amount,
     txn.currencyexchange.instructedamount.currency as currency_exchange_instructed_amount_currency,
     txn.currencyexchange.sourcecurrency as currency_exchange_source_currency,
-    txn.currencyexchange.exchangerate as currency_exchange_rate
+    txn.currencyexchange.exchangerate as currency_exchange_rate,
+    last_updated, _extract_dt
 from
     booked
 
@@ -51,5 +53,33 @@ select
     txn.proprietarybanktransactioncode as proprietary_bank_transaction_code,
     txn.creditorname as creditor_name,
     txn.debtorname as debtor_name,
+    last_updated, _extract_dt
 from
     pending
+)
+
+select
+    transaction_id,
+    transaction_type,
+    booking_date,
+    value_date,
+    booking_datetime,
+    value_datetime,
+    transaction_amount,
+    transaction_amount_currency,
+    debtor_account,
+    remittance_information_unstructured,
+    proprietary_bank_transaction_code,
+    internal_transaction_id,
+    entry_reference,
+    creditor_name,
+    debtor_name,
+    additional_information,
+    creditor_account,
+    currency_exchange_instructed_amount,
+    currency_exchange_instructed_amount_currency,
+    currency_exchange_source_currency,
+    currency_exchange_rate,
+last_updated, _extract_dt
+from all_transactions
+qualify row_number() over (partition by transaction_id order by _extract_dt desc) = 1

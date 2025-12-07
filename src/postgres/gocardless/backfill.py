@@ -1,6 +1,6 @@
 """Backfill the GoCardless Data."""
 
-from src.gocardless.api.account import get_account_data_by_id
+from src.gocardless.api.account import get_account_metadata_by_id
 from src.gocardless.api.agreements import get_all_agreements
 from src.gocardless.api.core import GoCardlessCredentials
 from src.gocardless.api.requisition import get_all_requisition_data
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
         detailed_accounts = []
         for acct_id in requisition["accounts"]:
-            info = get_account_data_by_id(creds, acct_id)
+            info = get_account_metadata_by_id(creds, acct_id)
             detailed_accounts.append(info)
         upsert_bank_accounts(session, requisition_id, detailed_accounts)
 

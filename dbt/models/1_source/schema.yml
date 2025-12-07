@@ -9,3 +9,19 @@ sources:
             - gocardless
             - extract
             - transactions
+      - name: gocardless_raw_account_details
+        meta:
+          dagster:
+            asset_key:
+              - source
+              - gocardless
+              - extract
+              - account_details
+      - name: gocardless_raw_account_balances
+        meta:
+          dagster:
+            asset_key:
+              - source
+              - gocardless
+              - extract
+              - account_balances
