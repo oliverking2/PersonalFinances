@@ -1,5 +1,5 @@
 with raw_data as (
-    select * from {{ ref('bronze_raw_transactions') }}
+    select * from {{ ref('src_gocardless_transactions') }}
 ),
 
 booked as (

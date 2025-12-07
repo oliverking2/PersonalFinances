@@ -1,5 +1,5 @@
 models:
-  - name: silver_all_transactions
+  - name: stg_gocardless_all_transactions
     columns:
       - name: transaction_id
         data_tests:

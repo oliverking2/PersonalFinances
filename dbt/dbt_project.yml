@@ -29,21 +29,24 @@ models:
   dbt_project:
     +materialized: view
 
-    1_bronze:
+    1_source:
       +materialized: table
-      +schema: bronze
+      +schema: source
       +meta:
         dagster:
-          group: dbt_bronze
+          group: dbt_source
+      +tags: ["auto_eager"]
 
-    2_silver:
-      +schema: silver
+    2_staging:
+      +schema: staging
       +meta:
         dagster:
-          group: dbt_silver
+          group: dbt_staging
+      +tags: ["auto_eager"]
 
-    3_gold:
-      +schema: gold
+    3_mart:
+      +schema: mart
       +meta:
         dagster:
-          group: dbt_gold
+          group: dbt_mart
+      +tags: ["auto_eager", "auto_hourly"]
