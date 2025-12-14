@@ -1,10 +1,10 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /opt/dagster_home
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DAGSTER_HOME=/app \
+    DAGSTER_HOME=/opt/dagster_home \
     POETRY_VIRTUALENVS_CREATE=false
 
 # Basic build deps (only needed if you install packages with C extensions)
@@ -22,9 +22,10 @@ COPY pyproject.toml poetry.lock ./
 # Install dependencies (no venv because POETRY_VIRTUALENVS_CREATE=false)
 RUN poetry install --no-interaction --no-ansi --with dagster
 
+# Copy Dagster config
+COPY setup/dagster/dagster.yaml /opt/dagster_home/dagster.yaml
+COPY setup/dagster/workspace.yaml /opt/dagster_home/workspace.yaml
+
 # Copy your code
 COPY src ./src
-
-# Copy Dagster config
-COPY setup/dagster/dagster.yaml /app/dagster.yaml
-COPY setup/dagster/workspace.yaml /app/workspace.yaml
+COPY dbt ./dbt

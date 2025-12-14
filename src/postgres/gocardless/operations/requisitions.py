@@ -7,7 +7,7 @@ from typing import Any
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from filepaths import ROOT_DIR
+from src.filepaths import ROOT_DIR
 from src.gocardless.api.core import GoCardlessCredentials
 from src.gocardless.api.requisition import create_link
 from src.postgres.gocardless.models import RequisitionLink

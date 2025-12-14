@@ -2,7 +2,7 @@
 
 from dagster_dbt import DbtCliResource, DbtProject
 
-from filepaths import ROOT_DIR
+from src.filepaths import ROOT_DIR
 
 DBT_PROJECT_DIR = ROOT_DIR / "dbt"
 
