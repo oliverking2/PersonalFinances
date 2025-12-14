@@ -21,6 +21,7 @@ pyarrow = "^22.0.0"
 duckdb = "^1.4.2"
 dbt-core = "^1.10.15"
 dbt-duckdb = "^1.10.0"
+ruff = "^0.14.9"
 
 [tool.poetry.group.db]
 optional = false
@@ -55,78 +56,68 @@ dagster-dbt = "^0.28.4"
 optional = true
 
 [tool.poetry.group.checks.dependencies]
-ruff = "^0.7.2"
-pre-commit = "^4.0.1"
-black = "^24.10.0"
+ruff = "^0.14.9"
+pre-commit = "^4.5.0"
 mypy = "^1.13.0"
 sqlfluff = "^3.5.0"
 sqlfluff-templater-dbt = "^3.5.0"
 
-[tool.black]
-line-length = 100
-
+# Ruff Configuration
+# Ruff is an extremely fast Python linter and formatter written in Rust
 [tool.ruff]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default and more checks that we have selected
-lint.select = ["E", "F", "N","D","PD","RUF","PL","NPY","PTH","RET","SIM"]
-lint.ignore = ["D213","D203","E501", "PLC1901"]
+line-length = 100                # Maximum line length for code formatting
+target-version = "py312"         # Target Python version for syntax compatibility
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-lint.fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
-lint.unfixable = []
+[tool.ruff.format]
+quote-style = "double"           # Use double quotes for strings
+indent-style = "space"           # Use spaces for indentation
 
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "alembic"
+# Ruff Linting Rules
+# Selects which linting rules to enable and ignore
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "N",     # pep8-naming
+    "D",     # pydocstyle (docstring conventions)
+    "PD",    # pandas-vet
+    "RUF",   # Ruff-specific rules
+    "PL",    # Pylint
+    "NPY",   # NumPy-specific rules
+    "PTH",   # flake8-use-pathlib
+    "RET",   # flake8-return
+    "SIM",   # flake8-simplify
+    "I",     # isort (import sorting)
+    "UP"     # pyupgrade (upgrade syntax for newer Python)
 ]
-lint.per-file-ignores = {"__init__.py" = ["D"]}
+ignore = [
+    "D213",  # Multi-line docstring summary should start at the second line
+    "D203",  # One blank line required before class docstring
+    "E501"   # Line too long (handled by formatter)
+]
 
-# Same as Black.
-line-length = 100
+per-file-ignores = { "__init__.py" = ["D"] }  # Don't require docstrings in __init__.py
 
-# Allow unused variables when underscore-prefixed.
-lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-# Assume Python 3.10.
-target-version = "py310"
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"  # Regex for unused variables
 
 [tool.ruff.lint.mccabe]
-# Unlike Flake8, default to a complexity level of 10.
-max-complexity = 10
+max-complexity = 10              # Maximum cyclomatic complexity threshold
 
+# MyPy Configuration
+# Static type checking configuration for enhanced type safety
 [tool.mypy]
-exclude = ["alembic"]
-warn_redundant_casts = true
+exclude = "^testing/"            # Don't type check testing directory
+warn_redundant_casts = true      # Warn about unnecessary casts
+warn_unused_ignores = true       # Warn about unused type ignore comments
 
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
+disallow_incomplete_defs = true  # Functions must have type annotations
+disallow_untyped_defs = true     # All functions must have type annotations
+disallow_any_generics = true     # Require explicit types for generics
 
-warn_unused_ignores = true
-disallow_any_generics = true
-check_untyped_defs = true
-no_implicit_reexport = true
+check_untyped_defs = true        # Type check bodies of untyped functions
+no_implicit_reexport = true      # Require explicit re-exports
 
-ignore_missing_imports = true
+ignore_missing_imports = true    # Don't error on missing type stubs for third-party libraries
 
 [tool.sqlfluff.core]
 templater = "dbt"
