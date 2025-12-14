@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-WORKDIR /opt/dagster_home
+WORKDIR /opt/dagster/dagster_home
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -23,8 +23,8 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-interaction --no-ansi --with dagster
 
 # Copy Dagster config
-COPY setup/dagster/dagster.yaml /opt/dagster_home/dagster.yaml
-COPY setup/dagster/workspace.yaml /opt/dagster_home/workspace.yaml
+COPY setup/dagster/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
+COPY setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
 
 # Copy your code
 COPY src ./src
