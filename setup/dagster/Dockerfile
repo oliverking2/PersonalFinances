@@ -4,7 +4,7 @@ WORKDIR /opt/dagster/dagster_home
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DAGSTER_HOME=/opt/dagster_home \
+    DAGSTER_HOME=/opt/dagster/dagster_home \
     POETRY_VIRTUALENVS_CREATE=false
 
 # Basic build deps (only needed if you install packages with C extensions)

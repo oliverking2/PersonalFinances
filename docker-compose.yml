@@ -29,8 +29,6 @@ services:
       - .env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
-    volumes:
-      - dagster_data:/opt/dagster/dagster_home
     entrypoint:
       - dagster-webserver
       - -h
@@ -53,13 +51,11 @@ services:
       - .env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
-    volumes:
-      - dagster_data:/opt/dagster/dagster_home
     entrypoint:
       - dagster-daemon
       - run
       - -w
-      - /opt/dagster_home/workspace.yaml
+      - /opt/dagster/dagster_home/workspace.yaml
     depends_on:
       dagster-webserver:
         condition: service_started
