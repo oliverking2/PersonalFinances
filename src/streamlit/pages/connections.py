@@ -13,25 +13,23 @@ stores connection data in a MySQL database.
 import time
 
 import requests
-import streamlit as st
 from streamlit.runtime.state import QueryParamsProxy
 
+import streamlit as st
 from src.gocardless.api.account import get_account_metadata_by_id
+from src.gocardless.api.institutions import get_institution_mapping
 from src.gocardless.api.requisition import (
-    get_requisition_data_by_id,
     delete_requisition_data_by_id,
+    get_requisition_data_by_id,
 )
 from src.postgres.gocardless.models import RequisitionLink
 from src.postgres.gocardless.operations.bank_accounts import upsert_bank_accounts
 from src.postgres.gocardless.operations.requisitions import (
+    create_new_requisition_link,
     fetch_requisition_links,
     upsert_requisition_status,
-    create_new_requisition_link,
 )
-from src.streamlit.utils import get_gocardless_creds, get_gocardless_session
-from src.gocardless.api.institutions import get_institution_mapping
-
-from src.streamlit.utils import get_streamlit_logger
+from src.streamlit.utils import get_gocardless_creds, get_gocardless_session, get_streamlit_logger
 
 logger = get_streamlit_logger("connections_page")
 

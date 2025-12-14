@@ -2,32 +2,31 @@
 
 import json
 import os
-from datetime import date, datetime
 import uuid
+from datetime import date, datetime
 from io import BytesIO
 
-from dagster import (
-    asset,
-    AutomationCondition,
-    AssetExecutionContext,
-    Definitions,
-    AssetKey,
-)
 from dateutil.relativedelta import relativedelta
 from mypy_boto3_s3 import S3Client
 
+from dagster import (
+    AssetExecutionContext,
+    AssetKey,
+    AutomationCondition,
+    Definitions,
+    asset,
+)
 from src.aws.s3 import upload_bytes_to_s3
 from src.dagster.resources import PostgresDatabase
-from src.gocardless.api.core import GoCardlessCredentials, GoCardlessRateLimitError
 from src.gocardless.api.account import (
-    get_transaction_data_by_id,
     get_account_details_by_id,
     get_balance_data_by_id,
+    get_transaction_data_by_id,
 )
-
+from src.gocardless.api.core import GoCardlessCredentials, GoCardlessRateLimitError
 from src.postgres.gocardless.operations.bank_accounts import (
-    get_transaction_watermark,
     get_active_accounts,
+    get_transaction_watermark,
     update_transaction_watermark,
 )
 

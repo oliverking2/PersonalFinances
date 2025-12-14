@@ -1,7 +1,7 @@
 """Utils for postgres."""
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 
 def create_session(database_url: str) -> Session:

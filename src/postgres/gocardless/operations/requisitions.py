@@ -2,23 +2,23 @@
 
 import os
 from datetime import datetime
-from typing import List, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Any
 
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
+from filepaths import ROOT_DIR
 from src.gocardless.api.core import GoCardlessCredentials
 from src.gocardless.api.requisition import create_link
 from src.postgres.gocardless.models import RequisitionLink
 from src.utils.logging import setup_dagster_logger
-from filepaths import ROOT_DIR
 
 load_dotenv(ROOT_DIR / ".env")
 
 logger = setup_dagster_logger(__name__)
 
 
-def fetch_requisition_links(session: Session) -> List[RequisitionLink]:
+def fetch_requisition_links(session: Session) -> list[RequisitionLink]:
     """Fetch all requisition links from the database, ordered by creation date.
 
     Retrieves all RequisitionLink records from the database and orders them
@@ -38,7 +38,7 @@ def fetch_requisition_links(session: Session) -> List[RequisitionLink]:
         raise
 
 
-def fetch_all_requisition_ids(session: Session) -> List[str]:
+def fetch_all_requisition_ids(session: Session) -> list[str]:
     """Get all requisition IDs from the database.
 
     :param session: SQLAlchemy session for database operations
@@ -56,7 +56,7 @@ def fetch_all_requisition_ids(session: Session) -> List[str]:
         raise
 
 
-def add_requisition_link(session: Session, data: Dict[str, Any]) -> RequisitionLink:
+def add_requisition_link(session: Session, data: dict[str, Any]) -> RequisitionLink:
     """Add a new requisition link to the database.
 
     Creates a new RequisitionLink object from the provided data and adds it to the database.
@@ -96,7 +96,7 @@ def add_requisition_link(session: Session, data: Dict[str, Any]) -> RequisitionL
     return req
 
 
-def update_requisition_record(session: Session, requisition_id: str, data: Dict[str, Any]) -> bool:
+def update_requisition_record(session: Session, requisition_id: str, data: dict[str, Any]) -> bool:
     """Update a requisition record with new data from the API.
 
     :param session: SQLAlchemy session for database operations

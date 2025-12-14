@@ -1,16 +1,14 @@
 """Common dagster resources."""
 
-from dagster import Definitions, resource, InitResourceContext
-from dagster_aws.s3 import s3_resource
-
-from src.gocardless.api.core import GoCardlessCredentials
-
-from dagster import ConfigurableResource
-from sqlalchemy import create_engine, Engine
-from sqlalchemy.orm import sessionmaker, Session
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator, Optional
 
+from dagster_aws.s3 import s3_resource
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from dagster import ConfigurableResource, Definitions, InitResourceContext, resource
+from src.gocardless.api.core import GoCardlessCredentials
 from src.utils.definitions import gocardless_database_url
 
 
@@ -18,8 +16,8 @@ class PostgresDatabase(ConfigurableResource[None]):
     """GoCardless database resource for Dagster."""
 
     database_url: str
-    _engine: Optional[Engine] = None
-    _session_factory: Optional[sessionmaker[Session]] = None
+    _engine: Engine | None = None
+    _session_factory: sessionmaker[Session] | None = None
 
     def setup_for_execution(self, context: InitResourceContext) -> None:
         """Initialize the database engine."""

@@ -1,17 +1,17 @@
 """GoCardless Bank Account database operations."""
 
 from datetime import date
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import BankAccount
-
 from src.utils.logging import setup_dagster_logger
 
 logger = setup_dagster_logger(__name__)
 
 
-def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str, Any]]) -> None:
+def upsert_bank_accounts(session: Session, req_id: str, accounts: list[dict[str, Any]]) -> None:
     """Upsert each BankAccount record related to a requisition.
 
     Iterates over account detail dictionaries, creating or updating BankAccount entries
@@ -68,12 +68,12 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: List[Dict[str,
         raise
 
 
-def get_active_accounts(session: Session) -> List[BankAccount]:
+def get_active_accounts(session: Session) -> list[BankAccount]:
     """Get a list of active bank accounts."""
     return session.query(BankAccount).filter(BankAccount.status == "READY").all()
 
 
-def get_transaction_watermark(session: Session, account_id: str) -> Optional[date]:
+def get_transaction_watermark(session: Session, account_id: str) -> date | None:
     """Get the watermark for the most recent extract for a given bank account."""
     account = session.get(BankAccount, account_id)
     if account is None:

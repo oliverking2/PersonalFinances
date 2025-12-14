@@ -1,6 +1,7 @@
 """Bootstraps DuckDB with the required extensions."""
 
 import duckdb
+
 from filepaths import ROOT_DIR
 
 DB_PATH = ROOT_DIR / "analytics.duckdb"

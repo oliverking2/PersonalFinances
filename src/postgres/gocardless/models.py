@@ -1,18 +1,17 @@
 """GoCardless database model definitions."""
 
-from datetime import datetime, date
-from typing import List, Optional
+from datetime import date, datetime
 
 from sqlalchemy import (
-    String,
-    DateTime,
-    Numeric,
-    ForeignKey,
-    Integer,
     Boolean,
     Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
 )
-from sqlalchemy.orm import relationship, mapped_column, Mapped
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.postgres.core import Base
 
@@ -44,7 +43,7 @@ class RequisitionLink(Base):
     dg_account_expired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # one-to-many → BankAccount.requisition_id
-    accounts: Mapped[List["BankAccount"]] = relationship(
+    accounts: Mapped[list["BankAccount"]] = relationship(
         "BankAccount", back_populates="requisition"
     )
 
@@ -60,33 +59,33 @@ class BankAccount(Base):
 
     # Gocardless columns
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    bban: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    bic: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    cash_account_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
-    details: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    display_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    iban: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    linked_accounts: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    msisdn: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    owner_address_unstructured: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    owner_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    product: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
-    scan: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-    usage: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    bban: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    bic: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cash_account_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    details: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    iban: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    linked_accounts: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    msisdn: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    owner_address_unstructured: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    owner_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    product: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    scan: Mapped[str | None] = mapped_column(String(14), nullable=True)
+    usage: Mapped[str | None] = mapped_column(String(4), nullable=True)
 
     # Dagster tracking columns
-    dg_transaction_extract_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    dg_transaction_extract_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Relationships
-    requisition_id: Mapped[Optional[str]] = mapped_column(
+    requisition_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("gc_requisition_links.id"), nullable=True
     )
 
-    balances: Mapped[List["Balance"]] = relationship("Balance", back_populates="account")
-    requisition: Mapped[Optional[RequisitionLink]] = relationship(
+    balances: Mapped[list["Balance"]] = relationship("Balance", back_populates="account")
+    requisition: Mapped[RequisitionLink | None] = relationship(
         "RequisitionLink", back_populates="accounts"
     )
 
@@ -107,8 +106,8 @@ class Balance(Base):
     balance_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
     balance_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    credit_limit_included: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    last_change_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    credit_limit_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_change_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
 

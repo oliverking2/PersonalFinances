@@ -4,19 +4,17 @@ This module provides functions to interact with GoCardless Bank Account Data API
 for requisition management, including fetching and deleting requisition data.
 """
 
-from typing import Dict, Any, List
-
+from typing import Any
 
 from src.gocardless.api.core import GoCardlessCredentials
 
 # Configure logging
-
 from src.utils.logging import setup_dagster_logger
 
 logger = setup_dagster_logger("gocardless_api_requisition")
 
 
-def get_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:
+def get_all_requisition_data(creds: GoCardlessCredentials) -> list[dict[str, Any]]:
     """Fetch all requisition JSON data from GoCardless.
 
     Retrieves the requisition data, including its status and linked account IDs, from the
@@ -36,7 +34,7 @@ def get_all_requisition_data(creds: GoCardlessCredentials) -> List[Dict[str, Any
     return resp["results"]
 
 
-def get_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dict[str, Any]:
+def get_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> dict[str, Any]:
     """Fetch the full requisition JSON from GoCardless.
 
     Retrieves the requisition data, including its status and linked account IDs, from the
@@ -57,7 +55,7 @@ def get_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dic
     return resp
 
 
-def delete_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> Dict[str, Any]:
+def delete_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> dict[str, Any]:
     """Delete a requisition from GoCardless.
 
     :param req_id: The requisition ID to delete
@@ -71,7 +69,7 @@ def delete_requisition_data_by_id(creds: GoCardlessCredentials, req_id: str) -> 
     return creds.make_delete_request(url)
 
 
-def create_link(creds: GoCardlessCredentials, callback: str, institution_id: str) -> Dict[str, Any]:
+def create_link(creds: GoCardlessCredentials, callback: str, institution_id: str) -> dict[str, Any]:
     """Create a link with GoCardless.
 
     :param creds: GoCardlessCredentials object for authentication

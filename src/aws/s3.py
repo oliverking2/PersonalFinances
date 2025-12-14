@@ -1,21 +1,19 @@
 """Module for working with AWS S3."""
 
-import tempfile
-from io import StringIO, BytesIO
-from pathlib import Path
 import json
-from typing import TYPE_CHECKING, Dict, Any, List, Optional, Literal, Tuple
+import tempfile
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 
 import botocore.exceptions
-import pandas as pd
-from dotenv import load_dotenv
 import inflection
-
-import pyarrow.types
-from pyarrow import DataType
+import pandas as pd
 import pyarrow.dataset
-from pyarrow.fs import S3FileSystem, FileSelector
-
+import pyarrow.types
+from dotenv import load_dotenv
+from pyarrow import DataType
+from pyarrow.fs import FileSelector, S3FileSystem
 
 from src.utils.logging import setup_dagster_logger
 
@@ -149,7 +147,7 @@ def get_file_from_s3(s3_client: "S3Client", bucket_name: str, key: str) -> str:
 
 
 def get_csv_from_s3(
-    s3_client: "S3Client", bucket_name: str, key: str, header: Optional[Literal["infer"]] = "infer"
+    s3_client: "S3Client", bucket_name: str, key: str, header: Literal["infer"] | None = "infer"
 ) -> pd.DataFrame:
     """Get a CSV file from S3 and return it as a Pandas DataFrame.
 
@@ -172,7 +170,7 @@ def get_csv_from_s3(
     return df
 
 
-def get_json_from_s3(s3_client: "S3Client", bucket_name: str, key: str) -> Dict[Any, Any]:
+def get_json_from_s3(s3_client: "S3Client", bucket_name: str, key: str) -> dict[Any, Any]:
     """Get a JSON file from S3.
 
     :param s3_client: The boto3 S3 client to use for accessing S3.
@@ -195,7 +193,7 @@ def get_json_from_s3(s3_client: "S3Client", bucket_name: str, key: str) -> Dict[
     return data
 
 
-def infer_csv_fields_from_s3(s3_client: "S3Client", bucket: str, prefix: str) -> List[str]:
+def infer_csv_fields_from_s3(s3_client: "S3Client", bucket: str, prefix: str) -> list[str]:
     """Infer fields from a csv file based on a prefix in S3.
 
     This pulls the first file in the prefix and uses the first line as the header. It excludes any zero size files
@@ -272,7 +270,7 @@ def upload_dataframe_to_s3_parquet(
 
 def infer_parquet_schema_from_s3(
     s3_client: "S3Client", bucket: str, prefix: str
-) -> List[Tuple[str, str]]:
+) -> list[tuple[str, str]]:
     """Read the latest Parquet file under `prefix/` in S3, infer column names and types, and map to Snowflake types."""
     logger.info(f"Inferring Parquet schema from S3: bucket={bucket}, prefix={prefix}")
 
@@ -306,7 +304,7 @@ def infer_parquet_schema_from_s3(
         return "STRING"
 
     # build final schema list
-    schema: List[Tuple[str, str]] = []
+    schema: list[tuple[str, str]] = []
     for field in arrow_schema:
         # normalise name: camelCase or whatever to UPPER_SNAKE
         col_name = inflection.underscore(field.name).upper()

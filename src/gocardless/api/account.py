@@ -4,18 +4,15 @@ This module provides functions to interact with GoCardless Bank Account Data API
 for account management, including fetching account details and information.
 """
 
-from typing import Dict, Any
-
+from typing import Any
 
 from src.gocardless.api.core import GoCardlessCredentials
-
-
 from src.utils.logging import setup_dagster_logger
 
 logger = setup_dagster_logger("gocardless_api_account")
 
 
-def get_account_metadata_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
+def get_account_metadata_by_id(creds: GoCardlessCredentials, account_id: str) -> dict[str, Any]:
     """Fetch a single bank account's details from GoCardless.
 
     Retrieves detailed information for the given bank account ID from the GoCardless Bank Account Data API.
@@ -37,7 +34,7 @@ def get_account_metadata_by_id(creds: GoCardlessCredentials, account_id: str) ->
 
 def get_transaction_data_by_id(
     creds: GoCardlessCredentials, account_id: str, date_from: str, date_to: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Fetch transaction data from the GoCardless API for the specified account and date range.
 
     The function communicates with the GoCardless API to retrieve transaction details of the given
@@ -63,7 +60,7 @@ def get_transaction_data_by_id(
     return resp
 
 
-def get_balance_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
+def get_balance_data_by_id(creds: GoCardlessCredentials, account_id: str) -> dict[str, Any]:
     """Fetch balance data from the GoCardless API for the specified account.
 
     :param creds: GoCardlessCredentials object for authentication
@@ -79,7 +76,7 @@ def get_balance_data_by_id(creds: GoCardlessCredentials, account_id: str) -> Dic
     return resp
 
 
-def get_account_details_by_id(creds: GoCardlessCredentials, account_id: str) -> Dict[str, Any]:
+def get_account_details_by_id(creds: GoCardlessCredentials, account_id: str) -> dict[str, Any]:
     """Fetch account details from the GoCardless API for the specified account.
 
     :param creds: GoCardlessCredentials object for authentication

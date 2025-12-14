@@ -1,12 +1,9 @@
 """Accounts page for streamlit."""
 
 import streamlit as st
-
 from src.postgres.gocardless.models import BankAccount
 from src.postgres.gocardless.operations.bank_accounts import get_active_accounts
-from src.streamlit.utils import get_gocardless_session
-
-from src.streamlit.utils import get_streamlit_logger
+from src.streamlit.utils import get_gocardless_session, get_streamlit_logger
 
 logger = get_streamlit_logger("accounts_page")
 

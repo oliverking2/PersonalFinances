@@ -1,11 +1,11 @@
 """Dashboard Example."""
 
-from typing import Any, Tuple
+from typing import Any
 
-import pandas as pd
-from dash import Dash, html, dcc, Input, Output
-import plotly.express as px
 import dash_bootstrap_components as dbc
+import pandas as pd
+import plotly.express as px
+from dash import Dash, Input, Output, dcc, html
 
 # Sample data
 df = pd.DataFrame(
@@ -76,7 +76,7 @@ app.layout = dbc.Container(
 @app.callback(
     Output("line-chart", "figure"), Output("bar-chart", "figure"), Input("range-slider", "value")
 )
-def update_charts(txn_range: Any) -> Tuple[Any, Any]:
+def update_charts(txn_range: Any) -> tuple[Any, Any]:
     """Update charts."""
     low, high = txn_range
     dff = df[(df.transactions >= low) & (df.transactions <= high)]

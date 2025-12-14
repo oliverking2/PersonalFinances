@@ -1,13 +1,12 @@
 """GoCardless Dagster Background Jobs."""
 
-from dagster import op, OpExecutionContext, ScheduleDefinition, job, Definitions
-
+from dagster import Definitions, OpExecutionContext, ScheduleDefinition, job, op
 from src.dagster.resources import PostgresDatabase
 from src.gocardless.api.core import GoCardlessCredentials
 from src.postgres.gocardless.operations.requisitions import (
+    create_new_requisition_link,
     fetch_requisition_links,
     update_requisition_record,
-    create_new_requisition_link,
 )
 
 

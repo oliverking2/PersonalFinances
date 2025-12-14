@@ -1,12 +1,13 @@
 """Postgres operations for agreements."""
 
-from typing import Dict, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import EndUserAgreement
 
 
-def add_agreement(session: Session, data: Dict[str, Any]) -> None:
+def add_agreement(session: Session, data: dict[str, Any]) -> None:
     """Add a new agreement to the database."""
     req = EndUserAgreement(
         id=data["id"],
@@ -26,7 +27,7 @@ def add_agreement(session: Session, data: Dict[str, Any]) -> None:
         raise
 
 
-def upsert_agreement(session: Session, data: Dict[str, Any]) -> None:
+def upsert_agreement(session: Session, data: dict[str, Any]) -> None:
     """Upsert an agreement record in the database."""
     req = session.get(EndUserAgreement, data["id"])
     if not req:

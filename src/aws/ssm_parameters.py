@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-
 from src.utils.logging import setup_dagster_logger
 
 if TYPE_CHECKING:

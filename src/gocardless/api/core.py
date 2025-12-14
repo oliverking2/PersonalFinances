@@ -1,11 +1,11 @@
 """Module containing the Auth for GoCardless."""
 
 import time
-from typing import Optional, Dict, Any, List, Union
+from typing import Any
 
-from dotenv import load_dotenv
-import requests
 import boto3
+import requests
+from dotenv import load_dotenv
 
 from src.aws.ssm_parameters import get_parameter_data_from_ssm
 from src.utils.logging import setup_dagster_logger
@@ -50,8 +50,8 @@ class GoCardlessCredentials:
         self._secret_id: str = secret_id
         self._secret_key: str = secret_key
 
-        self._access_token: Optional[str] = None
-        self._access_token_expiry: Optional[float] = None
+        self._access_token: str | None = None
+        self._access_token_expiry: float | None = None
 
         logger.info("GoCardless credentials initialised successfully")
 
@@ -115,8 +115,8 @@ class GoCardlessCredentials:
         raise ValueError("Access Token Failure.")
 
     def make_get_request(
-        self, url: str, params: Optional[Dict[str, Any]] = None
-    ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+        self, url: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """Make a GET request to the specified URL using the current access token."""
         r = requests.get(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
@@ -131,9 +131,9 @@ class GoCardlessCredentials:
     def make_post_request(
         self,
         url: str,
-        params: Optional[Dict[str, Any]] = None,
-        body: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make a POST request to the specified URL using the current access token."""
         r = requests.post(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body
@@ -142,9 +142,7 @@ class GoCardlessCredentials:
 
         return r.json()
 
-    def make_delete_request(
-        self, url: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def make_delete_request(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a DELETE request to the specified URL using the current access token."""
         r = requests.delete(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params
@@ -156,9 +154,9 @@ class GoCardlessCredentials:
     def make_put_request(
         self,
         url: str,
-        params: Optional[Dict[str, Any]] = None,
-        body: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make a PUT request to the specified URL using the current access token."""
         r = requests.put(
             url, headers={"Authorization": f"Bearer {self.access_token}"}, params=params, json=body

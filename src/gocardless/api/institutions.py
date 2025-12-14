@@ -1,8 +1,8 @@
 """Module containing functions for managing institutions with GoCardless."""
 
-from typing import List, Dict, Any
-from src.gocardless.api.core import GoCardlessCredentials
+from typing import Any
 
+from src.gocardless.api.core import GoCardlessCredentials
 from src.utils.logging import setup_dagster_logger
 
 logger = setup_dagster_logger("gocardless_api_institutions")
@@ -10,7 +10,7 @@ logger = setup_dagster_logger("gocardless_api_institutions")
 # status: https://developer.gocardless.com/bank-account-data/statuses
 
 
-def get_institutions(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:
+def get_institutions(creds: GoCardlessCredentials) -> list[dict[str, Any]]:
     """Get a list of available institutions.
 
     Nationwide: NATIONWIDE_NAIAGB21
@@ -28,7 +28,7 @@ def get_institutions(creds: GoCardlessCredentials) -> List[Dict[str, Any]]:
     return resp
 
 
-def get_institution_mapping(creds: GoCardlessCredentials) -> Dict[str, str]:
+def get_institution_mapping(creds: GoCardlessCredentials) -> dict[str, str]:
     """Get a mapping of institution names to IDs.
 
     :param creds: GoCardlessCredentials object for authentication

@@ -11,7 +11,6 @@ from src.postgres.gocardless.operations.requisitions import add_requisition_link
 from src.postgres.utils import create_session
 from src.utils.definitions import gocardless_database_url
 
-
 if __name__ == "__main__":
     creds = GoCardlessCredentials()
     session = create_session(gocardless_database_url())

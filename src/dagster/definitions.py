@@ -6,7 +6,6 @@ Dagster deployment.
 """
 
 from dagster import Definitions
-
 from src.dagster.dbt.definitions import dbt_defs
 from src.dagster.gocardless.definitions import gocardless_defs
 from src.dagster.resources import resource_defs

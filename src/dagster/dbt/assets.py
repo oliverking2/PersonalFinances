@@ -1,14 +1,15 @@
 """Dagster assets for dbt."""
 
-from typing import Generator, Optional, Mapping, Any
+from collections.abc import Generator, Mapping
+from typing import Any
+
+from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
+from dagster_dbt.core.dbt_event_iterator import DbtEventIterator
 
 from dagster import (
     AssetExecutionContext,
     AutomationCondition,
 )
-from dagster_dbt import DbtCliResource, dbt_assets, DagsterDbtTranslator
-from dagster_dbt.core.dbt_event_iterator import DbtEventIterator
-
 from src.dagster.dbt.resources import dbt_project
 
 
@@ -17,7 +18,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 
     def get_automation_condition(
         self, dbt_resource_props: Mapping[str, Any]
-    ) -> Optional[AutomationCondition]:
+    ) -> AutomationCondition | None:
         """Add custom automation conditions for dbt resources."""
         tags: list[str] = dbt_resource_props.get("tags", [])
 
@@ -36,9 +37,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 
 
 @dbt_assets(manifest=dbt_project.manifest_path, dagster_dbt_translator=CustomDbtTranslator())
-def dbt_models(
-    context: AssetExecutionContext, dbt: DbtCliResource
-) -> Generator[DbtEventIterator, None, None]:
+def dbt_models(context: AssetExecutionContext, dbt: DbtCliResource) -> Generator[DbtEventIterator]:
     """Materialise all dbt models via `dbt build`.
 
     Dagster treats each dbt model as a software defined asset.
