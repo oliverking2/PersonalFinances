@@ -29,3 +29,5 @@ COPY setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
 # Copy your code
 COPY src ./src
 COPY dbt ./dbt
+
+RUN poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt

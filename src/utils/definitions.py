@@ -30,9 +30,9 @@ def get_host() -> str:
     env = os.getenv("ENVIRONMENT")
     logger.info(f"Running in environment: {env}")
 
-    postgres_host = "localhost" if env == "local" else os.getenv("POSTGRES_HOST")
+    postgres_host = "localhost" if env == "local" else os.getenv("POSTGRES_HOSTNAME")
     if not postgres_host:
-        raise ValueError("Environment variable POSTGRES_HOST not set.")
+        raise ValueError("Environment variable POSTGRES_HOSTNAME not set.")
     logger.debug(f"PostgreSQL host configured as: {postgres_host}")
     return postgres_host
 
