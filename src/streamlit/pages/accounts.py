@@ -24,10 +24,12 @@ STATUS_EMOJIS = {
 def render_row_button(account: BankAccount) -> None:
     """Render a button for each bank account in the table."""
     # \u00A0|\u00A0 adds a bit more space between the different elements
+    friendly_name = account.requisition.friendly_name if account.requisition else "Unknown"
+    status = account.status or "UNKNOWN"
     label = (
-        f"{account.requisition.friendly_name} "
+        f"{friendly_name} "
         f"\u00a0|\u00a0 {account.name} "
-        f"\u00a0|\u00a0 {STATUS_EMOJIS[account.status]} {ACCOUNT_STATUS_MAPPING[account.status]} "
+        f"\u00a0|\u00a0 {STATUS_EMOJIS.get(status, '⬜')} {ACCOUNT_STATUS_MAPPING.get(status, status)} "
     )
 
     if st.button(label, key=f"btn_{account.id}", use_container_width=True):
@@ -38,9 +40,10 @@ def render_row_button(account: BankAccount) -> None:
 @st.dialog("More Details")
 def show_details(account: BankAccount) -> None:
     """Display detailed information about a bank account in a modal dialog."""
+    status = account.status or "UNKNOWN"
     st.write("---")
     st.write(f"**Account ID:** {account.id}")
-    st.write(f"**Status:** {ACCOUNT_STATUS_MAPPING[account.status]}")
+    st.write(f"**Status:** {ACCOUNT_STATUS_MAPPING.get(status, status)}")
     st.write(f"**Name:** {account.name}")
     st.write(f"**Last Extract Date:** {account.dg_transaction_extract_date}")
     st.write("---")

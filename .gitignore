@@ -2,6 +2,7 @@
 .env
 data
 .tmp_dagster_home_*
+.coverage
 
 *.duckdb
 *.duckdb-wal

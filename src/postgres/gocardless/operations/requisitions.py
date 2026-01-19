@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from src.filepaths import ROOT_DIR
-from src.gocardless.api.core import GoCardlessCredentials
-from src.gocardless.api.requisition import create_link
 from src.postgres.gocardless.models import RequisitionLink
+from src.providers.gocardless.api.core import GoCardlessCredentials
+from src.providers.gocardless.api.requisition import create_link
 from src.utils.logging import setup_dagster_logger
 
 load_dotenv(ROOT_DIR / ".env")
@@ -56,7 +56,9 @@ def fetch_all_requisition_ids(session: Session) -> list[str]:
         raise
 
 
-def add_requisition_link(session: Session, data: dict[str, Any]) -> RequisitionLink:
+def add_requisition_link(
+    session: Session, data: dict[str, Any], friendly_name: str
+) -> RequisitionLink:
     """Add a new requisition link to the database.
 
     Creates a new RequisitionLink object from the provided data and adds it to the database.
@@ -64,10 +66,10 @@ def add_requisition_link(session: Session, data: dict[str, Any]) -> RequisitionL
     creating a new bank connection.
 
     :param session: Database session.
-    :param data: Dictionary containing requisition link data from GoCardless API
-    :type data: Dict[str, Any]
-    :raises: Exception if there's an error adding the requisition link to the database
-    :returns: None
+    :param data: Dictionary containing requisition link data from GoCardless API.
+    :param friendly_name: User-provided friendly name for this connection.
+    :returns: The created RequisitionLink object.
+    :raises Exception: If there's an error adding the requisition link to the database.
     """
     logger.info(f"Adding new requisition link for institution: {data['institution_id']}")
     req = RequisitionLink(
@@ -83,6 +85,7 @@ def add_requisition_link(session: Session, data: dict[str, Any]) -> RequisitionL
         ssn=data["ssn"],
         account_selection=data["account_selection"],
         redirect_immediate=data["redirect_immediate"],
+        friendly_name=friendly_name,
     )
 
     try:
@@ -164,7 +167,22 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
         req = session.get(RequisitionLink, req_id)
         if not req:
             logger.info(f"Creating new requisition link for ID: {req_id}")
-            req = RequisitionLink(id=req_id, status=new_status)
+            now = datetime.now()
+            req = RequisitionLink(
+                id=req_id,
+                status=new_status,
+                created=now,
+                updated=now,
+                redirect="",
+                institution_id="",
+                agreement="",
+                reference="",
+                link="",
+                account_selection=False,
+                redirect_immediate=False,
+                friendly_name="Unknown",
+                dg_account_expired=False,
+            )
             session.add(req)
         else:
             logger.info(
@@ -180,13 +198,24 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
 
 
 def create_new_requisition_link(
-    session: Session, creds: GoCardlessCredentials, institution_id: str
+    session: Session, creds: GoCardlessCredentials, institution_id: str, friendly_name: str
 ) -> RequisitionLink:
-    """Create a new RequisitionLink record in the database."""
-    callback = os.environ["GC_CALLBACK_URL"]
+    """Create a new RequisitionLink record in the database.
+
+    :param session: Database session.
+    :param creds: GoCardless credentials for API access.
+    :param institution_id: The GoCardless institution ID.
+    :param friendly_name: User-provided friendly name for this connection.
+    :returns: The created RequisitionLink object.
+    :raises KeyError: If GC_CALLBACK_URL environment variable is not set.
+    """
+    callback = os.getenv("GC_CALLBACK_URL")
+    if not callback:
+        raise KeyError("GC_CALLBACK_URL environment variable is not set")
+
     link_data = create_link(creds, callback, institution_id)
 
-    link = add_requisition_link(session, link_data)
+    link = add_requisition_link(session, link_data, friendly_name)
     logger.info(f"Created new requisition link with ID: {link.id}")
 
     return link

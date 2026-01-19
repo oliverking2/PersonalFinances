@@ -32,4 +32,4 @@ def get_parameter_data_from_ssm(ssm_client: "SSMClient", parameter_name: str) ->
 
     except Exception as e:
         logger.error(f"Error retrieving parameter data: {e!s}", exc_info=True)
-        raise e
+        raise

@@ -31,10 +31,10 @@ make test      # Unit tests only
 make coverage  # Tests with coverage (80% threshold)
 
 # Run single test file
-poetry run python -m unittest testing/path/to/test_file.py
+poetry run pytest testing/path/to/test_file.py -v
 
-# Run single test method
-poetry run python -m unittest testing.path.to.test_file.TestClass.test_method
+# Run single test function
+poetry run pytest testing/path/to/test_file.py::test_function_name -v
 
 # Database migrations
 poetry run alembic upgrade head

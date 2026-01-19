@@ -5,8 +5,8 @@ import logging
 from sqlalchemy.orm import Session
 
 import streamlit as st
-from src.gocardless.api.core import GoCardlessCredentials
-from src.postgres.utils import create_session
+from src.postgres.core import create_session
+from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.utils.definitions import gocardless_database_url
 
 

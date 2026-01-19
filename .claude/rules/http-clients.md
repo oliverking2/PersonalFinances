@@ -374,29 +374,35 @@ def extract_error_detail(response: requests.Response) -> str:
 ## Testing HTTP Clients
 
 ```python
+import pytest
 from unittest.mock import MagicMock, patch
 
 
-class TestAPIClient(unittest.TestCase):
-    def setUp(self) -> None:
-        self.client = APIClient(base_url="https://api.example.com", api_token="test")
+@pytest.fixture
+def api_client() -> APIClient:
+    """Create an API client for testing."""
+    return APIClient(base_url="https://api.example.com", api_token="test")
 
-    @patch("src.client.requests.Session.request")
-    def test_get_returns_json(self, mock_request: MagicMock) -> None:
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"id": "123"}
-        mock_response.raise_for_status = MagicMock()
-        mock_request.return_value = mock_response
 
-        result = self.client.get("/items/123")
+@patch("src.client.requests.Session.request")
+def test_get_returns_json(mock_request: MagicMock, api_client: APIClient) -> None:
+    """Test successful GET request returns parsed JSON."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"id": "123"}
+    mock_response.raise_for_status = MagicMock()
+    mock_request.return_value = mock_response
 
-        self.assertEqual(result, {"id": "123"})
-        mock_request.assert_called_once()
+    result = api_client.get("/items/123")
 
-    @patch("src.client.requests.Session.request")
-    def test_timeout_raises_service_error(self, mock_request: MagicMock) -> None:
-        mock_request.side_effect = requests.exceptions.Timeout()
+    assert result == {"id": "123"}
+    mock_request.assert_called_once()
 
-        with self.assertRaises(ServiceTimeoutError):
-            self.client.get("/items/123")
+
+@patch("src.client.requests.Session.request")
+def test_timeout_raises_service_error(mock_request: MagicMock, api_client: APIClient) -> None:
+    """Test that timeout raises ServiceTimeoutError."""
+    mock_request.side_effect = requests.exceptions.Timeout()
+
+    with pytest.raises(ServiceTimeoutError):
+        api_client.get("/items/123")
 ```

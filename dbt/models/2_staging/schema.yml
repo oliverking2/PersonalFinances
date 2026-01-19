@@ -1,6 +1,67 @@
 models:
   - name: stg_gocardless_all_transactions
+    description: |
+      Staged transaction data from GoCardless, combining both booked and pending transactions.
+      Deduplicates by transaction_id, keeping the most recent extraction.
     columns:
       - name: transaction_id
+        description: Unique identifier for the transaction from the bank
+        data_tests:
+          - not_null
+          - unique
+      - name: transaction_type
+        description: Type of transaction (booked or pending)
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['booked', 'pending']
+      - name: booking_date
+        description: Date the transaction was booked
+      - name: value_date
+        description: Value date of the transaction
+      - name: booking_datetime
+        description: Datetime the transaction was booked
+      - name: value_datetime
+        description: Value datetime of the transaction
+      - name: transaction_amount
+        description: Transaction amount (positive for credits, negative for debits)
+        data_tests:
+          - not_null
+      - name: transaction_amount_currency
+        description: Currency code for the transaction amount
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['GBP', 'EUR', 'USD']
+      - name: debtor_account
+        description: Account details of the debtor
+      - name: remittance_information_unstructured
+        description: Unstructured remittance information/description
+      - name: proprietary_bank_transaction_code
+        description: Bank-specific transaction code
+      - name: internal_transaction_id
+        description: Internal transaction ID from the bank
+      - name: entry_reference
+        description: Entry reference number
+      - name: creditor_name
+        description: Name of the creditor (recipient)
+      - name: debtor_name
+        description: Name of the debtor (sender)
+      - name: additional_information
+        description: Additional transaction information
+      - name: creditor_account
+        description: Account details of the creditor
+      - name: currency_exchange_instructed_amount
+        description: Instructed amount for currency exchange
+      - name: currency_exchange_instructed_amount_currency
+        description: Currency of the instructed amount
+      - name: currency_exchange_source_currency
+        description: Source currency for exchange
+      - name: currency_exchange_rate
+        description: Exchange rate applied
+      - name: last_updated
+        description: Timestamp when the data was last updated by GoCardless
+      - name: _extract_dt
+        description: Timestamp when the data was extracted by Dagster
         data_tests:
           - not_null

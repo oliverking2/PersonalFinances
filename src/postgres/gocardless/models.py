@@ -1,6 +1,7 @@
 """GoCardless database model definitions."""
 
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
@@ -103,7 +104,7 @@ class Balance(Base):
     account_id: Mapped[str] = mapped_column(
         String(128), ForeignKey("gc_bank_accounts.id"), nullable=False
     )
-    balance_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    balance_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
     balance_type: Mapped[str] = mapped_column(String(50), nullable=False)
     credit_limit_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

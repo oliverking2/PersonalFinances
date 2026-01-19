@@ -206,23 +206,29 @@ client = boto3.client("bedrock-runtime", region_name=region)
 Mock AWS clients in tests:
 
 ```python
+import pytest
 from unittest.mock import MagicMock, patch
 
 
-class TestBedrockClient(unittest.TestCase):
-    def setUp(self) -> None:
-        self.mock_client = MagicMock()
+@pytest.fixture
+def mock_boto_client() -> MagicMock:
+    """Create a mock boto3 client."""
+    return MagicMock()
 
-    @patch("src.agent.bedrock_client.boto3.client")
-    def test_invoke_model_returns_response(self, mock_boto3: MagicMock) -> None:
-        mock_boto3.return_value = self.mock_client
-        self.mock_client.converse.return_value = {
-            "output": {"message": {"content": [{"text": "Hello"}]}},
-            "usage": {"inputTokens": 10, "outputTokens": 5},
-        }
 
-        client = BedrockClient()
-        result = client.converse(messages=[{"role": "user", "content": "Hi"}])
+@patch("src.agent.bedrock_client.boto3.client")
+def test_invoke_model_returns_response(
+    mock_boto3: MagicMock, mock_boto_client: MagicMock
+) -> None:
+    """Test that converse returns the model response."""
+    mock_boto3.return_value = mock_boto_client
+    mock_boto_client.converse.return_value = {
+        "output": {"message": {"content": [{"text": "Hello"}]}},
+        "usage": {"inputTokens": 10, "outputTokens": 5},
+    }
 
-        self.assertEqual(result["output"]["message"]["content"][0]["text"], "Hello")
+    client = BedrockClient()
+    result = client.converse(messages=[{"role": "user", "content": "Hi"}])
+
+    assert result["output"]["message"]["content"][0]["text"] == "Hello"
 ```

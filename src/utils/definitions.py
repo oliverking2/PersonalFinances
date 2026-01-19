@@ -37,6 +37,24 @@ def get_host() -> str:
     return postgres_host
 
 
+def _mask_password_in_url(url: str) -> str:
+    """Mask password in a database URL for safe logging.
+
+    :param url: The database URL containing credentials.
+    :return: The URL with password replaced by asterisks.
+    """
+    # Find the password between : and @ after the username
+    # Format: postgresql+psycopg2://username:password@host:port/database
+    if "://" in url and "@" in url:
+        prefix_end = url.index("://") + 3
+        at_pos = url.index("@")
+        credentials = url[prefix_end:at_pos]
+        if ":" in credentials:
+            username = credentials.split(":")[0]
+            return f"{url[:prefix_end]}{username}:****@{url[at_pos + 1 :]}"
+    return url
+
+
 def dagster_database_url() -> str:
     """Generate a PostgreSQL database connection URL for Dagster.
 
@@ -47,7 +65,7 @@ def dagster_database_url() -> str:
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:5432/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
     )
-    logger.info(f"Database URL: {url}")
+    logger.info(f"Database URL: {_mask_password_in_url(url)}")
     return url
 
 
@@ -61,5 +79,5 @@ def gocardless_database_url() -> str:
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
     )
-    logger.info(f"Database URL: {url}")
+    logger.info(f"Database URL: {_mask_password_in_url(url)}")
     return url

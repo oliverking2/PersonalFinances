@@ -37,11 +37,13 @@ dagster-postgres = "^0.28.4"
 dagster-dbt = "^0.28.4"
 fastapi = "^0.128.0"
 uvicorn = {extras = ["standard"], version = "^0.40.0"}
+pytest = "^9.0.2"
 
-[tool.poetry.group.checks]
+[tool.poetry.group.dev]
 optional = true
 
-[tool.poetry.group.checks.dependencies]
+[tool.poetry.group.dev.dependencies]
+# Development dependencies
 ruff = "^0.14.9"
 pre-commit = "^4.5.0"
 mypy = "^1.13.0"
@@ -53,10 +55,14 @@ boto3-stubs = {extras = ["bedrock-runtime", "s3", "ssm"], version = "^1.42.16"}
 types-requests = "^2.32.4.20250913"
 types-python-dateutil = "^2.9.0.20251115"
 types-croniter = "^6.0.0.20250809"
+pytest = "^9.0.2"
+pytest-cov = "^7.0.0"
+pytest-mock = "^3.15.1"
 
+
+[tool.ruff]
 # Ruff Configuration
 # Ruff is an extremely fast Python linter and formatter written in Rust
-[tool.ruff]
 line-length = 100                # Maximum line length for code formatting
 target-version = "py313"         # Target Python version for syntax compatibility
 exclude = [
@@ -91,7 +97,7 @@ ignore = [
     "E501"   # Line too long (handled by formatter)
 ]
 
-per-file-ignores = { "__init__.py" = ["D"] }  # Don't require docstrings in __init__.py
+per-file-ignores = { "__init__.py" = ["D"], "testing/**/*.py" = ["PLR2004"] }  # PLR2004: Magic values OK in tests
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"  # Regex for unused variables
 
@@ -101,7 +107,7 @@ max-complexity = 10              # Maximum cyclomatic complexity threshold
 # MyPy Configuration
 # Static type checking configuration for enhanced type safety
 [tool.mypy]
-exclude = "^testing/"            # Don't type check testing directory
+exclude = "(^testing/|^alembic/)"  # Don't type check testing or alembic directories
 warn_redundant_casts = true      # Warn about unnecessary casts
 warn_unused_ignores = true       # Warn about unused type ignore comments
 
@@ -113,6 +119,35 @@ check_untyped_defs = true        # Type check bodies of untyped functions
 no_implicit_reexport = true      # Require explicit re-exports
 
 ignore_missing_imports = true    # Don't error on missing type stubs for third-party libraries
+
+# Pytest Configuration
+[tool.pytest.ini_options]
+testpaths = ["testing"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+# Coverage Configuration
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/testing/*",
+    "*/__pycache__/*",
+    # Infrastructure files requiring running services - tested via integration
+    "src/orchestration/*",      # Dagster jobs, assets, schedules
+    "src/streamlit/*",          # Streamlit UI pages
+    "src/dash_dashboards/*",    # Dash dashboards
+    "src/postgres/gocardless/seed.py",  # One-off seed script
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
 
 [tool.sqlfluff.core]
 templater = "dbt"

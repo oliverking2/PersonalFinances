@@ -94,7 +94,7 @@ def update_transaction_watermark(session: Session, account_id: str, date: date) 
 
 
 if __name__ == "__main__":
-    from src.postgres.utils import create_session
+    from src.postgres.core import create_session
     from src.utils.definitions import gocardless_database_url
 
     session = create_session(gocardless_database_url())
