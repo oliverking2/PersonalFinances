@@ -8,9 +8,9 @@ on-run-start:
     CREATE OR REPLACE SECRET s3_creds (
         TYPE S3,
         PROVIDER CONFIG,
-        KEY_ID '{{ env_var('AWS_ACCESS_KEY_ID') }}',
-        SECRET '{{ env_var('AWS_SECRET_ACCESS_KEY') }}',
-        REGION '{{ env_var('AWS_REGION') }}'
+        KEY_ID '{{ env_var('AWS_ACCESS_KEY_ID', '') }}',
+        SECRET '{{ env_var('AWS_SECRET_ACCESS_KEY', '') }}',
+        REGION '{{ env_var('AWS_REGION', '') }}'
     );
 
 model-paths: ["models"]
