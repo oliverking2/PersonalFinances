@@ -1,0 +1,20 @@
+# Frontend
+frontend/node_modules
+frontend/.nuxt
+frontend/.output
+
+# Backend
+backend/.venv
+backend/__pycache__
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.ruff_cache
+backend/.coverage
+
+# General
+.git
+.idea
+*.pyc
+*.log
+.env
+analytics.duckdb

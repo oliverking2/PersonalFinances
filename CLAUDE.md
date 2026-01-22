@@ -1,228 +1,138 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
-## How Claude Should Help
+## Collaboration Style
 
-Beyond writing code, Claude should act as a thoughtful collaborator:
+- **Challenge assumptions** - Point out issues before they become problems
+- **Present trade-offs** - When multiple paths exist, explain pros/cons
+- **Be direct** - If something is a bad idea, say so and explain why
+- **Teach** - Explain the "why", not just the "what"
+- **Suggest packages** - Look for well-supported external packages before implementing from scratch
 
-- **Challenge assumptions**: Point out potential issues before they become problems. Ask "have you considered X?" when there are better approaches.
-- **Present options with trade-offs**: When multiple paths exist, lay them out with clear pros/cons rather than picking one silently.
-- **Be direct about bad ideas**: If something is a bad idea, say so and explain why. Don't sugarcoat or go along with poor decisions to be agreeable.
-- **Be realistic about complexity**: Don't oversell or undersell difficulty. Be honest about what's straightforward vs what will be tricky.
-- **Explain the "why"**: Don't just implement - explain why we're choosing one approach over another.
-- **Teach, don't just deliver**: Help understand what code is doing so it can be modified later. The goal is knowledge transfer, not just working code.
-- **Suggest external packages**: Before implementing complex functionality from scratch, look for well-supported external packages that could simplify the codebase.
+## Project Structure
+
+```
+PersonalFinances/
+├── backend/                 # Python (FastAPI, Dagster, dbt)
+│   ├── src/
+│   │   ├── api/            # FastAPI endpoints
+│   │   ├── aws/            # S3, SSM clients
+│   │   ├── orchestration/  # Dagster jobs & assets
+│   │   ├── postgres/       # SQLAlchemy models & operations
+│   │   ├── providers/      # External API clients (GoCardless)
+│   │   └── utils/          # Shared utilities
+│   ├── testing/            # Tests (mirrors src/ structure)
+│   ├── alembic/            # Database migrations
+│   └── pyproject.toml
+├── frontend/                # Nuxt 4 (Vue 3 + Nuxt UI)
+│   ├── app/
+│   │   ├── composables/    # API client, shared logic
+│   │   ├── components/     # Vue components
+│   │   └── pages/          # Route pages
+│   └── nuxt.config.ts
+├── dbt/                     # Data transformations
+│   └── models/             # source → staging → mart
+└── docker-compose.yml
+```
 
 ## Build Commands
 
 ```bash
-# Install dependencies
-make install
+# Backend (from backend/)
+make check                    # Run all validation (lint, format, types, coverage)
+make test                     # Unit tests only
+make lint                     # Ruff linting
+make format                   # Ruff formatting
+make types                    # mypy type checking
+poetry run pytest testing/path/to/test.py::test_name -v  # Single test
+poetry run alembic upgrade head                          # Run migrations
+poetry run uvicorn src.api.app:app --reload              # Start API server
+poetry run dagster dev                                   # Dagster dev server
 
-# Run all validation (lint, format, types, coverage)
-make check
+# Frontend (from frontend/)
+make dev                      # Development server
+make build                    # Production build
+make lint                     # ESLint
+make typecheck                # Nuxt type checking
+make check                    # Run lint and typecheck
 
-# Individual validation commands
-make lint      # Ruff linting with fixes
-make format    # Ruff formatter
-make types     # mypy type checking
-make test      # Unit tests only
-make coverage  # Tests with coverage (80% threshold)
+# Pre-commit (from project root)
+pre-commit install            # Install git hooks
+pre-commit run --all-files    # Run all hooks manually
 
-# Run single test file
-poetry run pytest testing/path/to/test_file.py -v
+# dbt (from dbt/)
+dbt run --profiles-dir . --profile duckdb_local
+dbt test --profiles-dir . --profile duckdb_local
 
-# Run single test function
-poetry run pytest testing/path/to/test_file.py::test_function_name -v
-
-# Database migrations
-poetry run alembic upgrade head
-poetry run alembic revision --autogenerate -m "description"
-
-# Start services locally
-docker-compose up -d                         # All services
-poetry run dagster dev                       # Dagster dev server
-poetry run uvicorn src.api.app:app --reload  # FastAPI (when implemented)
-
-# dbt commands
-cd dbt && dbt run --profiles-dir . --profile duckdb_local
-cd dbt && dbt test --profiles-dir . --profile duckdb_local
-
-# Clean build artefacts
-make clean
+# Docker
+docker-compose up -d postgres  # Start database
+docker-compose up -d           # Start all services
 ```
 
-## Architecture
+## Pre-commit Hooks
 
-### Overview
+Pre-commit runs ruff (lint + format) on backend code automatically on commit.
+MyPy is excluded from pre-commit (needs full project environment) - run via `make check`.
 
-Personal Finances is a self-hosted application for aggregating and visualising personal financial data. It connects to bank accounts via open banking (GoCardless), extracts transaction data, transforms it using dbt, and presents it through a web interface.
+```bash
+# Install hooks (one-time setup)
+pre-commit install
 
-### Data Flow
-
-1. **Bank Connections**: GoCardless API connects to banks via open banking
-2. **Data Extraction**: Dagster orchestrates scheduled extraction of transactions and balances
-3. **Raw Storage**: Transaction data stored in PostgreSQL and S3 (Parquet)
-4. **Transformation**: dbt transforms raw data in DuckDB for analytics
-5. **API Layer**: FastAPI exposes data to frontend (planned)
-6. **Frontend**: Vue + Nuxt + Tailwind displays dashboards (planned, currently Streamlit)
-
-### System Components
-
+# Run manually
+pre-commit run --all-files
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DATA SOURCES                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  GoCardless (Open Banking)  │  Manual Import (CSV)    │  Future: Vanguard   │
-│  - Bank accounts            │  - Historical data      │  - Trading212       │
-│  - Transactions             │                         │                     │
-│  - Balances                 │                         │                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ORCHESTRATION LAYER                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Dagster                                                                    │
-│  - Scheduled extraction jobs                                                │
-│  - dbt asset materialisation                                                │
-│  - Background jobs (link expiry handling)                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              STORAGE LAYER                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PostgreSQL               │  S3 (Parquet)           │  DuckDB               │
-│  - Bank account metadata  │  - Raw transactions     │  - Analytics queries  │
-│  - GoCardless state       │  - Historical data      │  - dbt transformations│
-│  - Dagster storage        │                         │                       │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           TRANSFORMATION LAYER                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  dbt + DuckDB                                                               │
-│  - Source layer: raw data ingestion                                         │
-│  - Staging layer: cleaned and standardised                                  │
-│  - Mart layer: analytics-ready aggregations                                 │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            PRESENTATION LAYER                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  FastAPI (Backend)          │  Vue + Nuxt (Frontend)  │  Telegram (Alerts)  │
-│  - REST endpoints           │  - Dashboard views      │  - Notifications    │
-│  - Data queries             │  - Account management   │  - AI interactions  │
-│  - Auth                     │  - Tailwind styling     │  (future)           │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Module Responsibilities
-
-| Module            | Purpose                                          |
-|-------------------|--------------------------------------------------|
-| `src/aws/`        | AWS clients (S3 for storage, SSM for parameters) |
-| `src/dagster/`    | Dagster jobs, assets, schedules, and resources   |
-| `src/gocardless/` | GoCardless API client for bank connections       |
-| `src/postgres/`   | SQLAlchemy models and database operations        |
-| `src/streamlit/`  | Current UI (to be replaced with Vue + Nuxt)      |
-| `src/utils/`      | Shared utilities (logging, definitions)          |
-| `dbt/`            | dbt project for data transformations             |
-
-### Key Patterns
-
-- **Domain logic in domain modules**: `src/gocardless/`, `src/postgres/` contain all business logic
-- **Dagster for orchestration**: All scheduled jobs and data pipelines run through Dagster
-- **dbt for transformations**: SQL transformations in `dbt/models/` with source/staging/mart layers
-- **Pydantic models for boundaries**: Used for API schemas and configuration
-- **SQLAlchemy models for persistence**: ORM in `src/postgres/*/models.py`
-
-### dbt Model Layers
-
-```
-dbt/models/
-├── 1_source/      # Raw data sources (external tables)
-├── 2_staging/     # Cleaned and standardised data
-└── 3_mart/        # Analytics-ready aggregations
-```
-
-## Project Structure
-
-- Source code lives under `src/`. Place new code in the correct existing package/module.
-- Tests live under `testing/` and mirror `src/` structure.
-- dbt models live under `dbt/models/`.
-- PRDs for new features live in `prds/`. Use `prds/_template.md` as a starting point.
-- Do not create new top-level folders unless explicitly asked.
-- Review `ROADMAP.md` before starting work and update it when completing features.
-- Review existing PRDs in `prds/` before implementing new features.
 
 ## Technology Stack
 
-| Layer            | Technology                      |
-|------------------|---------------------------------|
-| Language         | Python 3.12+                    |
-| API Framework    | FastAPI                         |
-| Frontend         | Vue + Nuxt + Tailwind (planned) |
-| Database         | PostgreSQL + DuckDB             |
-| Object Storage   | AWS S3 (Parquet)                |
-| Transformations  | dbt                             |
-| Orchestration    | Dagster                         |
-| Bank Connections | GoCardless (Open Banking)       |
-| Containerisation | Docker Compose                  |
-| Future: AI       | AWS Bedrock (Claude)            |
-| Future: Alerts   | Telegram Bot API                |
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3.12+, FastAPI, SQLAlchemy |
+| Frontend | Vue 3, Nuxt 4, Nuxt UI, TypeScript |
+| Database | PostgreSQL, DuckDB |
+| Storage | AWS S3 (Parquet) |
+| Transforms | dbt |
+| Orchestration | Dagster |
+| Bank API | GoCardless |
+
+## Key Patterns
+
+- **Backend**: Domain logic in `postgres/`, `providers/`. API layer is thin.
+- **Database**: Operations take `Session` as first param, caller manages transactions.
+- **API**: Pydantic models for request/response, FastAPI dependencies for injection.
+- **Frontend**: Composables for API calls, pages for routes.
+- **dbt**: Source → staging → mart layer convention.
 
 ## Coding Standards
 
-### Python Style
-- Use type hints for all function signatures
-- Follow PEP 8 naming conventions
-- Use `X | None` syntax instead of `Optional[X]`
-- Docstrings for public functions and classes (Google style)
-
-### Code Quality
-- All changes must pass `ruff check` and `ruff format --check`
-- All changes must pass `mypy` with no errors
-- All changes must pass tests with at least 80% coverage
-
-### Database
-- SQLAlchemy models in `src/postgres/*/models.py`
-- Database operations in dedicated `operations/` subdirectories
-- Use Alembic for all schema migrations
-
-### dbt
-- Follow the source/staging/mart layer convention
-- All models should have schema.yml definitions
-- Use DuckDB for local development
+- Type hints everywhere, `X | None` not `Optional[X]`
+- 80% test coverage minimum
+- All changes pass `make check` before complete
+- Docstrings for public functions (Sphinx style)
+- British English in comments and user-facing text
 
 ## Configuration
 
-Environment variables are defined in `.env` (copy from `.env_example`):
+Environment variables in `.env` (copy from `.env_example`):
+- `ENVIRONMENT` - local/prod
+- `AWS_*` - S3/SSM credentials
+- `POSTGRES_*` - Database connection
+- `GC_CALLBACK_URL` - GoCardless OAuth callback
 
-| Variable                  | Purpose                           |
-|---------------------------|-----------------------------------|
-| `ENVIRONMENT`             | Environment name (local/prod)     |
-| `AWS_ACCESS_KEY_ID`       | AWS credentials for S3/SSM        |
-| `AWS_SECRET_ACCESS_KEY`   | AWS credentials                   |
-| `AWS_REGION`              | AWS region (default: eu-west-2)   |
-| `S3_BUCKET_NAME`          | S3 bucket for data storage        |
-| `POSTGRES_HOSTNAME`       | PostgreSQL host                   |
-| `POSTGRES_USERNAME`       | PostgreSQL user                   |
-| `POSTGRES_PASSWORD`       | PostgreSQL password               |
-| `POSTGRES_DATABASE`       | PostgreSQL database name          |
-| `GC_CALLBACK_URL`         | GoCardless OAuth callback URL     |
+## File Placement
 
-## Validation Requirements
+- Backend code: `backend/src/<module>/`
+- Backend tests: `backend/testing/<module>/` (mirrors src)
+- Frontend pages: `frontend/app/pages/`
+- Frontend components: `frontend/app/components/`
+- dbt models: `dbt/models/<layer>/`
+- PRDs: `prds/` (use `_template.md`)
 
-All changes must pass before considering work complete:
+## Validation
 
+All changes must pass before complete:
 ```bash
-make check  # Runs lint, format, types, coverage
+cd backend && make check
 ```
 
-- Update `README.md` to reflect new or modified behaviour
-- Update `ROADMAP.md` to reflect completed features
+Update `README.md` and `ROADMAP.md` when completing features.

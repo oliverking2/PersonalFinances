@@ -24,7 +24,9 @@
       "Bash(poetry show:*)",
       "Bash(grep:*)",
       "Bash(poetry run pytest:*)",
-      "Bash(poetry run dbt compile:*)"
+      "Bash(poetry run dbt compile:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(poetry run pre-commit run:*)"
     ]
   }
 }

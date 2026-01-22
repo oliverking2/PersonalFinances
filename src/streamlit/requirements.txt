@@ -1,6 +1,0 @@
-streamlit==1.46
-requests==2.32.4
-SQLAlchemy==2.0.41
-psycopg2-binary==2.9.9
-python-dotenv==1.1.0
-streamlit-aggrid==1.1.5.post1

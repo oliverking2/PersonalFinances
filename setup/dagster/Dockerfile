@@ -17,15 +17,15 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Copy Poetry files first for caching
-COPY pyproject.toml poetry.lock ./
+COPY backend/pyproject.toml backend/poetry.lock ./
 
 # Install dependencies (no venv because POETRY_VIRTUALENVS_CREATE=false)
-RUN poetry install --no-interaction --no-ansi --with dagster
+RUN poetry install --no-interaction --no-ansi
 
 # Copy Dagster config
 COPY setup/dagster/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
 COPY setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
 
 # Copy your code
-COPY src ./src
+COPY backend/src ./src
 COPY dbt ./dbt

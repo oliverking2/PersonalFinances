@@ -19,6 +19,33 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fastapi_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nuxt_frontend
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_API_URL: http://backend:8000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
   dagster-webserver:
     build:
       context: .
@@ -56,18 +83,6 @@ services:
     depends_on:
       dagster-webserver:
         condition: service_started
-
-#  streamlit:
-#    image: ghcr.io/oliverking2/pf-streamlit:latest
-#    container_name: finance_app
-#    restart: unless-stopped
-#    env_file:
-#      - .env
-#    ports:
-#      - "8501:8501"
-#    depends_on:
-#      - postgres
-#      - dagster-webserver
 
 volumes:
   postgres_data:
