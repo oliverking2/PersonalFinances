@@ -26,7 +26,10 @@
       "Bash(poetry run pytest:*)",
       "Bash(poetry run dbt compile:*)",
       "Bash(pre-commit run:*)",
-      "Bash(poetry run pre-commit run:*)"
+      "Bash(poetry run pre-commit run:*)",
+      "Bash(npm ls:*)",
+      "Bash(xargs:*)",
+      "Bash(detect-secrets scan:*)"
     ]
   }
 }
