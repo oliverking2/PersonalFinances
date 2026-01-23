@@ -66,7 +66,7 @@ Backend environment variables in `backend/.env` (copy from `backend/.env_example
 
 ## PRD Naming Convention
 
-PRDs use the format: `YYYYMM-{scope}-feature-name.md`
+PRDs use the format: `YYYYMMDD-{scope}-feature-name.md`
 
 | Scope       | Description                    |
 |-------------|--------------------------------|

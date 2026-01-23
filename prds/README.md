@@ -12,7 +12,7 @@ This folder contains PRDs for features in the Personal Finances project.
 ## Naming Convention
 
 ```
-YYYYMM-{scope}-feature-name.md
+YYYYMMDD-{scope}-feature-name.md
 ```
 
 ### Scopes

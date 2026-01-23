@@ -3,7 +3,7 @@
 ## Style
 
 - Python 3.12+, Poetry for dependencies
-- Type hints everywhere, `X | None` not `Optional[X]`
+- Type hints everywhere
 - Ruff for linting/formatting, mypy for type checking
 - Line length: 100 characters
 - British English in comments and user-facing text

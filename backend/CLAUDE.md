@@ -77,7 +77,7 @@ poetry run dagster dev                                   # Dagster dev server
 ## Coding Standards
 
 - Python 3.12+, Poetry for dependencies
-- Type hints everywhere, `X | None` not `Optional[X]`
+- Type hints everywhere
 - Ruff for linting/formatting, mypy for type checking
 - 80% test coverage minimum
 - Sphinx-style docstrings for public functions

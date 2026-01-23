@@ -135,6 +135,7 @@ Proactive alerts and two-way communication via Telegram.
 - [ ] Transaction alerts (configurable thresholds)
 - [ ] Weekly summary reports
 - [ ] MFA code relay for external integrations
+- [ ] Integration via the current AI Personal Assistant managed in a different project.
 
 ### Interactive Features
 
@@ -159,12 +160,7 @@ Items explicitly not needed for this project:
 Items not yet scheduled but worth exploring:
 
 - **Data Lake Architecture**: Iceberg tables for better versioning and time travel
-- **Multi-currency Support**: Handle foreign transactions and currency conversion
-- **Shared Finances**: Support for household/family view
 - **Goal Tracking**: Savings goals with progress tracking
-- **Export/Reporting**: PDF reports, tax summaries
-- **Mobile App**: React Native or PWA for mobile access
-- **Open Banking Alternatives**: Direct bank integrations beyond GoCardless
 
 ---
 
