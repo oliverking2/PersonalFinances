@@ -8,8 +8,9 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "npx eslint . --max-warnings 0",
-    "lint:fix": "npx eslint . --fix"
+    "lint": "prettier --write . && eslint . --fix",
+    "lint:check": "prettier --check . && eslint . --max-warnings 0",
+    "lint:staged": "prettier --check . && eslint . --max-warnings 0"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.12.1",
@@ -18,6 +19,9 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "@nuxtjs/tailwindcss": "^6.14.0"
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@types/node": "^25.0.10",
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.7.2"
   }
 }

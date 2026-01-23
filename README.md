@@ -210,9 +210,12 @@ PersonalFinances/
 ├── frontend/                # Nuxt 4 frontend (see frontend/CLAUDE.md)
 │   ├── app/                 # Application code
 │   └── nuxt.config.ts
+├── docker/                  # Docker configuration
+│   └── postgres/            # Postgres init scripts
+├── docs/                    # Shared documentation
+│   └── api/                 # API contracts for frontend/backend
 ├── dbt/                     # Data transformations
 │   └── models/              # source → staging → mart
-├── prds/                    # Product requirement documents
 └── docker-compose.yml
 ```
 
@@ -234,34 +237,43 @@ PersonalFinances/
 git clone <repository-url>
 cd PersonalFinances
 
-# Copy environment template
-cp backend/.env_example backend/.env
-# Edit backend/.env with your credentials
+# First-time setup (creates .env files, installs dependencies)
+make setup
 
-# Install backend dependencies
-cd backend && poetry install --with dev && cd ..
-
-# Install frontend dependencies
-cd frontend && npm install && cd ..
-
-# Install pre-commit hooks
-pre-commit install
+# Edit credentials
+# - .env.compose: PostgreSQL credentials for Docker
+# - backend/.env: Backend runtime config (must match .env.compose for database)
 ```
 
-### Running Locally
+### Running
 
 ```bash
-# Terminal 1: Start database
-docker-compose up -d postgres
+# Start everything (postgres, migrations, backend, frontend, dagster)
+make up
 
-# Terminal 2: Run migrations and start backend
-cd backend
-poetry run alembic upgrade head
-poetry run uvicorn src.api.app:app --reload --port 8000
+# Stop everything
+make down
 
-# Terminal 3: Start frontend
-cd frontend
-npm run dev
+# Reset (destroy all data and start fresh)
+make reset
+
+# View logs
+make logs
+```
+
+### Development Mode
+
+For local development with hot-reloading, run services individually:
+
+```bash
+# Terminal 1: Start database only
+make up-db
+
+# Terminal 2: Run backend with hot-reload
+make up-backend
+
+# Terminal 3: Run frontend with hot-reload
+make up-frontend
 ```
 
 ### Access Points
@@ -273,28 +285,166 @@ npm run dev
 | API Docs    | <http://localhost:8000/docs> |
 | Dagster     | <http://localhost:3000>      |
 
+### Testing Authentication (Postman)
+
+The backend includes JWT-based authentication. To test locally with Postman:
+
+#### 1. Register a User
+
+**Request:**
+
+```
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpassword123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "testuser"
+}
+```
+
+Username must be 3-50 characters; password must be at least 8 characters.
+
+#### 2. Login
+
+**Request:**
+
+```
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpassword123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 900
+}
+```
+
+The response also sets a `refresh_token` HttpOnly cookie. In Postman, enable **Settings → Cookies → Automatically follow redirects** and cookies will be stored automatically.
+
+#### 3. Access Protected Endpoints
+
+Use the access token from login:
+
+**Request:**
+
+```
+GET http://localhost:8000/auth/me
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "testuser"
+}
+```
+
+#### 4. Refresh Token
+
+When the access token expires (15 minutes), refresh it using the cookie:
+
+**Request:**
+
+```
+POST http://localhost:8000/auth/refresh
+```
+
+No body required - Postman sends the `refresh_token` cookie automatically.
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 900
+}
+```
+
+#### 5. Logout
+
+**Request:**
+
+```
+POST http://localhost:8000/auth/logout
+```
+
+**Response:**
+
+```json
+{
+  "ok": true
+}
+```
+
+This revokes the refresh token and clears the cookie.
+
+#### Postman Tips
+
+- **Cookie handling:** Postman automatically manages cookies per domain. After login, the `refresh_token` cookie is stored and sent with subsequent requests to `/auth/*` endpoints.
+- **Environment variables:** Save the `access_token` to a Postman environment variable in a post-request script:
+
+  ```javascript
+  if (pm.response.code === 200) {
+      pm.environment.set("access_token", pm.response.json().access_token);
+  }
+  ```
+
+- **Authorization header:** Use `{{access_token}}` in the Authorization header for protected endpoints.
+
 ## Configuration
 
-Edit `backend/.env` (copy from `backend/.env_example`):
+The project uses separate `.env` files with distinct responsibilities:
+
+| File               | Purpose                                    | Committed |
+|--------------------|--------------------------------------------|-----------|
+| `.env.compose`     | Docker infrastructure (ports, credentials) | No        |
+| `backend/.env`     | Backend runtime (APIs, security)           | No        |
+| `frontend/.env`    | Frontend defaults (public config)          | Yes       |
+
+### Quick Setup
 
 ```bash
-ENVIRONMENT=local
-
-# AWS
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-AWS_REGION=eu-west-2
-S3_BUCKET_NAME=your-bucket
-
-# PostgreSQL
-POSTGRES_HOSTNAME=localhost
-POSTGRES_USERNAME=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_DATABASE=postgres
-
-# GoCardless
-GC_CALLBACK_URL=http://localhost:3001/connections/callback
+make setup  # Creates .env files from examples and installs dependencies
 ```
+
+### Manual Setup
+
+**1. Docker infrastructure** (`.env.compose`):
+
+```bash
+cp .env.compose.example .env.compose
+# Edit with your PostgreSQL credentials
+```
+
+**2. Backend runtime** (`backend/.env`):
+
+```bash
+cp backend/.env_example backend/.env
+# Edit with your credentials (must match .env.compose for database)
+```
+
+**3. Frontend** (`frontend/.env`):
+Already committed with safe defaults. Create `frontend/.env.local` for secrets if needed.
 
 ## PRD Context
 
@@ -310,16 +460,33 @@ Existing PRDs are in `prds/` and follow a consistent structure.
 
 ## Development
 
-See `CLAUDE.md` for development commands and patterns:
+### Makefile Commands
+
+| Command            | Description                                        |
+|--------------------|----------------------------------------------------|
+| `make setup`       | First-time setup (create .env files, install deps) |
+| `make up`          | Start everything (postgres, migrations, services)  |
+| `make down`        | Stop all services                                  |
+| `make reset`       | Destroy all data and start fresh                   |
+| `make logs`        | Tail all container logs                            |
+| `make check`       | Run all validation (backend + frontend)            |
+| `make up-db`       | Start database only                                |
+| `make migrate`     | Run database migrations                            |
+| `make up-backend`  | Start backend with hot-reload (local development)  |
+| `make up-frontend` | Start frontend with hot-reload (local development) |
+
+### Validation
+
+```bash
+make check              # Run backend + frontend validation
+cd backend && make check    # Backend only (lint, types, tests)
+cd frontend && make check   # Frontend only (lint, typecheck)
+```
+
+### Further Reading
 
 - `backend/CLAUDE.md` - Python/FastAPI patterns
 - `frontend/CLAUDE.md` - Vue/Nuxt patterns
-
-```bash
-# Validation
-cd backend && make check    # Backend (lint, types, tests)
-cd frontend && make check   # Frontend (lint, typecheck)
-```
 
 ## Roadmap
 

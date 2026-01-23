@@ -32,7 +32,7 @@ If you explicitly request code, Claude should:
 ## Your Stack
 
 | Technology   | What It Is                        | Learn More                             |
-|--------------|-----------------------------------|----------------------------------------|
+| ------------ | --------------------------------- | -------------------------------------- |
 | Vue 3        | Reactive UI framework             | <https://vuejs.org/guide/>             |
 | Nuxt 4       | Vue meta-framework (routing, SSR) | <https://nuxt.com/docs>                |
 | Tailwind CSS | Utility-first CSS                 | <https://tailwindcss.com/docs>         |
@@ -82,10 +82,44 @@ Try: "I'm getting this error [paste error]. I think it's related to [your theory
 
 ## Your Goal
 
-Build the frontend for your personal finances app. The backend API is at `http://localhost:8000` with these endpoints:
-
-- `GET /api/accounts` - List bank accounts
-- `GET /api/connections` - List bank connections
-- `GET /api/transactions` - List transactions
+Build the frontend for your personal finances app. The backend API is at `http://localhost:8000`.
 
 Start small. Build one thing at a time. Ask questions when stuck.
+
+## Backend API Documentation
+
+Full API contracts are in `/docs/api/`. These contain everything needed to implement frontend features without looking at backend code.
+
+| Document                     | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| [auth.md](/docs/api/auth.md) | Authentication (login, logout, token refresh) |
+
+### API Overview
+
+**Authentication endpoints:**
+
+- `POST /auth/login` - Login with email/password, returns JWT
+- `POST /auth/refresh` - Refresh access token (uses HttpOnly cookie)
+- `POST /auth/logout` - Revoke tokens and clear cookie
+- `GET /auth/me` - Get current user (requires Bearer token)
+
+**Protected endpoints** (require `Authorization: Bearer <token>` header):
+
+- `GET /accounts` - List bank accounts
+- `GET /connections` - List bank connections
+- `GET /transactions` - List transactions
+
+### Quick Reference
+
+```typescript
+// All requests to protected endpoints need:
+{
+  credentials: 'include',  // For refresh token cookie
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  }
+}
+```
+
+See `/docs/api/auth.md` for complete authentication flow, error handling, and implementation patterns.

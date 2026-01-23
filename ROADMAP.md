@@ -43,8 +43,8 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 
 ### Backend (FastAPI)
 
-- [ ] Project structure setup (`src/api/`)
-- [ ] Authentication (API keys or OAuth)
+- [x] Project structure setup (`src/api/`)
+- [x] Authentication (JWT access tokens + refresh token cookies)
 - [ ] Account endpoints (list, get, update friendly name)
 - [ ] Transaction endpoints (list, search, filter)
 - [ ] Balance endpoints (current, historical)

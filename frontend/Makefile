@@ -1,6 +1,7 @@
 # Frontend Makefile
+SHELL := /bin/bash
 
-.PHONY: install dev build preview lint typecheck clean
+.PHONY: install dev build preview lint typecheck check clean
 
 # Install dependencies
 install:
@@ -18,7 +19,7 @@ build:
 preview:
 	npm run preview
 
-# Lint code
+# Format and lint (auto-fix)
 lint:
 	npm run lint
 
@@ -26,7 +27,7 @@ lint:
 typecheck:
 	npx nuxi typecheck
 
-# Run all checks
+# Run all checks (format + lint + typecheck)
 check: lint typecheck
 
 # Clean build artifacts
@@ -48,7 +49,7 @@ help:
 	@echo "  dev       - Run development server"
 	@echo "  build     - Build for production"
 	@echo "  preview   - Preview production build"
-	@echo "  lint      - Lint code"
+	@echo "  lint      - Format and lint (auto-fix)"
 	@echo "  typecheck - Run type checking"
-	@echo "  check     - Run lint and typecheck"
+	@echo "  check     - Run fix + typecheck"
 	@echo "  clean     - Remove build artifacts"

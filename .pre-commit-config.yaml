@@ -41,15 +41,15 @@ repos:
         files: ^backend/
 
   # ==========================================================================
-  # Frontend (ESLint via local hook)
+  # Frontend (format + lint check via local hook)
   # ==========================================================================
   - repo: local
     hooks:
-      - id: frontend-eslint
-        name: ESLint (frontend)
-        entry: make -C frontend lint
+      - id: frontend-lint
+        name: Prettier + ESLint (frontend)
+        entry: npm run --prefix frontend lint:check
         language: system
-        files: ^frontend/.*\.(vue|ts|js|tsx|jsx)$
+        files: ^frontend/.*\.(vue|ts|js|tsx|jsx|css|json)$
         pass_filenames: false
 
   # ==========================================================================

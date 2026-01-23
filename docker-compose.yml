@@ -1,18 +1,19 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:17
     container_name: postgres
     restart: unless-stopped
+    env_file:
+      - .env.compose
     environment:
       POSTGRES_USER: ${POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DATABASE}
-    env_file:
-      - backend/.env
     ports:
-    - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgres
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME} -d ${POSTGRES_DATABASE}"]
       interval: 10s
@@ -23,7 +24,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: fastapi_backend
+    container_name: backend
     restart: unless-stopped
     env_file:
       - backend/.env
@@ -37,10 +38,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: nuxt_frontend
+    container_name: frontend
     restart: unless-stopped
+    env_file:
+      - frontend/.env
     environment:
-      NUXT_PUBLIC_API_URL: http://backend:8000
+      # Override API URL to use internal Docker network
+      NUXT_PUBLIC_API_BASE_URL: http://backend:8000
     ports:
       - "3001:3000"
     depends_on:
@@ -50,7 +54,7 @@ services:
     build:
       context: .
       dockerfile: backend/setup/dagster/Dockerfile
-    container_name: dagster_webserver
+    container_name: dagster-webserver
     restart: unless-stopped
     env_file:
       - backend/.env
@@ -69,7 +73,7 @@ services:
     build:
       context: .
       dockerfile: backend/setup/dagster/Dockerfile
-    container_name: dagster_daemon
+    container_name: dagster-daemon
     restart: unless-stopped
     env_file:
       - backend/.env

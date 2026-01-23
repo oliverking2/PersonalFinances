@@ -4,12 +4,13 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint'],
+  css: ['~/assets/css/main.css'],
 
   // Runtime config for API URL
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8000'
-    }
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8000',
+    },
   },
 
   // Enable SSR

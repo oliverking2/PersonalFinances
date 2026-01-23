@@ -87,7 +87,17 @@ desktop.ini
 # =============================================================================
 # Environment & Secrets
 # =============================================================================
-.env
+# Infrastructure secrets (Docker Compose)
+.env.compose
+
+# Backend secrets
+backend/.env
+
+# Frontend secrets (local overrides only - frontend/.env is safe defaults)
+frontend/.env.local
+frontend/.env.*.local
+
+# Legacy patterns
 .env.local
 .env.*.local
 *.pem
