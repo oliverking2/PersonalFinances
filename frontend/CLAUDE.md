@@ -29,6 +29,14 @@ If you explicitly request code, Claude should:
 3. Explain what each part does
 4. Suggest you try modifying it yourself
 
+## Code Style
+
+**Comments:** More comments are better than less in the frontend. This is a learning project, so comments help explain what's happening and why. Add comments to explain:
+
+- What groups of Tailwind classes do
+- Why certain patterns are used
+- What each section of a component does
+
 ## Your Stack
 
 | Technology   | What It Is                        | Learn More                             |
