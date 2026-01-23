@@ -40,11 +40,13 @@ setup:
 # =============================================================================
 # Up / Down
 # =============================================================================
+COMPOSE := docker compose --env-file .env.compose
+
 up:
 	@echo "Starting postgres..."
-	@docker compose up -d postgres
+	@$(COMPOSE) up -d postgres
 	@echo "Waiting for postgres to be ready..."
-	@until docker compose exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
+	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
 		sleep 1; \
 	done
 	@echo "Postgres ready."
@@ -53,22 +55,22 @@ up:
 	@cd backend && poetry run alembic upgrade head
 	@echo ""
 	@echo "Starting all services..."
-	@docker compose up -d
+	@$(COMPOSE) up -d --build
 	@echo ""
 	@echo "All services started:"
-	@echo "  Frontend:    http://localhost:3001"
+	@echo "  Frontend:    http://localhost:3000"
 	@echo "  Backend API: http://localhost:8000"
 	@echo "  API Docs:    http://localhost:8000/docs"
-	@echo "  Dagster:     http://localhost:3000"
+	@echo "  Dagster:     http://localhost:3001"
 
 down:
 	@echo "Stopping all services..."
-	@docker compose down
+	@$(COMPOSE) down
 	@echo "Done."
 
 reset:
 	@echo "Stopping and removing all data..."
-	@docker compose down -v
+	@$(COMPOSE) down -v
 	@echo "Starting fresh..."
 	@$(MAKE) up
 
@@ -80,7 +82,7 @@ check:
 	@cd frontend && make check
 
 logs:
-	@docker compose logs -f
+	@$(COMPOSE) logs -f
 
 # =============================================================================
 # Individual services (for development)
@@ -88,8 +90,8 @@ logs:
 .PHONY: up-db up-backend up-frontend migrate
 
 up-db:
-	@docker compose up -d postgres
-	@until docker compose exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
+	@$(COMPOSE) up -d postgres
+	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
 		sleep 1; \
 	done
 	@echo "Postgres ready."

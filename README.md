@@ -206,6 +206,7 @@ PersonalFinances/
 │   ├── src/                 # Application code
 │   ├── testing/             # Tests (mirrors src/)
 │   ├── alembic/             # Database migrations
+│   ├── dbt/                 # Data transformations (source → staging → mart)
 │   └── pyproject.toml
 ├── frontend/                # Nuxt 4 frontend (see frontend/CLAUDE.md)
 │   ├── app/                 # Application code
@@ -214,8 +215,6 @@ PersonalFinances/
 │   └── postgres/            # Postgres init scripts
 ├── docs/                    # Shared documentation
 │   └── api/                 # API contracts for frontend/backend
-├── dbt/                     # Data transformations
-│   └── models/              # source → staging → mart
 └── docker-compose.yml
 ```
 
@@ -280,10 +279,10 @@ make up-frontend
 
 | Service     | URL                          |
 |-------------|------------------------------|
-| Frontend    | <http://localhost:3001>      |
+| Frontend    | <http://localhost:3000>      |
 | Backend API | <http://localhost:8000>      |
 | API Docs    | <http://localhost:8000/docs> |
-| Dagster     | <http://localhost:3000>      |
+| Dagster     | <http://localhost:3001>      |
 
 ### Testing Authentication (Postman)
 

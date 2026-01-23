@@ -28,6 +28,9 @@ services:
     restart: unless-stopped
     env_file:
       - backend/.env
+    environment:
+      # Override hostname to use Docker network
+      POSTGRES_HOSTNAME: postgres
     ports:
       - "8000:8000"
     depends_on:
@@ -46,7 +49,7 @@ services:
       # Override API URL to use internal Docker network
       NUXT_PUBLIC_API_BASE_URL: http://backend:8000
     ports:
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       - backend
 
@@ -60,11 +63,11 @@ services:
       - backend/.env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
-    command: >
-      /bin/sh -c "poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt
-       && exec dagster-webserver -h 0.0.0.0 -p 3000"
+      # Override hostname to use Docker network
+      POSTGRES_HOSTNAME: postgres
+    command: ["/bin/sh", "-c", "poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt && exec dagster-webserver -h 0.0.0.0 -p 3000"]
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,6 +82,8 @@ services:
       - backend/.env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
+      # Override hostname to use Docker network
+      POSTGRES_HOSTNAME: postgres
     command:
       - dagster-daemon
       - run

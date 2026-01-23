@@ -23,9 +23,9 @@ COPY backend/pyproject.toml backend/poetry.lock ./
 RUN poetry install --no-interaction --no-ansi
 
 # Copy Dagster config
-COPY setup/dagster/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
-COPY setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
+COPY backend/setup/dagster/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
+COPY backend/setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
 
 # Copy your code
 COPY backend/src ./src
-COPY dbt ./dbt
+COPY backend/dbt ./dbt
