@@ -1,6 +1,24 @@
 """Shared pytest fixtures for the test suite."""
 
 import os
+
+# Set environment variables BEFORE any src imports to avoid import-time failures
+# in orchestration modules that read env vars at module level.
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("AWS_REGION", "eu-west-2")
+os.environ.setdefault("GC_CALLBACK_URL", "http://localhost:8501/callback")
+os.environ.setdefault("POSTGRES_HOSTNAME", "localhost")
+os.environ.setdefault("POSTGRES_PORT", "5432")
+os.environ.setdefault("POSTGRES_USERNAME", "test")
+os.environ.setdefault("POSTGRES_PASSWORD", "test")
+os.environ.setdefault("POSTGRES_DATABASE", "test")
+os.environ.setdefault("POSTGRES_DAGSTER_DATABASE", "dagster_test")
+os.environ.setdefault("JWT_SECRET", "test-secret-key-for-jwt-signing-min-32-chars")
+os.environ.setdefault("JWT_ALGORITHM", "HS256")
+os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
+os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "30")
+
 from collections.abc import Generator
 from datetime import datetime
 from typing import Any
@@ -18,22 +36,12 @@ from src.utils.security import create_access_token, hash_password
 
 @pytest.fixture(autouse=True)
 def set_test_env_vars() -> Generator[None]:
-    """Set environment variables for testing."""
+    """Ensure environment variables are set for testing.
+
+    Environment variables are set at module level for collection-time imports.
+    This fixture ensures they're restored after each test in case a test modifies them.
+    """
     original_env = os.environ.copy()
-    os.environ["ENVIRONMENT"] = "test"
-    os.environ["S3_BUCKET_NAME"] = "test-bucket"
-    os.environ["AWS_REGION"] = "eu-west-2"
-    os.environ["GC_CALLBACK_URL"] = "http://localhost:8501/callback"
-    os.environ["POSTGRES_HOSTNAME"] = "localhost"
-    os.environ["POSTGRES_PORT"] = "5432"
-    os.environ["POSTGRES_USERNAME"] = "test"
-    os.environ["POSTGRES_PASSWORD"] = "test"
-    os.environ["POSTGRES_DATABASE"] = "test"
-    os.environ["POSTGRES_DAGSTER_DATABASE"] = "dagster_test"
-    os.environ["JWT_SECRET"] = "test-secret-key-for-jwt-signing-min-32-chars"
-    os.environ["JWT_ALGORITHM"] = "HS256"
-    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
-    os.environ["REFRESH_TOKEN_EXPIRE_DAYS"] = "30"
     yield
     os.environ.clear()
     os.environ.update(original_env)
