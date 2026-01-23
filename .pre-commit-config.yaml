@@ -47,7 +47,7 @@ repos:
     hooks:
       - id: frontend-eslint
         name: ESLint (frontend)
-        entry: bash -c 'cd frontend && npx eslint . --max-warnings 0'
+        entry: make -C frontend lint
         language: system
         files: ^frontend/.*\.(vue|ts|js|tsx|jsx)$
         pass_filenames: false
