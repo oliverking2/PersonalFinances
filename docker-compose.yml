@@ -65,7 +65,7 @@ services:
       DAGSTER_HOME: /opt/dagster/dagster_home
       # Override hostname to use Docker network
       POSTGRES_HOSTNAME: postgres
-    command: ["/bin/sh", "-c", "poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt && exec dagster-webserver -h 0.0.0.0 -p 3000"]
+    command: ["/bin/sh", "-c", "poetry run dbt parse --project-dir /opt/dagster/dbt --profiles-dir /opt/dagster/dbt && exec dagster-webserver -h 0.0.0.0 -p 3000"]
     ports:
       - "3001:3000"
     depends_on:

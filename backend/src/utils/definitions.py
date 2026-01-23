@@ -22,12 +22,9 @@ def get_postgres_host() -> str:
     """Get PostgreSQL hostname from environment.
 
     :return: The PostgreSQL hostname.
-    :raises ValueError: If POSTGRES_HOSTNAME is not set in non-local environments.
+    :raises ValueError: If POSTGRES_HOSTNAME is not set.
     """
-    env = os.getenv("ENVIRONMENT")
-    logger.info(f"Running in environment: {env}")
-
-    postgres_host = "localhost" if env == "local" else os.getenv("POSTGRES_HOSTNAME")
+    postgres_host = os.getenv("POSTGRES_HOSTNAME")
     if not postgres_host:
         raise ValueError("Environment variable POSTGRES_HOSTNAME not set.")
     logger.debug(f"PostgreSQL host configured as: {postgres_host}")

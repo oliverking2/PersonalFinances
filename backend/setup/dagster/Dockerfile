@@ -28,4 +28,4 @@ COPY backend/setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.ya
 
 # Copy your code
 COPY backend/src ./src
-COPY backend/dbt ./dbt
+COPY backend/dbt /opt/dagster/dbt
