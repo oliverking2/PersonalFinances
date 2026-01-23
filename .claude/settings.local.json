@@ -29,7 +29,9 @@
       "Bash(poetry run pre-commit run:*)",
       "Bash(npm ls:*)",
       "Bash(xargs:*)",
-      "Bash(detect-secrets scan:*)"
+      "Bash(detect-secrets scan:*)",
+      "Bash(find:*)",
+      "Bash(git log:*)"
     ]
   }
 }
