@@ -13,6 +13,7 @@ A self-hosted personal finance platform that aggregates all financial data in on
 Stabilise the existing data pipeline and improve core functionality.
 
 ### Completed
+
 - [x] GoCardless open banking integration
 - [x] PostgreSQL for metadata storage
 - [x] S3 storage for transaction data (Parquet)
@@ -21,12 +22,14 @@ Stabilise the existing data pipeline and improve core functionality.
 - [x] Basic Streamlit UI for account management
 
 ### In Progress
+
 - [ ] Friendly names for bank accounts
 - [ ] Fix requisition deletion (actually delete in GoCardless)
 - [ ] Scheduled account refresh via Dagster
 - [ ] Link expiry handling and re-authentication flow
 
 ### Backlog
+
 - [ ] Improve error handling in GoCardless API client
 - [ ] Add retry logic for failed extractions
 - [ ] Historical data backfill tooling
@@ -39,6 +42,7 @@ Stabilise the existing data pipeline and improve core functionality.
 Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI.
 
 ### Backend (FastAPI)
+
 - [ ] Project structure setup (`src/api/`)
 - [ ] Authentication (API keys or OAuth)
 - [ ] Account endpoints (list, get, update friendly name)
@@ -48,6 +52,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [ ] Analytics endpoints (aggregations from dbt marts)
 
 ### Frontend (Vue + Nuxt + Tailwind)
+
 - [ ] Project setup in `frontend/` directory
 - [ ] Authentication flow
 - [ ] Dashboard view (account overview, balances)
@@ -57,6 +62,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [ ] Charts and visualisations (spending by category, trends)
 
 ### Infrastructure
+
 - [ ] Docker setup for frontend
 - [ ] Nginx reverse proxy configuration
 - [ ] Environment-based configuration
@@ -68,6 +74,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 Expand beyond GoCardless to include investment and trading platforms.
 
 ### Vanguard Integration
+
 - [ ] Research API/scraping options
 - [ ] Handle MFA (potentially via Telegram for code input)
 - [ ] Extract portfolio holdings
@@ -75,12 +82,14 @@ Expand beyond GoCardless to include investment and trading platforms.
 - [ ] dbt models for investment data
 
 ### Trading212 Integration
+
 - [ ] Research API availability
 - [ ] Extract holdings and positions
 - [ ] Extract transaction/trade history
 - [ ] dbt models for trading data
 
 ### Manual Import
+
 - [ ] CSV import functionality
 - [ ] Template for common bank statement formats
 - [ ] Deduplication logic
@@ -93,6 +102,7 @@ Expand beyond GoCardless to include investment and trading platforms.
 Add AI-powered features for insights and automation.
 
 ### Analytics & Insights
+
 - [ ] Spending categorisation (ML-based)
 - [ ] Weekly/monthly trend analysis
 - [ ] Anomaly detection (unusual transactions)
@@ -100,12 +110,14 @@ Add AI-powered features for insights and automation.
 - [ ] Net worth tracking over time
 
 ### AI Features (AWS Bedrock)
+
 - [ ] Natural language queries ("How much did I spend on groceries last month?")
 - [ ] Budget allocation suggestions
 - [ ] Spending pattern insights
 - [ ] Financial health score
 
 ### Automation
+
 - [ ] Rule-based transaction tagging
 - [ ] Recurring transaction detection
 - [ ] Bill prediction and reminders
@@ -117,6 +129,7 @@ Add AI-powered features for insights and automation.
 Proactive alerts and two-way communication via Telegram.
 
 ### Telegram Integration
+
 - [ ] Bot setup and configuration
 - [ ] Balance alerts (low balance, large deposits)
 - [ ] Transaction alerts (configurable thresholds)
@@ -124,6 +137,7 @@ Proactive alerts and two-way communication via Telegram.
 - [ ] MFA code relay for external integrations
 
 ### Interactive Features
+
 - [ ] Query finances via chat
 - [ ] Quick actions (categorise transaction, add note)
 - [ ] Reminder acknowledgement

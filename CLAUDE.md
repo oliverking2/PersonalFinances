@@ -30,14 +30,14 @@ PersonalFinances/
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Backend | Python 3.12+, FastAPI, SQLAlchemy, Dagster |
-| Frontend | Vue 3, Nuxt 4, Nuxt UI, TypeScript |
-| Database | PostgreSQL, DuckDB |
-| Storage | AWS S3 (Parquet) |
-| Transforms | dbt |
-| Bank API | GoCardless |
+| Layer      | Technology                                 |
+|------------|--------------------------------------------|
+| Backend    | Python 3.12+, FastAPI, SQLAlchemy, Dagster |
+| Frontend   | Vue 3, Nuxt 4, Tailwind CSS, TypeScript    |
+| Database   | PostgreSQL, DuckDB                         |
+| Storage    | AWS S3 (Parquet)                           |
+| Transforms | dbt                                        |
+| Bank API   | GoCardless                                 |
 
 ## Shared Commands
 
@@ -58,6 +58,7 @@ dbt test --profiles-dir . --profile duckdb_local
 ## Configuration
 
 Backend environment variables in `backend/.env` (copy from `backend/.env_example`):
+
 - `ENVIRONMENT` - local/prod
 - `AWS_*` - S3/SSM credentials
 - `POSTGRES_*` - Database connection
@@ -67,13 +68,13 @@ Backend environment variables in `backend/.env` (copy from `backend/.env_example
 
 PRDs use the format: `YYYYMM-{scope}-feature-name.md`
 
-| Scope | Description |
-|-------|-------------|
-| `backend` | Python/FastAPI/Dagster changes |
-| `frontend` | Nuxt/Vue changes |
-| `fullstack` | Changes spanning both |
-| `infra` | Docker, CI/CD, deployment |
-| `data` | dbt models, data pipeline |
+| Scope       | Description                    |
+|-------------|--------------------------------|
+| `backend`   | Python/FastAPI/Dagster changes |
+| `frontend`  | Nuxt/Vue changes               |
+| `fullstack` | Changes spanning both          |
+| `infra`     | Docker, CI/CD, deployment      |
+| `data`      | dbt models, data pipeline      |
 
 ## Validation
 
@@ -89,5 +90,5 @@ Update `README.md` and `ROADMAP.md` when completing features.
 ## See Also
 
 - `backend/CLAUDE.md` - Python/FastAPI patterns and commands
-- `frontend/CLAUDE.md` - Vue/Nuxt patterns and commands
+- `frontend/CLAUDE.md` - Learning guide (teaching mode)
 - `.claude/rules/` - Shared coding discipline

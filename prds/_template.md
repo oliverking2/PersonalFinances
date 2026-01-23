@@ -51,10 +51,10 @@
 
 ### API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /example | Description |
-| POST | /example | Description |
+| Method | Path     | Description |
+|--------|----------|-------------|
+| GET    | /example | Description |
+| POST   | /example | Description |
 
 ### UI/UX
 
@@ -86,10 +86,12 @@
 ## Implementation Plan
 
 ### Phase 1: [Name]
+
 - [ ] Task 1
 - [ ] Task 2
 
 ### Phase 2: [Name]
+
 - [ ] Task 1
 - [ ] Task 2
 

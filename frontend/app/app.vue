@@ -1,28 +1,7 @@
 <template>
-  <UApp>
-    <UContainer class="min-h-screen">
-      <UHeader>
-        <template #title>
-          <span class="font-bold">Personal Finances</span>
-        </template>
-
-        <template #center>
-          <UHorizontalNavigation :links="navLinks" />
-        </template>
-      </UHeader>
-
-      <UMain class="py-6">
-        <NuxtPage />
-      </UMain>
-    </UContainer>
-  </UApp>
+  <div class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <h1 class="text-3xl font-bold text-gray-800">
+      Hello, World!
+    </h1>
+  </div>
 </template>
-
-<script setup lang="ts">
-const navLinks = [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Accounts', to: '/accounts' },
-  { label: 'Transactions', to: '/transactions' },
-  { label: 'Connections', to: '/connections' },
-]
-</script>

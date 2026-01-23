@@ -1,6 +1,7 @@
 # API Patterns
 
 ## FastAPI Structure
+
 ```
 src/api/<resource>/
 ├── __init__.py       # Exports router
@@ -9,6 +10,7 @@ src/api/<resource>/
 ```
 
 ## Endpoints
+
 - Separate request and response Pydantic models
 - Use FastAPI's `Depends()` for database sessions and auth
 - Catch domain exceptions, convert to HTTPException
@@ -25,11 +27,13 @@ def get_item(item_id: str, db: Session = Depends(get_db)) -> ItemResponse:
 ```
 
 ## Pydantic Models
+
 - Explicit field constraints with `Field(...)`
 - `model_config = {"from_attributes": True}` for ORM conversion
 - Separate Create/Update/Response models
 
 ## HTTP Clients
+
 - Use `requests` for sync, `httpx` for async
 - Always set explicit timeouts
 - Use session/client for connection pooling
@@ -37,6 +41,7 @@ def get_item(item_id: str, db: Session = Depends(get_db)) -> ItemResponse:
 - Handle rate limits (429) with Retry-After header
 
 ## Authentication
+
 - Use `HTTPBearer` for token auth
 - Constant-time comparison with `secrets.compare_digest()`
 - Never log tokens

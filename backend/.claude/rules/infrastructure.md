@@ -1,6 +1,7 @@
 # Infrastructure Patterns
 
 ## AWS
+
 - Use typed stubs: `boto3-stubs[s3,ssm]`
 - Handle `ClientError` specifically, check error codes
 - Configure timeouts and retries explicitly
@@ -15,6 +16,7 @@ def upload_file(client: S3Client, bucket: str, key: str, data: bytes) -> str:
 ```
 
 ## Configuration
+
 - Environment variables via `python-dotenv`
 - Document all variables in `.env_example`
 - Never hard-code credentials
@@ -27,6 +29,7 @@ DEBUG = os.environ.get("DEBUG", "false").lower() == "true"  # Optional with defa
 ```
 
 ## Security
+
 - Validate all external input at system boundaries
 - Parameterised queries only (no string formatting for SQL)
 - No shell=True with user input
@@ -35,11 +38,13 @@ DEBUG = os.environ.get("DEBUG", "false").lower() == "true"  # Optional with defa
 - Never log secrets, passwords, or tokens
 
 ## Observability
+
 - Structured logging with consistent keys: `endpoint=`, `status_code=`, `duration_ms=`
 - Health check endpoints: `/health`
 - Log levels: DEBUG (flow), INFO (actions), WARNING (recoverable), ERROR (failures)
 
 ## Module Structure
+
 ```
 src/<module>/
 ├── __init__.py       # Public API exports

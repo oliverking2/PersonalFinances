@@ -44,16 +44,16 @@ poetry run dagster dev                                   # Dagster dev server
 
 ## Technology
 
-| Component | Technology |
-|-----------|------------|
-| Framework | FastAPI |
-| Database | PostgreSQL, SQLAlchemy 2.0 |
-| Orchestration | Dagster |
-| Transforms | dbt |
-| Storage | AWS S3 (Parquet) |
-| Bank API | GoCardless |
-| Testing | pytest, pytest-mock |
-| Linting | Ruff, mypy |
+| Component     | Technology                 |
+|---------------|----------------------------|
+| Framework     | FastAPI                    |
+| Database      | PostgreSQL, SQLAlchemy 2.0 |
+| Orchestration | Dagster                    |
+| Transforms    | dbt                        |
+| Storage       | AWS S3 (Parquet)           |
+| Bank API      | GoCardless                 |
+| Testing       | pytest, pytest-mock        |
+| Linting       | Ruff, mypy                 |
 
 ## Key Patterns
 
@@ -64,15 +64,15 @@ poetry run dagster dev                                   # Dagster dev server
 
 ## File Placement
 
-| Type | Location |
-|------|----------|
-| API endpoints | `src/api/<resource>/endpoints.py` |
-| Pydantic models | `src/api/<resource>/models.py` |
-| DB models | `src/postgres/<domain>/models.py` |
-| DB operations | `src/postgres/<domain>/operations/<entity>.py` |
-| External clients | `src/providers/<provider>/api/` |
-| Tests | `testing/<module>/` (mirrors src) |
-| Migrations | `alembic/versions/` |
+| Type             | Location                                       |
+|------------------|------------------------------------------------|
+| API endpoints    | `src/api/<resource>/endpoints.py`              |
+| Pydantic models  | `src/api/<resource>/models.py`                 |
+| DB models        | `src/postgres/<domain>/models.py`              |
+| DB operations    | `src/postgres/<domain>/operations/<entity>.py` |
+| External clients | `src/providers/<provider>/api/`                |
+| Tests            | `testing/<module>/` (mirrors src)              |
+| Migrations       | `alembic/versions/`                            |
 
 ## Coding Standards
 
@@ -86,6 +86,7 @@ poetry run dagster dev                                   # Dagster dev server
 ## See Also
 
 Detailed patterns in `.claude/rules/`:
+
 - `python.md` - Style, naming, functions, testing
 - `api.md` - FastAPI endpoints, Pydantic models
 - `database.md` - SQLAlchemy models, operations, migrations

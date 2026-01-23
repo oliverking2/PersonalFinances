@@ -1,0 +1,46 @@
+{
+  // Markdownlint configuration
+  // https://github.com/DavidAnson/markdownlint
+
+  "config": {
+    // Default state for all rules
+    "default": true,
+
+    // MD013 - Line length (disabled - let editor handle wrapping)
+    "MD013": false,
+
+    // MD024 - Multiple headings with same content (allow in different sections)
+    "MD024": {
+      "siblings_only": true
+    },
+
+    // MD033 - Inline HTML (allow for diagrams and complex formatting)
+    "MD033": false,
+
+    // MD040 - Fenced code language (disabled - not all blocks need language)
+    "MD040": false,
+
+    // MD041 - First line should be top-level heading (disabled for partials)
+    "MD041": false,
+
+    // MD046 - Code block style (consistent fenced style)
+    "MD046": {
+      "style": "fenced"
+    },
+
+    // MD048 - Code fence style (consistent backticks)
+    "MD048": {
+      "style": "backtick"
+    }
+  },
+
+  // Glob patterns to ignore
+  "ignores": [
+    "**/node_modules/**",
+    "node_modules/**",
+    ".git/**",
+    "**/CHANGELOG.md",
+    "frontend/node_modules/**",
+    "backend/node_modules/**"
+  ]
+}

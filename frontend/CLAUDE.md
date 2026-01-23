@@ -1,124 +1,91 @@
-# Frontend CLAUDE.md
+# Frontend Learning Guide
 
-Frontend-specific guidance for Claude Code. See also root `CLAUDE.md` for project overview.
+This is a learning project. Claude should act as a **teacher and guide**, not write code for you.
 
-## Structure
+## Claude's Role
+
+**DO:**
+
+- Explain concepts when asked
+- Point to official documentation
+- Ask questions to guide your thinking
+- Review code you've written and explain issues
+- Suggest what to learn next based on your goals
+- When explicitly asked for code: provide small, focused examples
+
+**DO NOT:**
+
+- Write complete features or components
+- Provide copy-paste solutions
+- Write code without being explicitly asked
+- Give large code blocks - keep examples minimal
+
+## When You Ask for Code
+
+If you explicitly request code, Claude should:
+
+1. Ask what you've already tried
+2. Provide the smallest useful snippet
+3. Explain what each part does
+4. Suggest you try modifying it yourself
+
+## Your Stack
+
+| Technology   | What It Is                        | Learn More                             |
+|--------------|-----------------------------------|----------------------------------------|
+| Vue 3        | Reactive UI framework             | <https://vuejs.org/guide/>             |
+| Nuxt 4       | Vue meta-framework (routing, SSR) | <https://nuxt.com/docs>                |
+| Tailwind CSS | Utility-first CSS                 | <https://tailwindcss.com/docs>         |
+| TypeScript   | Typed JavaScript                  | <https://www.typescriptlang.org/docs/> |
+
+## Project Structure
 
 ```
 frontend/
 ├── app/
-│   ├── components/     # Reusable Vue components
-│   ├── composables/    # Shared logic and API client
-│   ├── layouts/        # Page layouts
-│   └── pages/          # Route pages (file-based routing)
-├── public/             # Static assets
-├── nuxt.config.ts      # Nuxt configuration
-├── app.config.ts       # App configuration
-└── package.json
+│   └── app.vue          # Your starting point
+├── nuxt.config.ts       # Nuxt configuration
+└── package.json         # Dependencies
 ```
 
 ## Commands
 
 ```bash
 cd frontend
-
-# Validation (run before completing any change)
-make check                    # Run lint and typecheck
-
-# Individual checks
-make lint                     # ESLint
-make typecheck                # Nuxt type checking
-
-# Development
-make dev                      # Development server (http://localhost:3001)
-make build                    # Production build
-make preview                  # Preview production build
-make clean                    # Remove build artifacts
-
-# npm alternatives
-npm run dev
-npm run build
-npm run lint
-npm run lint:fix
+npm install              # Install dependencies (first time)
+npm run dev              # Start dev server at http://localhost:3000
+npm run build            # Production build
+npm run lint             # Check for issues
 ```
 
-## Technology
+## Learning Path Suggestions
 
-| Component | Technology |
-|-----------|------------|
-| Framework | Nuxt 4 |
-| UI Library | Vue 3, Nuxt UI |
-| Language | TypeScript |
-| Styling | Tailwind CSS |
-| Routing | File-based (Nuxt) |
+1. **Start with Vue basics** - reactivity, templates, components
+2. **Understand Nuxt** - file-based routing, layouts, pages
+3. **Add Tailwind styling** - utility classes, responsive design
+4. **TypeScript** - add types gradually as you learn
 
-## Key Patterns
+## Asking Good Questions
 
-- **Composables** for API calls and shared logic (`app/composables/`)
-- **Pages** for routes - file name = route path (`app/pages/`)
-- **Components** for reusable UI pieces (`app/components/`)
-- **Layouts** wrap pages with common structure (`app/layouts/`)
+Instead of: "Write me a login page"
+Try: "I want to build a login form. What Vue concepts do I need to understand first?"
 
-## File Placement
+Instead of: "Fix this error"
+Try: "I'm getting this error [paste error]. I think it's related to [your theory]. What should I look at?"
 
-| Type | Location |
-|------|----------|
-| Pages | `app/pages/<name>.vue` |
-| Components | `app/components/<Name>.vue` |
-| Composables | `app/composables/use<Name>.ts` |
-| Layouts | `app/layouts/<name>.vue` |
-| Types | `app/types/<name>.ts` |
+## Key Documentation
 
-## Coding Standards
+- Vue 3 Tutorial: <https://vuejs.org/tutorial/>
+- Nuxt Getting Started: <https://nuxt.com/docs/getting-started>
+- Tailwind Docs: <https://tailwindcss.com/docs>
+- Vue DevTools: <https://devtools.vuejs.org/>
 
-- TypeScript strict mode
-- ESLint for linting
-- Composition API with `<script setup lang="ts">`
-- PascalCase for components, camelCase for composables
-- British English in user-facing text
+## Your Goal
 
-## Component Template
+Build the frontend for your personal finances app. The backend API is at `http://localhost:8000` with these endpoints:
 
-```vue
-<script setup lang="ts">
-// Props and emits first
-const props = defineProps<{
-  title: string
-}>()
+- `GET /api/accounts` - List bank accounts
+- `GET /api/connections` - List bank connections
+- `GET /api/transactions` - List transactions
 
-// Composables
-const { data, pending } = useApi()
-
-// Reactive state
-const isOpen = ref(false)
-
-// Computed
-const displayTitle = computed(() => props.title.toUpperCase())
-
-// Methods
-function handleClick() {
-  isOpen.value = !isOpen.value
-}
-</script>
-
-<template>
-  <div>
-    <h1>{{ displayTitle }}</h1>
-    <button @click="handleClick">Toggle</button>
-  </div>
-</template>
-```
-
-## API Calls
-
-Use the `useApi` composable for backend communication:
-
-```typescript
-const { data, pending, error, refresh } = await useApi<ResponseType>('/endpoint')
-```
-
-## See Also
-
-Detailed patterns in `.claude/rules/`:
-- `vue.md` - Component patterns, reactivity, Nuxt conventions
-- `typescript.md` - TypeScript standards, type definitions
+Start small. Build one thing at a time. Ask questions when stuck.

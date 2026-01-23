@@ -1,6 +1,7 @@
 # Database Patterns
 
 ## Structure
+
 ```
 src/postgres/<domain>/
 ├── __init__.py
@@ -10,6 +11,7 @@ src/postgres/<domain>/
 ```
 
 ## SQLAlchemy Models
+
 - Use 2.0 style with `Mapped` type hints
 - Indexes on columns used in queries
 - JSONB for semi-structured data
@@ -25,6 +27,7 @@ class Item(Base):
 ```
 
 ## Operations
+
 - Session as first parameter
 - No commits in operations (caller manages transactions)
 - Use `.flush()` to get auto-generated IDs
@@ -39,11 +42,13 @@ def create_item(session: Session, name: str) -> Item:
 ```
 
 ## Validation
+
 - Pydantic for API boundary validation
 - SQLAlchemy constraints for database integrity
 - Validate at system boundaries, trust internal code
 
 ## Migrations
+
 ```bash
 poetry run alembic revision --autogenerate -m "description"
 poetry run alembic upgrade head

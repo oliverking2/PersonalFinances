@@ -148,15 +148,15 @@ Frontend (Transactions page)
 
 ### Key Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Thin API layer | Endpoints handle HTTP concerns only; business logic in domain modules |
-| Session-per-request | Database operations receive Session, caller manages transactions |
-| S3 for transactions | Parquet enables efficient columnar queries, separates hot/cold data |
-| PostgreSQL for metadata | Relational integrity for connections, accounts, extraction state |
-| Incremental extraction | extract_date watermark prevents re-fetching old transactions |
-| dbt over raw SQL | Version-controlled transformations, testable, self-documenting |
-| Dagster over Celery | Better observability, native scheduling, asset-based mental model |
+| Decision                | Rationale                                                             |
+|-------------------------|-----------------------------------------------------------------------|
+| Thin API layer          | Endpoints handle HTTP concerns only; business logic in domain modules |
+| Session-per-request     | Database operations receive Session, caller manages transactions      |
+| S3 for transactions     | Parquet enables efficient columnar queries, separates hot/cold data   |
+| PostgreSQL for metadata | Relational integrity for connections, accounts, extraction state      |
+| Incremental extraction  | extract_date watermark prevents re-fetching old transactions          |
+| dbt over raw SQL        | Version-controlled transformations, testable, self-documenting        |
+| Dagster over Celery     | Better observability, native scheduling, asset-based mental model     |
 
 ### Module Boundaries
 
@@ -187,16 +187,16 @@ frontend/app/
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Vue 3, Nuxt 4, Nuxt UI, TypeScript, Tailwind CSS |
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 |
-| Database | PostgreSQL (metadata), DuckDB (analytics) |
-| Storage | AWS S3 (Parquet files) |
-| Orchestration | Dagster |
-| Transforms | dbt |
-| Bank API | GoCardless Bank Account Data |
-| Containerisation | Docker Compose |
+| Layer            | Technology                                       |
+|------------------|--------------------------------------------------|
+| Frontend         | Vue 3, Nuxt 4, Nuxt UI, TypeScript, Tailwind CSS |
+| Backend          | Python 3.12+, FastAPI, SQLAlchemy 2.0            |
+| Database         | PostgreSQL (metadata), DuckDB (analytics)        |
+| Storage          | AWS S3 (Parquet files)                           |
+| Orchestration    | Dagster                                          |
+| Transforms       | dbt                                              |
+| Bank API         | GoCardless Bank Account Data                     |
+| Containerisation | Docker Compose                                   |
 
 ## Project Structure
 
@@ -266,12 +266,12 @@ npm run dev
 
 ### Access Points
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3001 |
-| Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-| Dagster | http://localhost:3000 |
+| Service     | URL                          |
+|-------------|------------------------------|
+| Frontend    | <http://localhost:3001>      |
+| Backend API | <http://localhost:8000>      |
+| API Docs    | <http://localhost:8000/docs> |
+| Dagster     | <http://localhost:3000>      |
 
 ## Configuration
 
