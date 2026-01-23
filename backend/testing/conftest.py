@@ -10,8 +10,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.postgres.auth.models import RefreshToken, User
 from src.postgres.core import Base
 from src.postgres.gocardless.models import BankAccount, RequisitionLink
+from src.utils.security import create_access_token, hash_password
 
 
 @pytest.fixture(autouse=True)
@@ -23,9 +25,15 @@ def set_test_env_vars() -> Generator[None]:
     os.environ["AWS_REGION"] = "eu-west-2"
     os.environ["GC_CALLBACK_URL"] = "http://localhost:8501/callback"
     os.environ["POSTGRES_HOSTNAME"] = "localhost"
+    os.environ["POSTGRES_PORT"] = "5432"
     os.environ["POSTGRES_USERNAME"] = "test"
     os.environ["POSTGRES_PASSWORD"] = "test"
     os.environ["POSTGRES_DATABASE"] = "test"
+    os.environ["POSTGRES_DAGSTER_DATABASE"] = "dagster_test"
+    os.environ["JWT_SECRET"] = "test-secret-key-for-jwt-signing-min-32-chars"
+    os.environ["JWT_ALGORITHM"] = "HS256"
+    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
+    os.environ["REFRESH_TOKEN_EXPIRE_DAYS"] = "30"
     yield
     os.environ.clear()
     os.environ.update(original_env)
@@ -37,7 +45,11 @@ def db_session() -> Generator[Session]:
 
     :yields: A SQLAlchemy session connected to an in-memory database.
     """
-    engine = create_engine("sqlite:///:memory:")
+    # check_same_thread=False allows SQLite to be used across threads (for TestClient)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+    )
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -134,6 +146,51 @@ def test_bank_account(db_session: Session, test_requisition_link: RequisitionLin
     db_session.add(account)
     db_session.commit()
     return account
+
+
+@pytest.fixture
+def test_user(db_session: Session) -> User:
+    """Create a test user in the database.
+
+    :param db_session: Database session.
+    :returns: The created User with password "testpassword".
+    """
+    user = User(
+        username="testuser",
+        password_hash=hash_password("testpassword"),
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def test_refresh_token(db_session: Session, test_user: User) -> tuple[str, RefreshToken]:
+    """Create a test refresh token for the test user.
+
+    :param db_session: Database session.
+    :param test_user: The user to create a token for.
+    :returns: Tuple of (raw_token, RefreshToken entity).
+    """
+    # Import here to avoid circular imports during test collection
+    from src.postgres.auth.operations.refresh_tokens import (  # noqa: PLC0415
+        create_refresh_token,
+    )
+
+    raw_token, token = create_refresh_token(db_session, test_user)
+    db_session.commit()
+    return raw_token, token
+
+
+@pytest.fixture
+def auth_headers(test_user: User) -> dict[str, str]:
+    """Create authentication headers with a valid JWT token.
+
+    :param test_user: The user to create a token for.
+    :returns: Dictionary with Authorization header.
+    """
+    token = create_access_token(test_user.id)
+    return {"Authorization": f"Bearer {token}"}
 
 
 # Builder functions for mock API responses

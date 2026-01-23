@@ -89,6 +89,7 @@ CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at) WHERE r
 **POST /auth/login**
 
 Request:
+
 ```json
 {
   "email": "user@example.com",
@@ -97,6 +98,7 @@ Request:
 ```
 
 Response (200):
+
 ```json
 {
   "access_token": "<jwt>",
@@ -105,11 +107,13 @@ Response (200):
 ```
 
 Response headers:
+
 ```
 Set-Cookie: refresh_token=<token>; HttpOnly; Secure; SameSite=Lax; Path=/auth; Max-Age=2592000
 ```
 
 Errors:
+
 - 401: Invalid credentials
 - 429: Rate limited
 
@@ -118,6 +122,7 @@ Errors:
 Request: No body (refresh token from cookie)
 
 Response (200):
+
 ```json
 {
   "access_token": "<jwt>",
@@ -128,6 +133,7 @@ Response (200):
 Response headers: New refresh token cookie (rotation)
 
 Errors:
+
 - 401: Invalid/expired/revoked refresh token
 - 401 + revoke chain: Replay detected
 
@@ -136,6 +142,7 @@ Errors:
 Request: No body (refresh token from cookie)
 
 Response (200):
+
 ```json
 {
   "ok": true
@@ -143,6 +150,7 @@ Response (200):
 ```
 
 Response headers:
+
 ```
 Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/auth; Max-Age=0
 ```
@@ -152,6 +160,7 @@ Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/auth; Max-Age=
 Request headers: `Authorization: Bearer <access_token>`
 
 Response (200):
+
 ```json
 {
   "id": "uuid",
@@ -160,11 +169,13 @@ Response (200):
 ```
 
 Errors:
+
 - 401: Missing/invalid/expired access token
 
 ### Token Specifications
 
 **Access Token (JWT):**
+
 ```json
 {
   "sub": "<user_id>",
@@ -178,6 +189,7 @@ Errors:
 - Signed with `JWT_SECRET` from environment
 
 **Refresh Token:**
+
 - Format: 32 bytes of `secrets.token_urlsafe()` (256 bits entropy)
 - Stored: bcrypt hash in database
 - Expiry: 30 days
@@ -185,6 +197,7 @@ Errors:
 ### Refresh Token Rotation
 
 On every `/auth/refresh`:
+
 1. Validate incoming token against DB (hash comparison)
 2. Check not revoked and not expired
 3. Mark old token as revoked (`revoked_at = now()`)
@@ -194,6 +207,7 @@ On every `/auth/refresh`:
 ### Replay Detection
 
 If a refresh token is presented that was already rotated (exists in DB but `revoked_at` is set):
+
 1. Find the token chain via `rotated_from` links
 2. Revoke ALL tokens in the chain (entire session compromised)
 3. Return 401
@@ -213,6 +227,7 @@ passlib[bcrypt]            # Password hashing
 ### Configuration
 
 Environment variables:
+
 ```
 JWT_SECRET=<random-64-chars>
 JWT_ALGORITHM=HS256
@@ -252,6 +267,7 @@ app.add_middleware(
 ### Rate Limiting
 
 Apply to auth endpoints:
+
 - `/auth/login`: 5 attempts per minute per IP
 - `/auth/refresh`: 10 attempts per minute per IP
 
@@ -260,6 +276,7 @@ Consider `slowapi` or custom middleware.
 ### Security Logging
 
 Log these events (structured logging):
+
 - Login success: user_id, IP, user_agent
 - Login failure: email (not password), IP, user_agent
 - Refresh success: user_id

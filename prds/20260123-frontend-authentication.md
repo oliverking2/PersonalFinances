@@ -122,6 +122,7 @@ export const api = ofetch.create({
 ```
 
 **Note:** `ofetch` doesn't have built-in retry on error. Options:
+
 1. Wrap API calls in a utility that retries once after refresh
 2. Use `ky` which has retry support
 3. Handle retry at call site
@@ -186,6 +187,7 @@ Location: `app/pages/login.vue`
 | HttpOnly cookie | None (not JS accessible) | Yes | For refresh token only |
 
 Access token in memory + refresh token in HttpOnly cookie gives us:
+
 - XSS can't steal refresh token
 - Page refresh triggers `/auth/refresh` to restore session
 - Closing browser clears memory; reopening uses refresh cookie
@@ -193,6 +195,7 @@ Access token in memory + refresh token in HttpOnly cookie gives us:
 ### Configuration
 
 `nuxt.config.ts`:
+
 ```typescript
 export default defineNuxtConfig({
   runtimeConfig: {
@@ -204,6 +207,7 @@ export default defineNuxtConfig({
 ```
 
 `.env`:
+
 ```
 NUXT_PUBLIC_API_BASE=http://localhost:8000
 ```
@@ -211,10 +215,12 @@ NUXT_PUBLIC_API_BASE=http://localhost:8000
 ### CORS and Credentials
 
 The backend must have:
+
 - `allow_credentials=True`
 - Frontend origin in `allow_origins`
 
 The frontend must have:
+
 - `credentials: 'include'` on all fetch requests
 
 ### Error Handling

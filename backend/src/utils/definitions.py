@@ -18,14 +18,11 @@ logger = setup_dagster_logger(__name__)
 load_dotenv()
 
 
-def get_host() -> str:
-    """Retrieve the hostname of the current machine.
+def get_postgres_host() -> str:
+    """Get PostgreSQL hostname from environment.
 
-    This function fetches the hostname of the machine on which the code
-    is being executed. The hostname is determined dynamically and is returned
-    as a string.
-
-    :return: The hostname of the current machine.
+    :return: The PostgreSQL hostname.
+    :raises ValueError: If POSTGRES_HOSTNAME is not set in non-local environments.
     """
     env = os.getenv("ENVIRONMENT")
     logger.info(f"Running in environment: {env}")
@@ -35,6 +32,14 @@ def get_host() -> str:
         raise ValueError("Environment variable POSTGRES_HOSTNAME not set.")
     logger.debug(f"PostgreSQL host configured as: {postgres_host}")
     return postgres_host
+
+
+def get_postgres_port() -> int:
+    """Get PostgreSQL port from environment.
+
+    :return: The PostgreSQL port (default: 5432).
+    """
+    return int(os.getenv("POSTGRES_PORT", "5432"))
 
 
 def _mask_password_in_url(url: str) -> str:
@@ -60,24 +65,80 @@ def dagster_database_url() -> str:
 
     :return: The constructed database URL as a string.
     """
-    host = get_host()
+    host = get_postgres_host()
+    port = get_postgres_port()
     url = (
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
-        f"{host}:5432/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
+        f"{host}:{port}/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
     )
     logger.info(f"Database URL: {_mask_password_in_url(url)}")
     return url
 
 
-def gocardless_database_url() -> str:
-    """Generate a PostgreSQL database connection URL for GoCardless.
+def database_url() -> str:
+    """Generate the main PostgreSQL database connection URL.
 
     :return: The constructed database URL as a string.
     """
-    host = get_host()
+    host = get_postgres_host()
+    port = get_postgres_port()
     url = (
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
-        f"{host}:5432/{os.getenv('POSTGRES_GOCARDLESS_DATABASE')}"
+        f"{host}:{port}/{os.getenv('POSTGRES_DATABASE')}"
     )
     logger.info(f"Database URL: {_mask_password_in_url(url)}")
     return url
+
+
+# Alias for backwards compatibility
+def gocardless_database_url() -> str:
+    """Generate the main database URL (legacy alias).
+
+    :return: The constructed database URL as a string.
+    """
+    return database_url()
+
+
+# JWT Authentication Configuration
+def jwt_secret() -> str:
+    """Get the JWT signing secret from environment.
+
+    :return: The JWT secret key.
+    :raises ValueError: If JWT_SECRET is not set.
+    """
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        raise ValueError("Environment variable JWT_SECRET must be set")
+    return secret
+
+
+def jwt_algorithm() -> str:
+    """Get the JWT algorithm from environment.
+
+    :return: The JWT algorithm (default: HS256).
+    """
+    return os.getenv("JWT_ALGORITHM", "HS256")
+
+
+def access_token_expire_minutes() -> int:
+    """Get access token expiry in minutes.
+
+    :return: Access token expiry in minutes (default: 15).
+    """
+    return int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+
+
+def refresh_token_expire_days() -> int:
+    """Get refresh token expiry in days.
+
+    :return: Refresh token expiry in days (default: 30).
+    """
+    return int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+
+def is_local_environment() -> bool:
+    """Check if running in local development environment.
+
+    :return: True if ENVIRONMENT is 'local', False otherwise.
+    """
+    return os.getenv("ENVIRONMENT") == "local"

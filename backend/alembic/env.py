@@ -25,6 +25,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 
 from src.postgres.gocardless.models import *  # noqa: F403, E402
+from src.postgres.auth.models import *  # noqa: F403, E402
 
 target_metadata = Base.metadata
 
@@ -37,11 +38,12 @@ target_metadata = Base.metadata
 def get_url() -> str:
     """Retrieve the database connection URL from environment variables."""
     host = os.getenv("POSTGRES_HOSTNAME", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
     user = os.getenv("POSTGRES_USERNAME", "postgres")
     password = os.getenv("POSTGRES_PASSWORD", "")
-    database = os.getenv("POSTGRES_DATABASE", "postgres")
+    database = os.getenv("POSTGRES_DATABASE", "personal_finances")
 
-    return f"postgresql+psycopg2://{user}:{password}@{host}:5432/{database}"
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
 
 
 def run_migrations_offline() -> None:
