@@ -158,4 +158,4 @@ Items not yet scheduled but worth exploring:
 
 New features should have a PRD in `prds/` before implementation. See `prds/_template.md` for the format.
 
-PRD naming convention: `prds/YYYYMMDD-feature-name.md`
+PRD naming convention: `prds/YYYYMMDD-{scope}-feature-name.md`

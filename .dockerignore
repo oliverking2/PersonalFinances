@@ -16,5 +16,5 @@ backend/.coverage
 .idea
 *.pyc
 *.log
-.env
-analytics.duckdb
+backend/.env
+backend/analytics.duckdb

@@ -2,46 +2,218 @@
 
 A self-hosted personal finance aggregation and analytics platform. Connect bank accounts via open banking, track transactions, and gain insights into spending patterns.
 
-## Features
+Key highlights:
 
-- **Open Banking Integration** - Connect UK bank accounts via GoCardless
-- **Unified Dashboard** - Vue 3 + Nuxt 4 frontend with Nuxt UI
-- **Data Pipeline** - Dagster orchestration with dbt transformations
-- **REST API** - FastAPI backend for data access
-- **Self-Hosted** - Full control over your financial data
+- **Open banking integration** - Connect UK bank accounts via GoCardless Bank Account Data API with OAuth flow and automatic token refresh
+- **Data pipeline architecture** - Dagster orchestration with incremental extraction, S3 storage (Parquet), and dbt transformations
+- **Layered backend** - FastAPI REST layer with thin endpoints, domain logic in dedicated modules, SQLAlchemy 2.0 for persistence
+- **Modern frontend** - Nuxt 4 with Vue 3 Composition API, Nuxt UI components, and TypeScript
+- **Self-hosted** - Full control over financial data with Docker Compose deployment
+
+## Project Goal
+
+This project is a personal finance platform designed to aggregate bank account data and provide insights into spending patterns through a unified dashboard.
+
+The primary use cases include:
+
+- Connecting multiple UK bank accounts via GoCardless open banking
+- Viewing consolidated account balances and transactions
+- Analysing spending patterns with dbt-powered transformations
+- Storing transaction history in S3 (Parquet) for long-term analytics
+
+The system maintains incremental extraction state, only fetching new transactions since the last sync.
+
+## Architecture Overview
+
+This section provides a high-level overview of how the system works, intended as context for designing new features and PRDs.
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Nuxt 4 Application                                                         │
+│  (Vue 3 + Nuxt UI + TypeScript)                                             │
+│                                                                             │
+│  • Pages: Dashboard, Connections, Accounts, Transactions                    │
+│  • Composables: useApi (HTTP client wrapper)                                │
+│  • Layouts: Dashboard layout with navigation                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              API LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  FastAPI REST API                                                           │
+│                                                                             │
+│  /connections      │  /accounts           │  /transactions                  │
+│  • List/create     │  • List by conn      │  • List with filters            │
+│  • OAuth callback  │  • Get balances      │  • Date range queries           │
+│  • Delete          │                      │                                 │
+│                                                                             │
+│  Thin layer: validation, error handling, delegates to domain modules        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DOMAIN SERVICES                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  postgres/gocardless/     │  providers/gocardless/   │  aws/                │
+│  (Database operations)    │  (API client)            │  (Cloud services)    │
+│                           │                          │                      │
+│  • Requisitions CRUD      │  • Institution lookup    │  • S3 read/write     │
+│  • Bank accounts CRUD     │  • Agreement creation    │  • SSM parameters    │
+│  • Agreements CRUD        │  • Requisition flow      │                      │
+│                           │  • Transaction fetch     │                      │
+│                           │  • Balance fetch         │                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ORCHESTRATION LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Dagster                                                                    │
+│                                                                             │
+│  Assets:                         │  Schedules:                              │
+│  • extract_transactions          │  • Daily transaction extraction          │
+│  • extract_balances              │  • Daily balance snapshots               │
+│                                  │                                          │
+│  Resources:                      │  Background Jobs:                        │
+│  • PostgresResource              │  • Agreement refresh (before expiry)     │
+│  • S3Resource                    │  • Token management                      │
+│  • GoCardlessResource            │                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DATA TRANSFORMATION                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  dbt (DuckDB)                                                               │
+│                                                                             │
+│  1_source/           │  2_staging/           │  3_mart/                     │
+│  • Raw S3 sources    │  • Cleaned data       │  • Analytics aggregations    │
+│  • Schema definitions│  • Type casting       │  • Spending summaries        │
+│                      │  • Deduplication      │  • Category breakdowns       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           EXTERNAL SERVICES                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  GoCardless API          │  AWS S3                │  PostgreSQL             │
+│  (Bank Account Data)     │  (Parquet storage)     │  (Metadata & state)     │
+│                          │                        │                         │
+│  • Institutions list     │  • Transaction files   │  • Requisitions         │
+│  • Account access        │  • Balance snapshots   │  • Bank accounts        │
+│  • Transactions          │  • Extraction logs     │  • Agreements           │
+│  • Balances              │                        │  • Extract dates        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Patterns
+
+#### 1. Bank Connection Flow (User-initiated)
+
+```
+Frontend (Connections page)
+    → POST /connections (institution_id)
+    → GoCardless API (create agreement + requisition)
+    → Redirect to bank OAuth
+    → Bank authorises
+    → Callback to /connections/callback
+    → Store requisition + accounts in PostgreSQL
+    → Redirect to frontend
+```
+
+#### 2. Transaction Extraction (Scheduled)
+
+```
+Dagster Schedule (daily)
+    → For each active bank account:
+        → Get last extract_date from PostgreSQL
+        → Fetch transactions since extract_date from GoCardless
+        → Write to S3 as Parquet (partitioned by date)
+        → Update extract_date in PostgreSQL
+```
+
+#### 3. Analytics Query (User-initiated)
+
+```
+Frontend (Transactions page)
+    → GET /transactions?date_from=...&date_to=...
+    → dbt query against DuckDB (reads from S3)
+    → Return aggregated/filtered results
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Thin API layer | Endpoints handle HTTP concerns only; business logic in domain modules |
+| Session-per-request | Database operations receive Session, caller manages transactions |
+| S3 for transactions | Parquet enables efficient columnar queries, separates hot/cold data |
+| PostgreSQL for metadata | Relational integrity for connections, accounts, extraction state |
+| Incremental extraction | extract_date watermark prevents re-fetching old transactions |
+| dbt over raw SQL | Version-controlled transformations, testable, self-documenting |
+| Dagster over Celery | Better observability, native scheduling, asset-based mental model |
+
+### Module Boundaries
+
+```
+backend/src/
+├── api/                 # FastAPI endpoints (thin HTTP layer)
+│   ├── accounts/        # Account listing, balances
+│   ├── connections/     # OAuth flow, requisition management
+│   └── transactions/    # Transaction queries
+├── aws/                 # AWS service clients
+│   ├── s3.py            # S3 read/write operations
+│   └── ssm_parameters.py # Parameter Store access
+├── orchestration/       # Dagster definitions
+│   ├── gocardless/      # Extraction assets & schedules
+│   └── dbt/             # dbt asset definitions
+├── postgres/            # Database layer
+│   └── gocardless/      # Models and CRUD operations
+├── providers/           # External API clients
+│   └── gocardless/      # GoCardless API wrapper
+└── utils/               # Logging, shared utilities
+
+frontend/app/
+├── components/          # Reusable Vue components
+├── composables/         # useApi, shared logic
+├── layouts/             # Page layouts
+└── pages/               # File-based routes
+```
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Vue 3, Nuxt 4, Nuxt UI, TypeScript, Tailwind CSS |
+| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 |
+| Database | PostgreSQL (metadata), DuckDB (analytics) |
+| Storage | AWS S3 (Parquet files) |
+| Orchestration | Dagster |
+| Transforms | dbt |
+| Bank API | GoCardless Bank Account Data |
+| Containerisation | Docker Compose |
 
 ## Project Structure
 
 ```
 PersonalFinances/
-├── backend/                 # Python backend
-│   ├── src/
-│   │   ├── api/            # FastAPI endpoints
-│   │   ├── aws/            # S3, SSM clients
-│   │   ├── orchestration/  # Dagster jobs & assets
-│   │   ├── postgres/       # SQLAlchemy models & operations
-│   │   ├── providers/      # External API clients (GoCardless)
-│   │   └── utils/          # Shared utilities
-│   ├── testing/            # Test suite
-│   ├── alembic/            # Database migrations
-│   ├── pyproject.toml
-│   └── Makefile
-├── frontend/                # Nuxt 4 frontend
-│   ├── app/
-│   │   ├── composables/    # API client, shared logic
-│   │   ├── components/     # Vue components
-│   │   └── pages/          # Route pages
-│   ├── nuxt.config.ts
-│   └── package.json
+├── backend/                 # Python backend (see backend/CLAUDE.md)
+│   ├── src/                 # Application code
+│   ├── testing/             # Tests (mirrors src/)
+│   ├── alembic/             # Database migrations
+│   └── pyproject.toml
+├── frontend/                # Nuxt 4 frontend (see frontend/CLAUDE.md)
+│   ├── app/                 # Application code
+│   └── nuxt.config.ts
 ├── dbt/                     # Data transformations
-│   ├── models/
-│   │   ├── 1_source/       # Raw data sources
-│   │   ├── 2_staging/      # Cleaned data
-│   │   └── 3_mart/         # Analytics aggregations
-│   └── profiles.yml
-├── setup/dagster/           # Dagster Docker config
-├── docker-compose.yml
-└── .env
+│   └── models/              # source → staging → mart
+├── prds/                    # Product requirement documents
+└── docker-compose.yml
 ```
 
 ## Quick Start
@@ -63,18 +235,14 @@ git clone <repository-url>
 cd PersonalFinances
 
 # Copy environment template
-cp .env_example .env
-# Edit .env with your credentials
+cp backend/.env_example backend/.env
+# Edit backend/.env with your credentials
 
 # Install backend dependencies
-cd backend
-poetry install --with dev
-cd ..
+cd backend && poetry install --with dev && cd ..
 
 # Install frontend dependencies
-cd frontend
-npm install
-cd ..
+cd frontend && npm install && cd ..
 
 # Install pre-commit hooks
 pre-commit install
@@ -82,13 +250,11 @@ pre-commit install
 
 ### Running Locally
 
-**Option 1: Individual services**
-
 ```bash
 # Terminal 1: Start database
 docker-compose up -d postgres
 
-# Terminal 2: Run database migrations and start backend
+# Terminal 2: Run migrations and start backend
 cd backend
 poetry run alembic upgrade head
 poetry run uvicorn src.api.app:app --reload --port 8000
@@ -96,16 +262,6 @@ poetry run uvicorn src.api.app:app --reload --port 8000
 # Terminal 3: Start frontend
 cd frontend
 npm run dev
-```
-
-**Option 2: Docker Compose**
-
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
 ```
 
 ### Access Points
@@ -116,83 +272,12 @@ docker-compose logs -f
 | Backend API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
 | Dagster | http://localhost:3000 |
-| PostgreSQL | localhost:5432 |
-
-## Development
-
-### Backend Commands
-
-```bash
-cd backend
-
-# Run all validation
-make check
-
-# Individual commands
-make lint      # Ruff linting
-make format    # Ruff formatting
-make types     # mypy type checking
-make test      # Unit tests
-make coverage  # Tests with 80% coverage threshold
-
-# Single test
-poetry run pytest testing/path/to/test_file.py::test_name -v
-
-# Database migrations
-poetry run alembic upgrade head
-poetry run alembic revision --autogenerate -m "description"
-
-# Dagster dev server
-poetry run dagster dev
-```
-
-### Frontend Commands
-
-```bash
-cd frontend
-
-# Using Makefile
-make dev        # Development server
-make build      # Build for production
-make preview    # Preview production build
-make lint       # ESLint
-make typecheck  # Nuxt type checking
-make check      # Run lint and typecheck
-make clean      # Remove build artifacts
-
-# Or using npm directly
-npm run dev
-npm run build
-npm run lint
-```
-
-### dbt Commands
-
-```bash
-cd dbt
-dbt run --profiles-dir . --profile duckdb_local
-dbt test --profiles-dir . --profile duckdb_local
-```
-
-### Pre-commit Hooks
-
-Pre-commit runs ruff (linting and formatting) on backend code automatically on commit.
-MyPy type checking is excluded from pre-commit and runs via `make check` instead.
-
-```bash
-# Install hooks (one-time setup, from project root)
-pre-commit install
-
-# Run all hooks manually
-pre-commit run --all-files
-```
 
 ## Configuration
 
-Edit `.env` in the project root:
+Edit `backend/.env` (copy from `backend/.env_example`):
 
 ```bash
-# Environment
 ENVIRONMENT=local
 
 # AWS
@@ -211,33 +296,35 @@ POSTGRES_DATABASE=postgres
 GC_CALLBACK_URL=http://localhost:3001/connections/callback
 ```
 
-## PyCharm Setup
+## PRD Context
 
-1. Open project root (`PersonalFinances/`)
-2. **Settings → Project → Python Interpreter** → Select `backend/.venv`
-3. **Right-click `backend/src`** → Mark Directory as → Sources Root
-4. **Right-click `backend/testing`** → Mark Directory as → Test Sources Root
-5. Frontend Node.js auto-detects from `frontend/package.json`
+When writing PRDs for this project, consider:
 
-## Architecture
+- **Where does the request originate?** (Frontend, Dagster schedule, API)
+- **What layer handles it?** (API → Domain → External service)
+- **What data flows where?** (PostgreSQL for state, S3 for bulk data)
+- **Is extraction incremental?** (Use watermarks/extract_date pattern)
+- **Does it affect the pipeline?** (Consider Dagster asset dependencies)
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   GoCardless    │────▶│     Dagster     │────▶│   PostgreSQL    │
-│  (Open Banking) │     │ (Orchestration) │     │    + S3         │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Nuxt Frontend  │◀───▶│    FastAPI      │◀───▶│   dbt/DuckDB    │
-│   (Vue 3 + UI)  │     │   (REST API)    │     │ (Transforms)    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+Existing PRDs are in `prds/` and follow a consistent structure.
+
+## Development
+
+See `CLAUDE.md` for development commands and patterns:
+
+- `backend/CLAUDE.md` - Python/FastAPI patterns
+- `frontend/CLAUDE.md` - Vue/Nuxt patterns
+
+```bash
+# Validation
+cd backend && make check    # Backend (lint, types, tests)
+cd frontend && make check   # Frontend (lint, typecheck)
 ```
 
 ## Roadmap
 
 See `ROADMAP.md` for planned features.
 
-## License
+## Licence
 
 Private - not for redistribution.

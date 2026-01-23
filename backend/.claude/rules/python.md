@@ -1,0 +1,51 @@
+# Python Standards
+
+## Style
+- Python 3.12+, Poetry for dependencies
+- Type hints everywhere, `X | None` not `Optional[X]`
+- Ruff for linting/formatting, mypy for type checking
+- Line length: 100 characters
+- British English in comments and user-facing text
+
+## Naming
+- Constants: `UPPER_SNAKE_CASE`
+- Classes: `PascalCase`
+- Functions/variables: `snake_case`
+- Use `StrEnum` for string constants, never raw string literals
+
+## Functions
+- Small, composable (<50 lines, low branching)
+- Sphinx-style docstrings for public functions:
+  ```python
+  def create_item(name: str) -> Item:
+      """Create a new item.
+
+      :param name: Item name.
+      :returns: Created item.
+      :raises ValueError: If name is empty.
+      """
+  ```
+
+## Error Handling
+- Never bare `except:`, always catch specific exceptions
+- Chain exceptions with `from e`
+- Use `logger.exception()` for unexpected errors
+- Create domain-specific exceptions with context
+
+## Logging
+- Use `logging.getLogger(__name__)`
+- Structured format: `logger.info(f"Created item: id={item.id}")`
+- Never log secrets
+- No print statements in production code
+
+## Testing
+- pytest with pytest-mock
+- Tests in `testing/` mirroring `src/` structure
+- 80% coverage minimum
+- One assertion focus per test
+- Mock at boundaries (HTTP, database), not internal functions
+- Use fixtures for shared setup
+
+## Imports
+- Absolute imports within `src/`
+- Group: stdlib, third-party, local
