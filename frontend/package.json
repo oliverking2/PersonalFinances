@@ -9,8 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "prettier --write . && eslint . --fix",
-    "lint:check": "prettier --check . && eslint . --max-warnings 0",
-    "lint:staged": "prettier --check . && eslint . --max-warnings 0"
+    "lint:check": "prettier --check . && eslint . --max-warnings 0"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.12.1",
