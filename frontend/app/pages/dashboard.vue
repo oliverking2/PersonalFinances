@@ -36,13 +36,18 @@ const authStore = useAuthStore()
         </p>
       </NuxtLink>
 
-      <!-- Transactions card placeholder -->
-      <div class="rounded-lg border border-border bg-surface p-6">
-        <h2 class="font-semibold text-sage">Recent Transactions</h2>
+      <!-- Transactions card - links to /transactions page -->
+      <NuxtLink
+        to="/transactions"
+        class="group block rounded-lg border border-border bg-surface p-6 transition-colors hover:border-primary/50"
+      >
+        <h2 class="font-semibold text-sage group-hover:text-primary">
+          Transactions
+        </h2>
         <p class="mt-2 text-sm text-muted">
-          Your recent transactions will appear here.
+          View and search your transaction history.
         </p>
-      </div>
+      </NuxtLink>
 
       <!-- Summary card placeholder -->
       <div class="rounded-lg border border-border bg-surface p-6">
