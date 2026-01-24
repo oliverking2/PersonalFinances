@@ -14,17 +14,14 @@ const authStore = useAuthStore()
 
 // ---------------------------------------------------------------------------
 // Form state
-// ref() creates reactive variables that auto-update the UI when changed
-// v-model in template binds these to inputs (two-way binding)
 // ---------------------------------------------------------------------------
 const username = ref('')
 const password = ref('')
 const errorMessage = ref<string | null>(null)
+const isShaking = ref(false)
 
 // ---------------------------------------------------------------------------
 // Form submission
-// @submit.prevent calls this function and prevents page reload
-// Browser handles basic validation via HTML5 attributes (required, etc.)
 // ---------------------------------------------------------------------------
 async function handleSubmit() {
   errorMessage.value = null
@@ -33,27 +30,35 @@ async function handleSubmit() {
     await authStore.login(username.value, password.value)
     await navigateTo('/dashboard')
   } catch {
-    errorMessage.value = 'Login failed. Please check your credentials.'
+    errorMessage.value = 'Invalid username or password'
 
-    // Auto-dismiss error after 3 seconds
+    // Trigger shake animation on form
+    isShaking.value = true
+    setTimeout(() => {
+      isShaking.value = false
+    }, 500)
+
+    // Auto-dismiss error after 5 seconds
     setTimeout(() => {
       errorMessage.value = null
-    }, 3000)
+    }, 5000)
+  }
+}
+
+// Dismiss error when user starts typing
+function dismissError() {
+  if (errorMessage.value) {
+    errorMessage.value = null
   }
 }
 </script>
 
 <template>
-  <!-- Full-screen container with gradient background -->
-  <!-- min-h-screen: at least viewport height -->
-  <!-- flex items-center justify-center: center the card both ways -->
-  <!-- px-4: padding on mobile to prevent edge-to-edge card -->
+  <!-- Full-screen container -->
   <div
     class="flex min-h-screen flex-col items-center justify-center bg-background px-4"
   >
-    <!-- Decorative background blobs (visual depth, no interaction) -->
-    <!-- absolute: positioned relative to parent, blur-3xl: heavy blur effect -->
-    <!-- hidden sm:block: hide on mobile to reduce visual noise -->
+    <!-- Decorative background blobs -->
     <div
       class="absolute -left-20 top-20 hidden h-72 w-72 rounded-full bg-emerald opacity-20 blur-3xl sm:block"
     />
@@ -61,57 +66,115 @@ async function handleSubmit() {
       class="absolute -right-20 bottom-20 hidden h-96 w-96 rounded-full bg-sage opacity-10 blur-3xl sm:block"
     />
 
-    <!-- Login card -->
-    <!-- relative: for absolute positioned error message -->
-    <!-- w-full max-w-sm: responsive width with max constraint -->
-    <div
-      class="relative w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-xl sm:p-8"
-    >
-      <!-- Error message (slides in/out) -->
-      <Transition name="fade">
+    <!-- Card wrapper - relative for absolute error positioning -->
+    <div class="relative w-full max-w-sm">
+      <!-- Error message - absolute so card doesn't move -->
+      <Transition name="slide">
         <div
           v-if="errorMessage"
-          class="absolute inset-x-2 top-2 rounded-md bg-negative/90 p-3 text-center text-sm font-medium text-white"
+          class="absolute -top-16 left-0 right-0 flex items-center gap-3 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 backdrop-blur-sm"
         >
-          {{ errorMessage }}
+          <!-- Error icon (X in circle) -->
+          <div
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-negative/20"
+          >
+            <svg
+              class="h-4 w-4 text-negative"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </div>
+          <!-- Error text -->
+          <p class="text-sm font-medium text-negative">
+            {{ errorMessage }}
+          </p>
         </div>
       </Transition>
 
-      <!-- App title -->
-      <h1
-        class="pb-4 text-center font-display text-2xl font-bold text-foreground sm:text-3xl"
+      <!-- Login card -->
+      <div
+        class="rounded-xl border border-border bg-surface p-6 shadow-xl sm:p-8"
       >
-        Personal Finances
-      </h1>
+        <!-- App title -->
+        <h1
+          class="pb-4 text-center font-display text-2xl font-bold text-foreground sm:text-3xl"
+        >
+          Personal Finances
+        </h1>
 
-      <!-- Login form -->
-      <form class="flex flex-col gap-4 pt-6" @submit.prevent="handleSubmit">
-        <AppInput
-          v-model="username"
-          type="text"
-          placeholder="Username"
-          required
-        />
-        <AppInput
-          v-model="password"
-          type="password"
-          placeholder="Password"
-          required
-        />
-        <AppButton type="submit" class="mt-2">Login</AppButton>
-      </form>
+        <!-- Login form - shakes on error -->
+        <form
+          :class="{ shake: isShaking }"
+          class="flex flex-col gap-4"
+          @submit.prevent="handleSubmit"
+        >
+          <AppInput
+            v-model="username"
+            type="text"
+            placeholder="Username"
+            required
+            @input="dismissError"
+          />
+          <AppInput
+            v-model="password"
+            type="password"
+            placeholder="Password"
+            required
+            @input="dismissError"
+          />
+          <AppButton type="submit" class="mt-2">Login</AppButton>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Fade transition for error message */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+/* Slide down transition for error message */
+.slide-enter-active {
+  transition: all 0.3s ease-out;
 }
-.fade-enter-from,
-.fade-leave-to {
+.slide-leave-active {
+  transition: all 0.2s ease-in;
+}
+.slide-enter-from {
   opacity: 0;
+  transform: translateY(-10px);
+}
+.slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Shake animation for form on error */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+.shake {
+  animation: shake 0.5s ease-in-out;
 }
 </style>

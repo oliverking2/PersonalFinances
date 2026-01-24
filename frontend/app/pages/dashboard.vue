@@ -23,13 +23,18 @@ const authStore = useAuthStore()
     <!-- gap-4: consistent spacing between cards -->
     <!-- sm:grid-cols-2 lg:grid-cols-3: more columns on larger screens -->
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- Accounts card placeholder -->
-      <div class="rounded-lg border border-border bg-surface p-6">
-        <h2 class="font-semibold text-sage">Accounts</h2>
+      <!-- Accounts card - links to /accounts page -->
+      <NuxtLink
+        to="/accounts"
+        class="group block rounded-lg border border-border bg-surface p-6 transition-colors hover:border-primary/50"
+      >
+        <h2 class="font-semibold text-sage group-hover:text-primary">
+          Accounts
+        </h2>
         <p class="mt-2 text-sm text-muted">
-          Your connected bank accounts will appear here.
+          Manage your connected bank accounts.
         </p>
-      </div>
+      </NuxtLink>
 
       <!-- Transactions card placeholder -->
       <div class="rounded-lg border border-border bg-surface p-6">
