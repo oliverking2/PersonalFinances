@@ -8,16 +8,17 @@ const authStore = useAuthStore()
 
 // ---------------------------------------------------------------------------
 // Logout handler
-// Calls store logout then redirects to login page
+// Optimistic: redirect immediately, API call in background
+// The slow backend token lookup shouldn't block the user
 // ---------------------------------------------------------------------------
-async function logout() {
-  try {
-    await authStore.logout()
-  } catch {
-    // Even if logout fails on server, redirect to login
-    // The local state will be cleared anyway on next page load
-    console.error('Logout failed')
-  }
+function logout() {
+  // Fire and forget - don't wait for the slow API call
+  authStore.logout().catch(() => {
+    // Ignore errors - user is logged out locally regardless
+    // Worst case: orphaned token expires on its own
+  })
+
+  // Redirect immediately for instant feedback
   navigateTo('/login')
 }
 </script>

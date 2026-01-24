@@ -115,22 +115,22 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Logout - revokes tokens on server and clears local state
+  // Logout - clears local state immediately, then revokes token on server
+  // Optimistic: user sees instant logout, API call happens in background
   async function logout() {
+    // Clear local state first for instant feedback
+    resetState()
+
+    // Then revoke token on server (fire and forget from caller's perspective)
     try {
-      const response = await $fetch<LogoutResponse>(
-        `${config.public.apiUrl}/auth/logout`,
-        {
-          method: 'POST',
-          credentials: 'include', // sends refresh cookie for revocation
-        },
-      )
-      if (response.ok) {
-        resetState()
-      }
+      await $fetch<LogoutResponse>(`${config.public.apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include', // sends refresh cookie for revocation
+      })
     } catch (error) {
-      console.error('Logout failed:', error)
-      throw error
+      // Log but don't throw - user is already logged out locally
+      // Orphaned server token will expire on its own
+      console.error('Logout API call failed:', error)
     }
   }
 
