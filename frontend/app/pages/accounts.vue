@@ -17,6 +17,7 @@ const {
   updateAccount,
   deleteConnection,
   reauthoriseConnection,
+  ApiError,
 } = useAccountsApi()
 
 // ---------------------------------------------------------------------------
@@ -103,15 +104,8 @@ function closeCreateModal() {
 function handleConnectionCreated(authUrl: string) {
   showCreateModal.value = false
 
-  // In a real app, we'd redirect to the auth URL
-  // For mock, just log it and reload data
-  console.log('[MOCK] Would redirect to:', authUrl)
-
-  // Show user the mock auth URL
-  alert(`Mock: Would redirect to bank auth:\n${authUrl}`)
-
-  // Reload to show the new pending connection
-  loadData()
+  // Redirect user to the bank's authentication page
+  window.location.href = authUrl
 }
 
 function openEditConnectionModal(connection: Connection) {
@@ -197,12 +191,16 @@ async function handleReauthorise(connection: Connection) {
   try {
     const response = await reauthoriseConnection(connection.id)
 
-    // In a real app, we'd redirect to the auth URL
-    console.log('[MOCK] Would redirect to:', response.auth_url)
-    alert(`Mock: Would redirect to reauthorise:\n${response.auth_url}`)
+    // Redirect user to the bank's reauthorisation page
+    window.location.href = response.link
   } catch (e) {
-    console.error('Failed to reauthorise:', e)
-    alert('Failed to start reauthorisation')
+    // Handle 501 Not Implemented - feature coming soon
+    if (e instanceof ApiError && e.status === 501) {
+      alert('Reauthorisation coming soon! This feature is still being built.')
+    } else {
+      console.error('Failed to reauthorise:', e)
+      alert('Failed to start reauthorisation')
+    }
   }
 }
 </script>

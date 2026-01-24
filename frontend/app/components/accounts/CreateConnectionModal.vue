@@ -22,7 +22,7 @@ const emit = defineEmits<{
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------
-const { fetchInstitutions, createConnection } = useAccountsApi()
+const { fetchInstitutions, createConnection, ApiError } = useAccountsApi()
 
 // ---------------------------------------------------------------------------
 // State
@@ -101,9 +101,16 @@ async function handleCreate() {
       friendly_name: friendlyName.value.trim(),
     })
 
-    emit('created', response.auth_url)
+    emit('created', response.link)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to create connection'
+    // Handle 501 Not Implemented - feature coming soon
+    if (e instanceof ApiError && e.status === 501) {
+      error.value =
+        'Bank connections coming soon! This feature is still being built.'
+    } else {
+      error.value =
+        e instanceof Error ? e.message : 'Failed to create connection'
+    }
     creating.value = false
   }
 }

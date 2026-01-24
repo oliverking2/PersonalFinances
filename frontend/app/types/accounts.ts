@@ -25,6 +25,7 @@ export interface Institution {
   name: string // e.g. "Nationwide"
   logo_url?: string // Optional bank logo
   countries?: string[] // e.g. ["GB"]
+  provider?: Provider // Provider that offers this institution
 }
 
 // -----------------------------------------------------------------------------
@@ -51,7 +52,7 @@ export interface Connection {
 export interface AccountBalance {
   amount: number
   currency: string
-  as_of: string // ISO timestamp - when balance was fetched
+  type: string // Balance type (e.g. "expected", "available")
 }
 
 export interface Account {
@@ -82,6 +83,7 @@ export interface AccountListResponse {
 
 export interface InstitutionListResponse {
   institutions: Institution[]
+  total: number
 }
 
 // -----------------------------------------------------------------------------
@@ -95,7 +97,7 @@ export interface CreateConnectionRequest {
 
 export interface CreateConnectionResponse {
   id: string
-  auth_url: string // Redirect user here to complete bank auth
+  link: string // Redirect user here to complete bank auth
 }
 
 export interface UpdateConnectionRequest {
@@ -107,5 +109,6 @@ export interface UpdateAccountRequest {
 }
 
 export interface ReauthoriseResponse {
-  auth_url: string // Redirect user here to re-authenticate
+  id: string // Connection UUID
+  link: string // Redirect user here to re-authenticate
 }
