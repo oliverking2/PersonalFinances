@@ -5,7 +5,7 @@ Displays transactions grouped by day with infinite scroll
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { Account } from '~/types/accounts'
+import type { Account, Connection } from '~/types/accounts'
 import type {
   Transaction,
   TransactionDayGroup,
@@ -16,7 +16,7 @@ import type {
 // Composables
 // ---------------------------------------------------------------------------
 const { fetchTransactions } = useTransactionsApi()
-const { fetchAccounts } = useAccountsApi()
+const { fetchAccounts, fetchConnections } = useAccountsApi()
 
 // ---------------------------------------------------------------------------
 // State
@@ -25,6 +25,7 @@ const { fetchAccounts } = useAccountsApi()
 // Data
 const transactions = ref<Transaction[]>([])
 const accounts = ref<Account[]>([])
+const connections = ref<Connection[]>([])
 const total = ref(0)
 
 // Filters
@@ -47,6 +48,15 @@ const sentinelRef = ref<HTMLDivElement | null>(null)
 
 // Check if there are more transactions to load
 const hasMore = computed(() => transactions.value.length < total.value)
+
+// Map of connection_id to friendly_name for building account display strings
+const connectionNames = computed((): Record<string, string> => {
+  const names: Record<string, string> = {}
+  for (const connection of connections.value) {
+    names[connection.id] = connection.friendly_name
+  }
+  return names
+})
 
 // Map of account_id to display name for showing in transaction rows
 const accountNames = computed((): Record<string, string> => {
@@ -158,15 +168,18 @@ async function loadData() {
   error.value = ''
 
   try {
-    // Fetch transactions and accounts in parallel
-    const [txnResponse, accountsResponse] = await Promise.all([
-      fetchTransactions(filters.value),
-      fetchAccounts(),
-    ])
+    // Fetch transactions, accounts, and connections in parallel
+    const [txnResponse, accountsResponse, connectionsResponse] =
+      await Promise.all([
+        fetchTransactions(filters.value),
+        fetchAccounts(),
+        fetchConnections(),
+      ])
 
     transactions.value = txnResponse.transactions
     total.value = txnResponse.total
     accounts.value = accountsResponse.accounts
+    connections.value = connectionsResponse.connections
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load transactions'
   } finally {
@@ -276,6 +289,7 @@ onMounted(() => {
     <!-- Filters -->
     <TransactionsTransactionFilters
       :accounts="accounts"
+      :connection-names="connectionNames"
       :model-value="filters"
       @update:model-value="handleFiltersChange"
     />

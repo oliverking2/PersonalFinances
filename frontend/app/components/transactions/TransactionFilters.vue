@@ -12,6 +12,7 @@ import type { TransactionQueryParams } from '~/types/transactions'
 // ---------------------------------------------------------------------------
 const props = defineProps<{
   accounts: Account[]
+  connectionNames: Record<string, string>
   modelValue: TransactionQueryParams
 }>()
 
@@ -111,9 +112,16 @@ function clearFilters() {
   emit('update:modelValue', { page: 1, page_size: props.modelValue.page_size })
 }
 
-// Get display name for an account
+// Get display name for an account: "Connection Name - Account Name"
 function getAccountDisplayName(account: Account): string {
-  return account.display_name || account.name || 'Unnamed Account'
+  const connectionName = props.connectionNames[account.connection_id]
+  const accountName = account.display_name || account.name || 'Unnamed Account'
+
+  // If we have a connection name, show "Connection - Account"
+  if (connectionName) {
+    return `${connectionName} - ${accountName}`
+  }
+  return accountName
 }
 </script>
 

@@ -1,7 +1,7 @@
 <!-- ==========================================================================
 ConnectionCard
 Card displaying a bank connection with its nested accounts
-Includes actions: edit name, reauthorise (if expired), delete
+Includes actions: edit name, reauthorise (if expired or pending), delete
 ============================================================================ -->
 
 <script setup lang="ts">
@@ -33,8 +33,12 @@ const showMenu = ref(false)
 // Computed
 // ---------------------------------------------------------------------------
 
-// Check if connection is expired (needs reauthorisation)
+// Check if connection needs reauthorisation (expired or pending/abandoned OAuth)
+const needsReauth = computed(() =>
+  ['expired', 'pending'].includes(props.connection.status),
+)
 const isExpired = computed(() => props.connection.status === 'expired')
+const isPending = computed(() => props.connection.status === 'pending')
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -107,14 +111,14 @@ function closeMenu() {
       <div class="flex items-center gap-3">
         <AccountsStatusIndicator :status="connection.status" />
 
-        <!-- Reauthorise button (shown when expired) -->
+        <!-- Reauthorise button (shown when expired or pending) -->
         <button
-          v-if="isExpired"
+          v-if="needsReauth"
           type="button"
           class="rounded-lg bg-warning/10 px-3 py-1.5 text-sm font-medium text-warning transition-colors hover:bg-warning/20"
           @click="handleReauthorise"
         >
-          Reauthorise
+          {{ isPending ? 'Authorise' : 'Reauthorise' }}
         </button>
 
         <!-- Overflow menu -->
@@ -190,10 +194,15 @@ function closeMenu() {
       </div>
     </div>
 
-    <!-- Expired warning banner -->
+    <!-- Warning banner for connections needing attention -->
     <div
-      v-if="isExpired"
-      class="flex items-center gap-2 bg-negative/10 px-6 py-2 text-sm text-negative"
+      v-if="needsReauth"
+      class="flex items-center gap-2 px-6 py-2 text-sm"
+      :class="
+        isExpired
+          ? 'bg-negative/10 text-negative'
+          : 'bg-warning/10 text-warning'
+      "
     >
       <!-- Warning icon -->
       <svg
@@ -208,7 +217,11 @@ function closeMenu() {
           clip-rule="evenodd"
         />
       </svg>
-      Connection expired. Reauthorise to continue syncing.
+      {{
+        isExpired
+          ? 'Connection expired. Reauthorise to continue syncing.'
+          : 'Authorisation incomplete. Click Authorise to complete setup.'
+      }}
     </div>
 
     <!-- Accounts list -->
