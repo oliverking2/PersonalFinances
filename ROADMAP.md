@@ -178,6 +178,30 @@ Proactive alerts and two-way communication via Telegram.
 
 ---
 
+## Tech Debt
+
+### Completed (January 2026)
+
+- [x] Remove debug token printing from `providers/gocardless/api/core.py`
+- [x] Simplify GoCardless credentials to env vars (removed SSM dependency)
+- [x] Fix meaningless test assertions in orchestration tests
+- [x] Remove orphaned S3 code from `aws/s3.py` (~250 lines)
+- [x] Remove unused SSM module
+- [x] Consolidate enum definitions to single source (`postgres/common/enums.py`)
+- [x] De-duplicate API test fixtures to `conftest.py`
+- [x] Consolidate `load_dotenv()` calls to single location
+- [x] Update outdated S3/DuckDB comments in transactions endpoint
+- [x] **Remove all AWS/S3 dependencies** - dbt now reads from PostgreSQL via DuckDB's postgres extension
+- [x] Delete `src/aws/` directory entirely
+
+### Backlog
+
+- [ ] Add missing test files (transactions API, dependencies, orchestration definitions)
+- [ ] Improve coverage of `postgres/core.py` (currently 48%)
+- [ ] Replace broad exception handlers with specific exceptions in requisitions.py
+
+---
+
 ## Out of Scope
 
 Items explicitly not needed for this project:

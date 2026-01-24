@@ -33,8 +33,8 @@ PersonalFinances/
 |------------|--------------------------------------------|
 | Backend    | Python 3.12+, FastAPI, SQLAlchemy, Dagster |
 | Frontend   | Vue 3, Nuxt 4, Tailwind CSS, TypeScript    |
-| Database   | PostgreSQL, DuckDB                         |
-| Storage    | AWS S3 (Parquet)                           |
+| Database   | PostgreSQL                                 |
+| Analytics  | DuckDB (reads from PostgreSQL via dbt)     |
 | Transforms | dbt                                        |
 | Bank API   | GoCardless                                 |
 
@@ -59,8 +59,8 @@ dbt test --profiles-dir . --profile duckdb_local
 Backend environment variables in `backend/.env` (copy from `backend/.env_example`):
 
 - `ENVIRONMENT` - local/prod
-- `AWS_*` - S3/SSM credentials
-- `POSTGRES_*` - Database connection
+- `POSTGRES_*` - Database connection (also used by dbt/DuckDB)
+- `GC_SECRET_ID`, `GC_SECRET_KEY` - GoCardless API credentials
 - `GC_CALLBACK_URL` - GoCardless OAuth callback
 
 ## PRD Naming Convention

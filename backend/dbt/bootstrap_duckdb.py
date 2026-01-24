@@ -10,8 +10,8 @@ DB_PATH = ROOT_DIR / "analytics.duckdb"
 def bootstrap() -> None:
     """Bootstrap DuckDB with the required extensions."""
     con = duckdb.connect(DB_PATH)
-    con.execute("INSTALL httpfs;")
-    con.execute("LOAD httpfs;")
+    con.execute("INSTALL postgres;")
+    con.execute("LOAD postgres;")
     con.close()
 
 

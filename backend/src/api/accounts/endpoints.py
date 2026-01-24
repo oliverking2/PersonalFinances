@@ -10,11 +10,11 @@ from src.api.accounts.models import (
     AccountBalance,
     AccountListResponse,
     AccountResponse,
-    AccountStatus,
     AccountUpdateRequest,
 )
 from src.api.dependencies import get_current_user, get_db
 from src.postgres.auth.models import User
+from src.postgres.common.enums import AccountStatus
 from src.postgres.common.models import Account
 from src.postgres.common.operations.accounts import (
     get_account_by_id,

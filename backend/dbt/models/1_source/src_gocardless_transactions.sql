@@ -1,16 +1,23 @@
 -- depends_on: {{ source('dagster','gocardless_raw_transactions') }}
--- Extracts raw transaction data from JSON files in S3.
--- The _extract_dt field is added by the Dagster extraction asset.
+-- Loads transaction data from PostgreSQL gc_transactions table.
 
 SELECT
     account_id,
-    transactions,
-    last_updated,
-    _extract_dt
-FROM
-    READ_JSON(
-        's3://oking-personal-finances/extracts/gocardless/*/transactions/**/*.json',
-        auto_detect = true,
-        union_by_name = true
-    )
+    transaction_id,
+    booking_date,
+    value_date,
+    booking_datetime,
+    transaction_amount,
+    currency,
+    creditor_name,
+    creditor_account,
+    debtor_name,
+    debtor_account,
+    remittance_information,
+    bank_transaction_code,
+    proprietary_bank_code,
+    status,
+    internal_transaction_id,
+    extracted_at
+FROM pg.gc_transactions
 WHERE account_id IS NOT NULL

@@ -1,78 +1,11 @@
 """Tests for institution API endpoints."""
 
-from collections.abc import Generator
-
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from src.api.app import app
-from src.api.dependencies import get_db
-from src.postgres.auth.models import User
 from src.postgres.common.enums import Provider
 from src.postgres.common.models import Institution
-from src.postgres.core import Base
-from src.utils.security import create_access_token, hash_password
-
-
-@pytest.fixture(scope="function")
-def api_db_session() -> Generator[Session]:
-    """Create a test database session for API tests."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-
-    session_factory = sessionmaker(
-        bind=engine,
-        expire_on_commit=False,
-    )
-    session = session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        engine.dispose()
-
-
-@pytest.fixture
-def client(api_db_session: Session) -> Generator[TestClient]:
-    """Create test client with overridden database dependency."""
-
-    def override_get_db() -> Generator[Session]:
-        try:
-            yield api_db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def test_user_in_db(api_db_session: Session) -> User:
-    """Create a user directly in the database for testing."""
-    user = User(
-        username="testuser",
-        password_hash=hash_password("testpassword123"),
-        first_name="Test",
-        last_name="User",
-    )
-    api_db_session.add(user)
-    api_db_session.commit()
-    return user
-
-
-@pytest.fixture
-def auth_headers(test_user_in_db: User) -> dict[str, str]:
-    """Create authentication headers with a valid JWT token."""
-    token = create_access_token(test_user_in_db.id)
-    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
@@ -113,11 +46,11 @@ class TestListInstitutions:
     def test_returns_all_institutions(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institutions_in_db: list[Institution],
     ) -> None:
         """Should return all institutions."""
-        response = client.get("/api/institutions", headers=auth_headers)
+        response = client.get("/api/institutions", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -135,13 +68,13 @@ class TestListInstitutions:
     def test_filters_by_provider(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institutions_in_db: list[Institution],
     ) -> None:
         """Should filter by provider."""
         response = client.get(
             "/api/institutions?provider=gocardless",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 200
@@ -151,13 +84,13 @@ class TestListInstitutions:
     def test_filters_by_country(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institutions_in_db: list[Institution],
     ) -> None:
         """Should filter by country."""
         response = client.get(
             "/api/institutions?country=IE",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 200
@@ -179,13 +112,13 @@ class TestGetInstitution:
     def test_returns_institution(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institutions_in_db: list[Institution],
     ) -> None:
         """Should return institution by ID."""
         response = client.get(
             "/api/institutions/CHASE_CHASGB2L",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 200
@@ -197,12 +130,12 @@ class TestGetInstitution:
     def test_returns_404_for_nonexistent(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
     ) -> None:
         """Should return 404 for nonexistent institution."""
         response = client.get(
             "/api/institutions/NONEXISTENT_ID",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 404

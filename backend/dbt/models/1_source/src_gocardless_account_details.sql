@@ -1,15 +1,25 @@
 -- depends_on: {{ source('dagster','gocardless_raw_account_details') }}
--- Extracts raw account details from JSON files in S3.
--- The _extract_dt field is added by the Dagster extraction asset.
+-- Loads account details from PostgreSQL gc_bank_accounts table.
 
 SELECT
-    account_id,
-    account,
-    _extract_dt
-FROM
-    READ_JSON(
-        's3://oking-personal-finances/extracts/gocardless/*/details/**/*.json',
-        auto_detect = true,
-        union_by_name = true
-    )
-WHERE account_id IS NOT NULL
+    id AS account_id,
+    bban,
+    bic,
+    cash_account_type,
+    currency,
+    details,
+    display_name,
+    iban,
+    linked_accounts,
+    msisdn,
+    name,
+    owner_address_unstructured,
+    owner_name,
+    product,
+    status,
+    scan,
+    usage,
+    requisition_id,
+    dg_transaction_extract_date
+FROM pg.gc_bank_accounts
+WHERE id IS NOT NULL

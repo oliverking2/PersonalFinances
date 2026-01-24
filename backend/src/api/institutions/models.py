@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from src.api.connections.models import Provider
+from src.postgres.common.enums import Provider
 
 
 class InstitutionResponse(BaseModel):

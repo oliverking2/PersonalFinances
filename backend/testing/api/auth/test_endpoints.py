@@ -1,75 +1,13 @@
 """Tests for authentication API endpoints."""
 
-from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from src.api.app import app
-from src.api.dependencies import get_db
-from src.postgres.auth import models as _auth_models  # noqa: F401
 from src.postgres.auth.models import User
 from src.postgres.auth.operations.refresh_tokens import create_refresh_token
-from src.postgres.core import Base
-from src.utils.security import create_access_token, hash_password
-
-
-@pytest.fixture(scope="function")
-def api_db_session() -> Generator[Session]:
-    """Create a test database session for API tests.
-
-    Uses StaticPool to ensure all connections share the same in-memory database.
-    """
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,  # Single connection shared across all uses
-    )
-    Base.metadata.create_all(engine)
-
-    session_factory = sessionmaker(
-        bind=engine,
-        expire_on_commit=False,  # Prevent attribute expiration after commit
-    )
-    session = session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        engine.dispose()
-
-
-@pytest.fixture
-def client(api_db_session: Session) -> Generator[TestClient]:
-    """Create test client with overridden database dependency."""
-
-    def override_get_db() -> Generator[Session]:
-        try:
-            yield api_db_session
-        finally:
-            pass  # Don't close - the fixture owns the session
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def test_user_in_db(api_db_session: Session) -> User:
-    """Create a user directly in the database for testing."""
-    user = User(
-        username="testuser",
-        password_hash=hash_password("testpassword123"),
-        first_name="Test",
-        last_name="User",
-    )
-    api_db_session.add(user)
-    api_db_session.commit()
-    return user
+from src.utils.security import create_access_token
 
 
 class TestRegister:

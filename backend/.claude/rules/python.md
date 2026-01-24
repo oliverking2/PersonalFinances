@@ -48,16 +48,17 @@
 
 - pytest with pytest-mock
 - Tests in `testing/` mirroring `src/` structure
-- 80% coverage minimum
+- 80% coverage minimum, ideally 90%
 - One assertion focus per test
 - Mock at boundaries (HTTP, database), not internal functions
 - Use fixtures for shared setup
+- Shared API test fixtures in `testing/conftest.py` (api_db_session, client, test_user_in_db, api_auth_headers)
 
 ## Imports
 
 - Absolute imports within `src/`
 - Group: stdlib, third-party, local
-- Type-only imports (e.g., `mypy_boto3_*` stubs) go in `TYPE_CHECKING` block to avoid runtime dependencies. Use `from __future__ import annotations` to defer annotation evaluation:
+- Type-only imports go in `TYPE_CHECKING` block to avoid runtime dependencies when the import is only needed for type hints:
 
   ```python
   from __future__ import annotations
@@ -65,8 +66,8 @@
   from typing import TYPE_CHECKING
 
   if TYPE_CHECKING:
-      from mypy_boto3_s3 import S3Client
+      from sqlalchemy.orm import Session
 
-  def get_client() -> S3Client:  # Works at runtime
+  def get_data(session: Session) -> list[dict]:  # Works at runtime
       ...
   ```

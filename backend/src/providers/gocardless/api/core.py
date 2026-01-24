@@ -1,12 +1,10 @@
 """Module containing the Auth for GoCardless."""
 
+import os
 import time
 from typing import Any
 
-import boto3
 import requests
-from botocore.config import Config
-from dotenv import load_dotenv
 from tenacity import (
     retry,
     retry_if_exception,
@@ -14,7 +12,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.aws.ssm_parameters import get_parameter_data_from_ssm
 from src.utils.logging import setup_dagster_logger
 
 logger = setup_dagster_logger(__name__)
@@ -84,14 +81,11 @@ class GoCardlessCredentials:
         """
         logger.debug("Initialising GoCardless credentials")
 
-        ssm_client = boto3.client(
-            "ssm",
-            config=Config(connect_timeout=REQUEST_TIMEOUT, read_timeout=REQUEST_TIMEOUT),
-        )
-        load_dotenv()
+        secret_id = os.environ.get("GC_SECRET_ID")
+        secret_key = os.environ.get("GC_SECRET_KEY")
 
-        secret_id = get_parameter_data_from_ssm(ssm_client, "/secrets/gocardless/secret_id")
-        secret_key = get_parameter_data_from_ssm(ssm_client, "/secrets/gocardless/secret_key")
+        if not secret_id or not secret_key:
+            raise OSError("GC_SECRET_ID and GC_SECRET_KEY environment variables must be set")
 
         self._secret_id: str = secret_id
         self._secret_key: str = secret_key
@@ -307,8 +301,3 @@ class GoCardlessCredentials:
         r.raise_for_status()
 
         return r.json()
-
-
-if __name__ == "__main__":
-    creds = GoCardlessCredentials()
-    print(creds.access_token)

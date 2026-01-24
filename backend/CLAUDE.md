@@ -8,7 +8,6 @@ Backend-specific guidance for Claude Code. See also root `CLAUDE.md` for project
 backend/
 ├── src/
 │   ├── api/            # FastAPI endpoints
-│   ├── aws/            # S3, SSM clients
 │   ├── orchestration/  # Dagster jobs & assets
 │   ├── postgres/       # SQLAlchemy models & operations
 │   │   ├── auth/       # User authentication (users, refresh_tokens)
@@ -16,9 +15,10 @@ backend/
 │   │   ├── gocardless/ # GoCardless-specific raw data (requisitions, bank_accounts, balances)
 │   │   └── core.py     # Base, engine, session utilities
 │   ├── providers/      # External API clients (GoCardless)
-│   └── utils/          # Shared utilities
+│   └── utils/          # Shared utilities (config, logging, security)
 ├── testing/            # Tests (mirrors src/ structure)
 ├── alembic/            # Database migrations
+├── dbt/                # dbt analytics (reads from PostgreSQL via DuckDB)
 ├── .env                # Environment config (from .env_example)
 └── pyproject.toml
 ```
@@ -48,16 +48,15 @@ poetry run dagster dev                                   # Dagster dev server
 
 ## Technology
 
-| Component     | Technology                 |
-|---------------|----------------------------|
-| Framework     | FastAPI                    |
-| Database      | PostgreSQL, SQLAlchemy 2.0 |
-| Orchestration | Dagster                    |
-| Transforms    | dbt                        |
-| Storage       | AWS S3 (Parquet)           |
-| Bank API      | GoCardless                 |
-| Testing       | pytest, pytest-mock        |
-| Linting       | Ruff, mypy                 |
+| Component     | Technology                    |
+|---------------|-------------------------------|
+| Framework     | FastAPI                       |
+| Database      | PostgreSQL, SQLAlchemy 2.0    |
+| Orchestration | Dagster                       |
+| Transforms    | dbt + DuckDB                  |
+| Bank API      | GoCardless (env var secrets)  |
+| Testing       | pytest, pytest-mock           |
+| Linting       | Ruff, mypy                    |
 
 ## Key Patterns
 
@@ -105,9 +104,11 @@ The database uses a two-layer approach for multi-provider support:
 - Python 3.12+, Poetry for dependencies
 - Type hints everywhere
 - Ruff for linting/formatting, mypy for type checking
-- 80% test coverage minimum
+- 80% test coverage minimum, ideally 90%
 - Sphinx-style docstrings for public functions
 - British English in comments and user-facing text
+- Enums defined once in `postgres/common/enums.py` (single source of truth)
+- No backward compatibility required (single-user personal project)
 
 ## See Also
 

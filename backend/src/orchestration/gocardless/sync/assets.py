@@ -34,12 +34,23 @@ def sync_gc_connections(context: AssetExecutionContext) -> None:
     connections table. It syncs all GoCardless connections regardless of user.
     """
     postgres_database: PostgresDatabase = context.resources.postgres_database
+    context.log.info("Starting GoCardless connection sync")
 
     with postgres_database.get_session() as session:
         connections = sync_all_gocardless_connections(session)
 
+        if not connections:
+            context.log.warning(
+                "No GoCardless connections found to sync. "
+                "Ensure connections exist in the 'connections' table with provider='gocardless'."
+            )
+            return
+
         active_count = sum(1 for c in connections if c.status == ConnectionStatus.ACTIVE.value)
-        context.log.info(f"Synced {len(connections)} connections ({active_count} active)")
+        expired_count = sum(1 for c in connections if c.status == ConnectionStatus.EXPIRED.value)
+        context.log.info(
+            f"Synced {len(connections)} connections: {active_count} active, {expired_count} expired"
+        )
 
 
 @asset(
@@ -57,6 +68,7 @@ def sync_gc_accounts(context: AssetExecutionContext) -> None:
     connection statuses are updated first.
     """
     postgres_database: PostgresDatabase = context.resources.postgres_database
+    context.log.info("Starting GoCardless account sync")
 
     with postgres_database.get_session() as session:
         # Get all active GoCardless connections
@@ -68,6 +80,30 @@ def sync_gc_accounts(context: AssetExecutionContext) -> None:
             )
             .all()
         )
+
+        context.log.info(f"Found {len(connections)} active GoCardless connections")
+
+        if not connections:
+            # Check if there are any connections at all to provide better diagnostics
+            all_gc_connections = (
+                session.query(Connection)
+                .filter(Connection.provider == Provider.GOCARDLESS.value)
+                .all()
+            )
+            if all_gc_connections:
+                statuses: dict[str, int] = {}
+                for conn in all_gc_connections:
+                    statuses[conn.status] = statuses.get(conn.status, 0) + 1
+                context.log.warning(
+                    f"No active connections found, but {len(all_gc_connections)} GoCardless "
+                    f"connections exist with statuses: {statuses}"
+                )
+            else:
+                context.log.warning(
+                    "No GoCardless connections found in database. "
+                    "Ensure you have created a connection via the API first."
+                )
+            return
 
         total_accounts = 0
         for connection in connections:

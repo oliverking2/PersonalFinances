@@ -1,20 +1,5 @@
 # Infrastructure Patterns
 
-## AWS
-
-- Use typed stubs: `boto3-stubs[s3,ssm]`
-- Handle `ClientError` specifically, check error codes
-- Configure timeouts and retries explicitly
-- Mock boto3 clients in tests
-
-```python
-from mypy_boto3_s3 import S3Client
-
-def upload_file(client: S3Client, bucket: str, key: str, data: bytes) -> str:
-    client.put_object(Bucket=bucket, Key=key, Body=data)
-    return f"s3://{bucket}/{key}"
-```
-
 ## Configuration
 
 - Environment variables via `python-dotenv`

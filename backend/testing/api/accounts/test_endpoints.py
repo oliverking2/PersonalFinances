@@ -1,81 +1,17 @@
 """Tests for account API endpoints."""
 
-from collections.abc import Generator
 from datetime import datetime
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from src.api.app import app
-from src.api.dependencies import get_db
 from src.postgres.auth.models import User
 from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution
-from src.postgres.core import Base
 from src.utils.security import create_access_token, hash_password
-
-
-@pytest.fixture(scope="function")
-def api_db_session() -> Generator[Session]:
-    """Create a test database session for API tests."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-
-    session_factory = sessionmaker(
-        bind=engine,
-        expire_on_commit=False,
-    )
-    session = session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
-        engine.dispose()
-
-
-@pytest.fixture
-def client(api_db_session: Session) -> Generator[TestClient]:
-    """Create test client with overridden database dependency."""
-
-    def override_get_db() -> Generator[Session]:
-        try:
-            yield api_db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def test_user_in_db(api_db_session: Session) -> User:
-    """Create a user directly in the database for testing."""
-    user = User(
-        username="testuser",
-        password_hash=hash_password("testpassword123"),
-        first_name="Test",
-        last_name="User",
-    )
-    api_db_session.add(user)
-    api_db_session.commit()
-    return user
-
-
-@pytest.fixture
-def auth_headers(test_user_in_db: User) -> dict[str, str]:
-    """Create authentication headers with a valid JWT token."""
-    token = create_access_token(test_user_in_db.id)
-    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
@@ -158,11 +94,11 @@ class TestListAccounts:
     def test_returns_all_user_accounts(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_in_db: Account,
     ) -> None:
         """Should return all accounts for authenticated user."""
-        response = client.get("/api/accounts", headers=auth_headers)
+        response = client.get("/api/accounts", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -179,14 +115,14 @@ class TestListAccounts:
     def test_filters_by_connection_id(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_in_db: Account,
         test_connection_in_db: Connection,
     ) -> None:
         """Should filter accounts by connection_id."""
         response = client.get(
             f"/api/accounts?connection_id={test_connection_in_db.id}",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 200
@@ -198,13 +134,13 @@ class TestListAccounts:
     def test_returns_404_for_invalid_connection_id(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institution_in_db: Institution,
     ) -> None:
         """Should return 404 for connection not owned by user."""
         response = client.get(
             f"/api/accounts?connection_id={uuid4()}",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 404
@@ -212,11 +148,11 @@ class TestListAccounts:
     def test_includes_balance_when_available(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_with_balance_in_db: Account,
     ) -> None:
         """Should include balance in response when available."""
-        response = client.get("/api/accounts", headers=auth_headers)
+        response = client.get("/api/accounts", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -239,13 +175,13 @@ class TestGetAccount:
     def test_returns_account(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_in_db: Account,
     ) -> None:
         """Should return account for authenticated user."""
         response = client.get(
             f"/api/accounts/{test_account_in_db.id}",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 200
@@ -256,13 +192,13 @@ class TestGetAccount:
     def test_returns_404_for_nonexistent(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institution_in_db: Institution,
     ) -> None:
         """Should return 404 for nonexistent account."""
         response = client.get(
             f"/api/accounts/{uuid4()}",
-            headers=auth_headers,
+            headers=api_auth_headers,
         )
 
         assert response.status_code == 404
@@ -330,13 +266,13 @@ class TestUpdateAccount:
     def test_updates_display_name(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_in_db: Account,
     ) -> None:
         """Should update account's display name."""
         response = client.patch(
             f"/api/accounts/{test_account_in_db.id}",
-            headers=auth_headers,
+            headers=api_auth_headers,
             json={"display_name": "Updated Display Name"},
         )
 
@@ -347,13 +283,13 @@ class TestUpdateAccount:
     def test_clears_display_name(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_account_in_db: Account,
     ) -> None:
         """Should clear display name when set to null."""
         response = client.patch(
             f"/api/accounts/{test_account_in_db.id}",
-            headers=auth_headers,
+            headers=api_auth_headers,
             json={"display_name": None},
         )
 
@@ -364,13 +300,13 @@ class TestUpdateAccount:
     def test_returns_404_for_nonexistent(
         self,
         client: TestClient,
-        auth_headers: dict[str, str],
+        api_auth_headers: dict[str, str],
         test_institution_in_db: Institution,
     ) -> None:
         """Should return 404 for nonexistent account."""
         response = client.patch(
             f"/api/accounts/{uuid4()}",
-            headers=auth_headers,
+            headers=api_auth_headers,
             json={"display_name": "New Name"},
         )
 

@@ -2,16 +2,10 @@
 
 from datetime import datetime
 from decimal import Decimal
-from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-
-class AccountStatus(StrEnum):
-    """Normalised account status."""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
+from src.postgres.common.enums import AccountStatus
 
 
 class AccountBalance(BaseModel):

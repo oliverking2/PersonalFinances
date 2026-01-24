@@ -1,5 +1,6 @@
 """Tests for GoCardless API core module."""
 
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,22 +14,17 @@ from src.providers.gocardless.api.core import (
 
 
 @pytest.fixture
-def mock_ssm_params() -> MagicMock:
-    """Mock SSM parameter retrieval."""
-    with patch("src.providers.gocardless.api.core.get_parameter_data_from_ssm") as mock:
-        mock.side_effect = ["test_secret_id", "test_secret_key"]
-        yield mock
+def mock_env_vars() -> Generator[None]:
+    """Mock GoCardless environment variables."""
+    with patch.dict(
+        "os.environ",
+        {"GC_SECRET_ID": "test_secret_id", "GC_SECRET_KEY": "test_secret_key"},
+    ):
+        yield
 
 
 @pytest.fixture
-def mock_boto_client() -> MagicMock:
-    """Mock boto3 client creation."""
-    with patch("src.providers.gocardless.api.core.boto3.client") as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_session() -> MagicMock:
+def mock_session() -> Generator[MagicMock]:
     """Mock requests.Session."""
     with patch("src.providers.gocardless.api.core.requests.Session") as mock_session_class:
         mock_session_instance = MagicMock()
@@ -37,9 +33,7 @@ def mock_session() -> MagicMock:
 
 
 @pytest.fixture
-def gocardless_creds(
-    mock_boto_client: MagicMock, mock_ssm_params: MagicMock, mock_session: MagicMock
-) -> GoCardlessCredentials:
+def gocardless_creds(mock_env_vars: None, mock_session: MagicMock) -> GoCardlessCredentials:
     """Create GoCardlessCredentials with mocked dependencies."""
     return GoCardlessCredentials()
 

@@ -4,16 +4,12 @@ import os
 from datetime import datetime
 from typing import Any
 
-from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from src.filepaths import PROJECT_ROOT
 from src.postgres.gocardless.models import RequisitionLink
 from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.providers.gocardless.api.requisition import create_link
 from src.utils.logging import setup_dagster_logger
-
-load_dotenv(PROJECT_ROOT / ".env")
 
 logger = setup_dagster_logger(__name__)
 

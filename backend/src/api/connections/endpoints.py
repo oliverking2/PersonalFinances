@@ -9,16 +9,15 @@ from sqlalchemy.orm import Session
 from src.api.connections.models import (
     ConnectionListResponse,
     ConnectionResponse,
-    ConnectionStatus,
     CreateConnectionRequest,
     CreateConnectionResponse,
     InstitutionResponse,
-    Provider,
     ReauthoriseConnectionResponse,
     UpdateConnectionRequest,
 )
 from src.api.dependencies import get_current_user, get_db
 from src.postgres.auth.models import User
+from src.postgres.common.enums import ConnectionStatus, Provider
 from src.postgres.common.models import Connection
 from src.postgres.common.operations.connections import (
     delete_connection,

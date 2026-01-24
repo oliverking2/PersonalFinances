@@ -20,12 +20,13 @@ def list_transactions(
 ) -> TransactionListResponse:
     """List transactions with optional filters.
 
-    Transactions are stored in S3 as Parquet files and queried via DuckDB.
+    Transactions are stored in PostgreSQL (gc_transactions table) and transformed
+    via dbt to DuckDB for analytics.
 
     :param params: Query parameters for filtering.
     :param db: Database session.
     :returns: List of transactions.
     """
-    # TODO: Implement transaction querying from DuckDB/S3
+    # TODO: Implement transaction querying from DuckDB
     _ = params
     raise HTTPException(status_code=501, detail="Not implemented yet")

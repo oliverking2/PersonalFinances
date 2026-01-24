@@ -1,15 +1,13 @@
 -- depends_on: {{ source('dagster','gocardless_raw_account_balances') }}
--- Extracts raw account balances from JSON files in S3.
--- The _extract_dt field is added by the Dagster extraction asset.
+-- Loads account balances from PostgreSQL gc_balances table.
 
 SELECT
+    id AS balance_id,
     account_id,
-    balances,
-    _extract_dt
-FROM
-    READ_JSON(
-        's3://oking-personal-finances/extracts/gocardless/*/balances/**/*.json',
-        auto_detect = true,
-        union_by_name = true
-    )
+    balance_amount,
+    balance_currency,
+    balance_type,
+    credit_limit_included,
+    last_change_date
+FROM pg.gc_balances
 WHERE account_id IS NOT NULL

@@ -4,23 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
-import boto3
-from botocore.config import Config
 from dagster import ConfigurableResource, Definitions, InitResourceContext, resource
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.utils.definitions import gocardless_database_url
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-
-# Timeout configuration for boto3 clients (in seconds)
-BOTO3_CONNECT_TIMEOUT = 30
-BOTO3_READ_TIMEOUT = 60
 
 
 class PostgresDatabase(ConfigurableResource[None]):
@@ -69,24 +59,8 @@ def gocardless_api_resource() -> GoCardlessCredentials:
     return GoCardlessCredentials()
 
 
-@resource
-def s3_resource_with_timeout() -> S3Client:
-    """Create an S3 client with timeout configuration.
-
-    :returns: A boto3 S3 client with connect and read timeouts configured.
-    """
-    return boto3.client(
-        "s3",
-        config=Config(
-            connect_timeout=BOTO3_CONNECT_TIMEOUT,
-            read_timeout=BOTO3_READ_TIMEOUT,
-        ),
-    )
-
-
 resource_defs = Definitions(
     resources={
-        "s3": s3_resource_with_timeout,
         "gocardless_api": gocardless_api_resource,
         "postgres_database": PostgresDatabase(database_url=gocardless_database_url()),
     }

@@ -1,100 +1,16 @@
-"""Tests for GoCardless Dagster extraction assets."""
+"""Tests for GoCardless Dagster extraction assets.
+
+These tests focus on the underlying database operations since
+Dagster assets are tested via their integration with the orchestration layer.
+"""
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import Balance, BankAccount, Transaction
 from src.postgres.gocardless.operations.balances import upsert_balances
 from src.postgres.gocardless.operations.transactions import upsert_transactions
-
-
-class TestGocardlessExtractTransactionsLogic:
-    """Tests for gocardless_extract_transactions asset logic."""
-
-    @patch("src.orchestration.gocardless.extraction.assets.upsert_transactions")
-    @patch("src.orchestration.gocardless.extraction.assets.update_transaction_watermark")
-    @patch("src.orchestration.gocardless.extraction.assets.get_transaction_data_by_id")
-    @patch("src.orchestration.gocardless.extraction.assets.get_transaction_watermark")
-    @patch("src.orchestration.gocardless.extraction.assets.get_active_accounts")
-    def test_extract_transactions_calls_api_for_each_account(
-        self,
-        mock_get_active: MagicMock,
-        mock_get_watermark: MagicMock,
-        mock_get_transactions: MagicMock,
-        mock_update_watermark: MagicMock,
-        mock_upsert: MagicMock,
-    ) -> None:
-        """Test that transactions are extracted for each active account."""
-        # Create mock accounts
-        mock_account1 = MagicMock()
-        mock_account1.id = "account-1"
-        mock_account2 = MagicMock()
-        mock_account2.id = "account-2"
-        mock_get_active.return_value = [mock_account1, mock_account2]
-
-        # Mock watermarks
-        mock_get_watermark.return_value = None
-
-        # Mock transaction responses
-        mock_get_transactions.return_value = {"transactions": {"booked": [], "pending": []}}
-
-        # Verify mocks are set up correctly
-        assert mock_get_active is not None
-        assert mock_get_watermark is not None
-        assert mock_get_transactions is not None
-        assert mock_upsert is not None
-
-
-class TestGocardlessExtractAccountDetailsLogic:
-    """Tests for gocardless_extract_account_details asset logic."""
-
-    @patch("src.orchestration.gocardless.extraction.assets.upsert_bank_account_details")
-    @patch("src.orchestration.gocardless.extraction.assets.get_account_details_by_id")
-    @patch("src.orchestration.gocardless.extraction.assets.get_active_accounts")
-    def test_extract_details_retrieves_for_active_accounts(
-        self,
-        mock_get_active: MagicMock,
-        mock_get_details: MagicMock,
-        mock_upsert: MagicMock,
-    ) -> None:
-        """Test that account details are retrieved for active accounts."""
-        # Setup mocks
-        mock_account = MagicMock()
-        mock_account.id = "account-1"
-        mock_get_active.return_value = [mock_account]
-        mock_get_details.return_value = {"account": {"iban": "GB00TEST"}}
-
-        # Verify mocks are set up correctly
-        assert mock_get_active is not None
-        assert mock_get_details is not None
-        assert mock_upsert is not None
-
-
-class TestGocardlessExtractBalancesLogic:
-    """Tests for gocardless_extract_balances asset logic."""
-
-    @patch("src.orchestration.gocardless.extraction.assets.upsert_balances")
-    @patch("src.orchestration.gocardless.extraction.assets.get_balance_data_by_id")
-    @patch("src.orchestration.gocardless.extraction.assets.get_active_accounts")
-    def test_extract_balances_retrieves_for_active_accounts(
-        self,
-        mock_get_active: MagicMock,
-        mock_get_balances: MagicMock,
-        mock_upsert: MagicMock,
-    ) -> None:
-        """Test that balances are retrieved for active accounts."""
-        # Setup mocks
-        mock_account = MagicMock()
-        mock_account.id = "account-1"
-        mock_get_active.return_value = [mock_account]
-        mock_get_balances.return_value = {"balances": []}
-
-        # Verify mocks are set up correctly
-        assert mock_get_active is not None
-        assert mock_get_balances is not None
-        assert mock_upsert is not None
 
 
 class TestExtractionIntegration:
@@ -158,3 +74,34 @@ class TestExtractionIntegration:
         )
         assert balance is not None
         assert balance.balance_amount == Decimal("1000.00")
+
+    def test_upsert_transactions_handles_empty_response(
+        self,
+        db_session: Session,
+        test_bank_account: BankAccount,
+    ) -> None:
+        """Test that empty transaction responses are handled correctly."""
+        transactions_response = {
+            "transactions": {
+                "booked": [],
+                "pending": [],
+            }
+        }
+
+        count = upsert_transactions(db_session, test_bank_account.id, transactions_response)
+        db_session.commit()
+
+        assert count == 0
+
+    def test_upsert_balances_handles_empty_response(
+        self,
+        db_session: Session,
+        test_bank_account: BankAccount,
+    ) -> None:
+        """Test that empty balance responses are handled correctly."""
+        balances_response = {"balances": []}
+
+        count = upsert_balances(db_session, test_bank_account.id, balances_response)
+        db_session.commit()
+
+        assert count == 0

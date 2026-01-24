@@ -5,11 +5,10 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from src.api.connections.models import Provider
 from src.api.dependencies import get_current_user, get_db
 from src.api.institutions.models import InstitutionListResponse, InstitutionResponse
 from src.postgres.auth.models import User
-from src.postgres.common.enums import Provider as ProviderEnum
+from src.postgres.common.enums import Provider
 from src.postgres.common.models import Institution
 from src.postgres.common.operations.institutions import (
     get_institution_by_id,
@@ -36,8 +35,7 @@ def list_institutions_endpoint(
     :param current_user: Authenticated user.
     :returns: List of institutions.
     """
-    provider_enum = ProviderEnum(provider.value) if provider else None
-    institutions = list_institutions(db, provider=provider_enum, country=country)
+    institutions = list_institutions(db, provider=provider, country=country)
 
     return InstitutionListResponse(
         institutions=[_to_response(inst) for inst in institutions],

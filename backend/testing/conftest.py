@@ -5,8 +5,6 @@ import os
 # Set environment variables BEFORE any src imports to avoid import-time failures
 # in orchestration modules that read env vars at module level.
 os.environ.setdefault("ENVIRONMENT", "test")
-os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
-os.environ.setdefault("AWS_REGION", "eu-west-2")
 os.environ.setdefault("GC_CALLBACK_URL", "http://localhost:8501/callback")
 os.environ.setdefault("POSTGRES_HOSTNAME", "localhost")
 os.environ.setdefault("POSTGRES_PORT", "5432")
@@ -18,6 +16,8 @@ os.environ.setdefault("JWT_SECRET", "test-secret-key-for-jwt-signing-min-32-char
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
 os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "30")
+os.environ.setdefault("GC_SECRET_ID", "test-secret-id")
+os.environ.setdefault("GC_SECRET_KEY", "test-secret-key")
 
 from collections.abc import Generator
 from datetime import datetime
@@ -26,9 +26,15 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+
+# Import FastAPI test dependencies
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from src.api.app import app
+from src.api.dependencies import get_db
 from src.postgres.auth.models import RefreshToken, User
 from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution
@@ -70,6 +76,88 @@ def db_session() -> Generator[Session]:
         session.close()
 
 
+# ============================================================================
+# API Test Fixtures
+# ============================================================================
+# These fixtures are used by FastAPI endpoint tests that need TestClient
+
+
+@pytest.fixture(scope="function")
+def api_db_session() -> Generator[Session]:
+    """Create a test database session for API tests.
+
+    Uses StaticPool to ensure all connections share the same in-memory database,
+    which is required for TestClient to work correctly with SQLite.
+
+    :yields: A SQLAlchemy session connected to an in-memory database.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    session_factory = sessionmaker(
+        bind=engine,
+        expire_on_commit=False,
+    )
+    session = session_factory()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+@pytest.fixture
+def client(api_db_session: Session) -> Generator[TestClient]:
+    """Create test client with overridden database dependency.
+
+    :param api_db_session: The test database session.
+    :yields: A FastAPI TestClient configured for testing.
+    """
+
+    def override_get_db() -> Generator[Session]:
+        try:
+            yield api_db_session
+        finally:
+            pass  # Don't close - the fixture owns the session
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def test_user_in_db(api_db_session: Session) -> User:
+    """Create a user directly in the database for API testing.
+
+    :param api_db_session: The test database session.
+    :returns: The created User with password "testpassword123".
+    """
+    user = User(
+        username="testuser",
+        password_hash=hash_password("testpassword123"),
+        first_name="Test",
+        last_name="User",
+    )
+    api_db_session.add(user)
+    api_db_session.commit()
+    return user
+
+
+@pytest.fixture
+def api_auth_headers(test_user_in_db: User) -> dict[str, str]:
+    """Create authentication headers with a valid JWT token for API tests.
+
+    :param test_user_in_db: The test user.
+    :returns: Dictionary with Authorization header.
+    """
+    token = create_access_token(test_user_in_db.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.fixture
 def mock_gocardless_credentials() -> MagicMock:
     """Create a mock GoCardlessCredentials object.
@@ -82,31 +170,6 @@ def mock_gocardless_credentials() -> MagicMock:
     mock.make_post_request.return_value = {}
     mock.make_delete_request.return_value = {}
     mock.make_put_request.return_value = {}
-    return mock
-
-
-@pytest.fixture
-def mock_s3_client() -> MagicMock:
-    """Create a mock S3 client.
-
-    :returns: A MagicMock configured for S3 operations.
-    """
-    mock = MagicMock()
-    mock.put_object.return_value = {}
-    mock.get_object.return_value = {"Body": MagicMock(read=lambda: b'{"test": "data"}')}
-    mock.upload_file.return_value = None
-    mock.upload_fileobj.return_value = None
-    return mock
-
-
-@pytest.fixture
-def mock_ssm_client() -> MagicMock:
-    """Create a mock SSM client.
-
-    :returns: A MagicMock configured for SSM operations.
-    """
-    mock = MagicMock()
-    mock.get_parameter.return_value = {"Parameter": {"Value": "test_value"}}
     return mock
 
 

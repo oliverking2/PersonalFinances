@@ -1,26 +1,10 @@
 """Pydantic models for connection endpoints."""
 
 from datetime import datetime
-from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-
-class Provider(StrEnum):
-    """Supported data providers."""
-
-    GOCARDLESS = "gocardless"
-    TRADING212 = "trading212"
-    VANGUARD = "vanguard"
-
-
-class ConnectionStatus(StrEnum):
-    """Normalised connection status."""
-
-    PENDING = "pending"
-    ACTIVE = "active"
-    EXPIRED = "expired"
-    ERROR = "error"
+from src.postgres.common.enums import ConnectionStatus, Provider
 
 
 class InstitutionResponse(BaseModel):

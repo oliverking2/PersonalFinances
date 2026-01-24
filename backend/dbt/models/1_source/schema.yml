@@ -1,13 +1,13 @@
 sources:
   - name: dagster
-    description: Raw data extracted from GoCardless API by Dagster
+    description: Raw data extracted from GoCardless API by Dagster, stored in PostgreSQL
     freshness:
       warn_after: {count: 24, period: hour}
       error_after: {count: 48, period: hour}
-    loaded_at_field: _extract_dt
+    loaded_at_field: extracted_at
     tables:
       - name: gocardless_raw_transactions
-        description: Raw transaction data from GoCardless API stored as JSON in S3
+        description: Transaction data from GoCardless API stored in PostgreSQL (gc_transactions)
         meta:
           dagster:
             asset_key:
@@ -16,7 +16,7 @@ sources:
             - extract
             - transactions
       - name: gocardless_raw_account_details
-        description: Account metadata and details from GoCardless API
+        description: Account metadata and details from GoCardless API stored in PostgreSQL (gc_bank_accounts)
         meta:
           dagster:
             asset_key:
@@ -25,7 +25,7 @@ sources:
               - extract
               - account_details
       - name: gocardless_raw_account_balances
-        description: Balance snapshots for accounts from GoCardless API
+        description: Balance snapshots for accounts from GoCardless API stored in PostgreSQL (gc_balances)
         meta:
           dagster:
             asset_key:

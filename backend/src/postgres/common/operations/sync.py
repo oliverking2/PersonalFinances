@@ -5,10 +5,10 @@ This module provides operations to sync data from raw provider tables
 (connections, accounts).
 """
 
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from dagster import get_dagster_logger
 from sqlalchemy.orm import Session
 
 from src.postgres.common.enums import (
@@ -21,7 +21,7 @@ from src.postgres.common.enums import (
 from src.postgres.common.models import Account, Connection
 from src.postgres.gocardless.models import Balance, BankAccount, RequisitionLink
 
-logger = logging.getLogger(__name__)
+logger = get_dagster_logger()
 
 
 def sync_gocardless_connection(
@@ -37,14 +37,20 @@ def sync_gocardless_connection(
     :returns: The updated Connection.
     """
     # Look up the corresponding requisition
+    logger.debug(
+        f"Looking up requisition for connection: id={connection.id}, "
+        f"provider_id={connection.provider_id}"
+    )
     requisition = session.get(RequisitionLink, connection.provider_id)
     if not requisition:
         logger.warning(
-            f"Requisition not found for connection: id={connection.id}, "
-            f"provider_id={connection.provider_id}"
+            f"Requisition not found in gc_requisition_links table for connection: "
+            f"id={connection.id}, provider_id={connection.provider_id}. "
+            f"This connection will not be synced."
         )
         return connection
 
+    old_status = connection.status
     status = map_gc_requisition_status(requisition.status)
 
     # Update connection from requisition
@@ -55,7 +61,9 @@ def sync_gocardless_connection(
 
     logger.info(
         f"Updated connection: id={connection.id}, "
-        f"provider_id={connection.provider_id}, status={status.value}"
+        f"provider_id={connection.provider_id}, "
+        f"status={old_status} -> {status.value}, "
+        f"requisition_status={requisition.status}"
     )
     return connection
 
@@ -189,6 +197,18 @@ def sync_all_gocardless_connections(session: Session) -> list[Connection]:
         session.query(Connection).filter(Connection.provider == Provider.GOCARDLESS.value).all()
     )
 
+    logger.info(f"Found {len(connections)} GoCardless connections in database")
+
+    if not connections:
+        # Check raw requisition table to help diagnose
+        requisition_count = session.query(RequisitionLink).count()
+        logger.warning(
+            f"No connections with provider='gocardless' found. "
+            f"gc_requisition_links table has {requisition_count} records. "
+            f"Connections are created when users link accounts via the API."
+        )
+        return []
+
     synced = []
     for conn in connections:
         synced_conn = sync_gocardless_connection(session, conn)
@@ -208,11 +228,29 @@ def sync_all_gocardless_accounts(
     :param connection: Parent Connection to sync accounts for.
     :returns: List of synced Account objects.
     """
+    logger.info(
+        f"Syncing accounts for connection: id={connection.id}, "
+        f"provider_id={connection.provider_id}, name={connection.friendly_name}"
+    )
+
     bank_accounts = (
         session.query(BankAccount)
         .filter(BankAccount.requisition_id == connection.provider_id)
         .all()
     )
+
+    logger.info(
+        f"Found {len(bank_accounts)} bank accounts in gc_bank_accounts "
+        f"for requisition_id={connection.provider_id}"
+    )
+
+    if not bank_accounts:
+        logger.warning(
+            f"No bank accounts found for connection {connection.id}. "
+            f"Check that gc_bank_accounts has records with requisition_id={connection.provider_id}. "
+            f"Run the extraction assets first to populate gc_bank_accounts."
+        )
+        return []
 
     accounts = []
     for bank_account in bank_accounts:
