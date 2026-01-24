@@ -37,7 +37,13 @@ def get_user_by_username(session: Session, username: str) -> User | None:
     return session.query(User).filter(User.username == normalised_username).first()
 
 
-def create_user(session: Session, username: str, password: str) -> User:
+def create_user(
+    session: Session,
+    username: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+) -> User:
     """Create a new user.
 
     Username is normalised to lowercase before storage.
@@ -45,12 +51,16 @@ def create_user(session: Session, username: str, password: str) -> User:
     :param session: SQLAlchemy session.
     :param username: User's username.
     :param password: Plain text password (will be hashed).
+    :param first_name: User's first name.
+    :param last_name: User's last name.
     :return: Created User entity.
     """
     normalised_username = username.lower().strip()
     user = User(
         username=normalised_username,
         password_hash=hash_password(password),
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
     )
     session.add(user)
     session.flush()

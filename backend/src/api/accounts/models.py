@@ -1,25 +1,39 @@
 """Pydantic models for account endpoints."""
 
-from datetime import date
+from datetime import datetime
+from decimal import Decimal
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
+
+
+class AccountStatus(StrEnum):
+    """Normalised account status."""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class AccountBalance(BaseModel):
+    """Balance information for an account."""
+
+    amount: Decimal = Field(..., description="Balance amount")
+    currency: str = Field(..., description="Currency code")
+    type: str = Field(..., description="Balance type")
 
 
 class AccountResponse(BaseModel):
     """Response model for a bank account."""
 
-    id: str = Field(..., description="Unique account identifier")
-    name: str | None = Field(None, description="Account name")
-    display_name: str | None = Field(None, description="Display name")
+    id: str = Field(..., description="Account UUID")
+    connection_id: str = Field(..., description="Parent connection UUID")
+    display_name: str | None = Field(None, description="User-editable display name")
+    name: str | None = Field(None, description="Provider-sourced account name")
     iban: str | None = Field(None, description="IBAN")
     currency: str | None = Field(None, description="Currency code")
-    owner_name: str | None = Field(None, description="Account owner name")
-    status: str | None = Field(None, description="Account status")
-    product: str | None = Field(None, description="Product type")
-    requisition_id: str | None = Field(None, description="Associated requisition ID")
-    transaction_extract_date: date | None = Field(
-        None, description="Last transaction extraction date"
-    )
+    status: AccountStatus = Field(..., description="Account status")
+    balance: AccountBalance | None = Field(None, description="Current balance")
+    last_synced_at: datetime | None = Field(None, description="Last data sync timestamp")
 
     model_config = {"from_attributes": True}
 
@@ -34,4 +48,4 @@ class AccountListResponse(BaseModel):
 class AccountUpdateRequest(BaseModel):
     """Request model for updating an account."""
 
-    display_name: str | None = Field(None, description="New display name")
+    display_name: str | None = Field(None, max_length=128, description="New display name")

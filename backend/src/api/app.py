@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.accounts.endpoints import router as accounts_router
 from src.api.auth.endpoints import router as auth_router
 from src.api.connections.endpoints import router as connections_router
+from src.api.institutions.endpoints import router as institutions_router
 from src.api.transactions.endpoints import router as transactions_router
 from src.utils.logging import configure_logging
 
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(accounts_router, prefix="/api/accounts", tags=["accounts"])
     app.include_router(connections_router, prefix="/api/connections", tags=["connections"])
+    app.include_router(institutions_router, prefix="/api/institutions", tags=["institutions"])
     app.include_router(transactions_router, prefix="/api/transactions", tags=["transactions"])
 
     @app.get("/health", tags=["health"])

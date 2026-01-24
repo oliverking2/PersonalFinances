@@ -17,6 +17,8 @@ class RegisterRequest(BaseModel):
 
     username: str = Field(..., min_length=3, max_length=50, description="User's username")
     password: str = Field(..., min_length=8, description="User's password")
+    first_name: str = Field(..., min_length=1, max_length=255, description="User's first name")
+    last_name: str = Field(..., min_length=1, max_length=255, description="User's last name")
 
 
 class TokenResponse(BaseModel):
@@ -37,5 +39,7 @@ class UserResponse(BaseModel):
 
     id: UUID = Field(..., description="User's unique identifier")
     username: str = Field(..., description="User's username")
+    first_name: str | None = Field(None, description="User's first name")
+    last_name: str | None = Field(None, description="User's last name")
 
     model_config = {"from_attributes": True}

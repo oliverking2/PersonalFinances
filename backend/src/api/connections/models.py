@@ -1,21 +1,47 @@
 """Pydantic models for connection endpoints."""
 
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class ConnectionResponse(BaseModel):
-    """Response model for a bank connection (requisition)."""
+class Provider(StrEnum):
+    """Supported data providers."""
 
-    id: str = Field(..., description="Requisition ID")
-    institution_id: str = Field(..., description="Institution ID")
-    status: str = Field(..., description="Connection status")
+    GOCARDLESS = "gocardless"
+    TRADING212 = "trading212"
+    VANGUARD = "vanguard"
+
+
+class ConnectionStatus(StrEnum):
+    """Normalised connection status."""
+
+    PENDING = "pending"
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    ERROR = "error"
+
+
+class InstitutionResponse(BaseModel):
+    """Nested institution details within a connection."""
+
+    id: str = Field(..., description="Institution ID")
+    name: str = Field(..., description="Institution name")
+    logo_url: str | None = Field(None, description="URL to institution logo")
+
+
+class ConnectionResponse(BaseModel):
+    """Response model for a bank connection."""
+
+    id: str = Field(..., description="Connection UUID")
     friendly_name: str = Field(..., description="User-friendly name")
-    created: datetime = Field(..., description="Creation timestamp")
-    link: str = Field(..., description="Authorization link")
+    provider: Provider = Field(..., description="Data provider")
+    institution: InstitutionResponse = Field(..., description="Institution details")
+    status: ConnectionStatus = Field(..., description="Connection status")
     account_count: int = Field(0, description="Number of linked accounts")
-    expired: bool = Field(False, description="Whether the connection has expired")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    expires_at: datetime | None = Field(None, description="Expiration timestamp")
 
     model_config = {"from_attributes": True}
 
@@ -37,5 +63,18 @@ class CreateConnectionRequest(BaseModel):
 class CreateConnectionResponse(BaseModel):
     """Response model for connection creation."""
 
-    id: str = Field(..., description="Requisition ID")
-    link: str = Field(..., description="Authorization link to redirect user to")
+    id: str = Field(..., description="Connection UUID")
+    link: str = Field(..., description="Authorisation link to redirect user to")
+
+
+class UpdateConnectionRequest(BaseModel):
+    """Request model for updating a connection."""
+
+    friendly_name: str = Field(..., min_length=1, max_length=128, description="New friendly name")
+
+
+class ReauthoriseConnectionResponse(BaseModel):
+    """Response model for connection reauthorisation."""
+
+    id: str = Field(..., description="Connection UUID")
+    link: str = Field(..., description="Reauthorisation link")

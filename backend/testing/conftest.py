@@ -21,6 +21,7 @@ os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "30")
 
 from collections.abc import Generator
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -29,6 +30,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.postgres.auth.models import RefreshToken, User
+from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
+from src.postgres.common.models import Account, Connection, Institution
 from src.postgres.core import Base
 from src.postgres.gocardless.models import BankAccount, RequisitionLink
 from src.utils.security import create_access_token, hash_password
@@ -166,10 +169,82 @@ def test_user(db_session: Session) -> User:
     user = User(
         username="testuser",
         password_hash=hash_password("testpassword"),
+        first_name="Test",
+        last_name="User",
     )
     db_session.add(user)
     db_session.commit()
     return user
+
+
+@pytest.fixture
+def test_institution(db_session: Session) -> Institution:
+    """Create a test Institution in the database.
+
+    :param db_session: Database session.
+    :returns: The created Institution.
+    """
+    institution = Institution(
+        id="CHASE_CHASGB2L",
+        provider=Provider.GOCARDLESS.value,
+        name="Chase UK",
+        logo_url="https://cdn.nordigen.com/ais/CHASE_CHASGB2L.png",
+        countries=["GB"],
+    )
+    db_session.add(institution)
+    db_session.commit()
+    return institution
+
+
+@pytest.fixture
+def test_connection(
+    db_session: Session, test_user: User, test_institution: Institution
+) -> Connection:
+    """Create a test Connection in the database.
+
+    :param db_session: Database session.
+    :param test_user: The user to associate with.
+    :param test_institution: The institution to associate with.
+    :returns: The created Connection.
+    """
+    connection = Connection(
+        user_id=test_user.id,
+        provider=Provider.GOCARDLESS.value,
+        provider_id="test-req-id",
+        institution_id=test_institution.id,
+        friendly_name="Test Connection",
+        status=ConnectionStatus.ACTIVE.value,
+        created_at=datetime.now(),
+    )
+    db_session.add(connection)
+    db_session.commit()
+    return connection
+
+
+@pytest.fixture
+def test_account(db_session: Session, test_connection: Connection) -> Account:
+    """Create a test Account in the database.
+
+    :param db_session: Database session.
+    :param test_connection: The connection to associate with.
+    :returns: The created Account.
+    """
+    account = Account(
+        connection_id=test_connection.id,
+        provider_id="test-gc-account-id",
+        status=AccountStatus.ACTIVE.value,
+        name="Test Account",
+        display_name="My Test Account",
+        iban="GB00TEST00000000001234",
+        currency="GBP",
+        balance_amount=Decimal("1000.00"),
+        balance_currency="GBP",
+        balance_type="interimAvailable",
+        balance_updated_at=datetime.now(),
+    )
+    db_session.add(account)
+    db_session.commit()
+    return account
 
 
 @pytest.fixture

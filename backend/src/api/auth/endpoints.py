@@ -154,11 +154,22 @@ def register(
         logger.debug(f"Registration failed: username={register_request.username} already exists")
         raise HTTPException(status_code=409, detail="Username already exists")
 
-    user = create_user(db, register_request.username, register_request.password)
+    user = create_user(
+        db,
+        register_request.username,
+        register_request.password,
+        register_request.first_name,
+        register_request.last_name,
+    )
     db.commit()
 
     logger.info(f"User registered: user_id={user.id}, username={user.username}")
-    return UserResponse(id=user.id, username=user.username)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
@@ -274,4 +285,9 @@ def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
     :param current_user: Authenticated user from JWT token.
     :return: User information.
     """
-    return UserResponse(id=current_user.id, username=current_user.username)
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+    )

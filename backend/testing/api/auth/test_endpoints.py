@@ -64,6 +64,8 @@ def test_user_in_db(api_db_session: Session) -> User:
     user = User(
         username="testuser",
         password_hash=hash_password("testpassword123"),
+        first_name="Test",
+        last_name="User",
     )
     api_db_session.add(user)
     api_db_session.commit()
@@ -77,19 +79,31 @@ class TestRegister:
         """Should create user and return user info."""
         response = client.post(
             "/auth/register",
-            json={"username": "newuser", "password": "securepassword123"},
+            json={
+                "username": "newuser",
+                "password": "securepassword123",
+                "first_name": "New",
+                "last_name": "User",
+            },
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "newuser"
+        assert data["first_name"] == "New"
+        assert data["last_name"] == "User"
         assert "id" in data
 
     def test_register_duplicate_username(self, client: TestClient, test_user_in_db: User) -> None:
         """Should return 409 for duplicate username."""
         response = client.post(
             "/auth/register",
-            json={"username": "testuser", "password": "anotherpassword123"},
+            json={
+                "username": "testuser",
+                "password": "anotherpassword123",
+                "first_name": "Test",
+                "last_name": "User",
+            },
         )
 
         assert response.status_code == 409
@@ -99,7 +113,12 @@ class TestRegister:
         """Should return 422 for username shorter than 3 characters."""
         response = client.post(
             "/auth/register",
-            json={"username": "ab", "password": "securepassword123"},
+            json={
+                "username": "ab",
+                "password": "securepassword123",
+                "first_name": "Test",
+                "last_name": "User",
+            },
         )
 
         assert response.status_code == 422
@@ -108,7 +127,12 @@ class TestRegister:
         """Should return 422 for password shorter than 8 characters."""
         response = client.post(
             "/auth/register",
-            json={"username": "newuser", "password": "short"},
+            json={
+                "username": "newuser",
+                "password": "short",
+                "first_name": "Test",
+                "last_name": "User",
+            },
         )
 
         assert response.status_code == 422
@@ -284,6 +308,8 @@ class TestMe:
         data = response.json()
         assert data["id"] == str(test_user_in_db.id)
         assert data["username"] == test_user_in_db.username
+        assert data["first_name"] == test_user_in_db.first_name
+        assert data["last_name"] == test_user_in_db.last_name
 
     def test_me_no_token(self, client: TestClient) -> None:
         """Should return 401 without token."""

@@ -67,7 +67,7 @@ class TestCreateUser:
         username = "newuser"
         password = "securepassword123"
 
-        user = create_user(db_session, username, password)
+        user = create_user(db_session, username, password, "New", "User")
         db_session.commit()
 
         assert user.id is not None
@@ -75,23 +75,39 @@ class TestCreateUser:
         assert user.password_hash != password
         assert verify_password(password, user.password_hash) is True
 
+    def test_stores_first_and_last_name(self, db_session: Session) -> None:
+        """Should store first and last name."""
+        user = create_user(db_session, "newuser", "password123", "John", "Doe")
+        db_session.commit()
+
+        assert user.first_name == "John"
+        assert user.last_name == "Doe"
+
+    def test_strips_whitespace_from_names(self, db_session: Session) -> None:
+        """Should strip whitespace from first and last names."""
+        user = create_user(db_session, "newuser", "password123", "  John  ", "  Doe  ")
+        db_session.commit()
+
+        assert user.first_name == "John"
+        assert user.last_name == "Doe"
+
     def test_normalises_username_to_lowercase(self, db_session: Session) -> None:
         """Should store username in lowercase."""
-        user = create_user(db_session, "NewUser", "password")
+        user = create_user(db_session, "NewUser", "password", "First", "Last")
         db_session.commit()
 
         assert user.username == "newuser"
 
     def test_strips_whitespace_from_username(self, db_session: Session) -> None:
         """Should strip whitespace from username."""
-        user = create_user(db_session, "  newuser  ", "password")
+        user = create_user(db_session, "  newuser  ", "password", "First", "Last")
         db_session.commit()
 
         assert user.username == "newuser"
 
     def test_sets_timestamps(self, db_session: Session) -> None:
         """Should set created_at and updated_at timestamps."""
-        user = create_user(db_session, "newuser", "password")
+        user = create_user(db_session, "newuser", "password", "First", "Last")
         db_session.commit()
 
         # SQLite doesn't support server_default properly in tests,
