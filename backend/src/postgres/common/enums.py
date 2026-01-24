@@ -14,6 +14,19 @@ class Provider(StrEnum):
     VANGUARD = "vanguard"
 
 
+class AccountType(StrEnum):
+    """Account type classification.
+
+    - BANK: Traditional bank accounts (GoCardless)
+    - INVESTMENT: Investment portfolios (Vanguard funds)
+    - TRADING: Trading accounts (Trading212 ISA/GIA)
+    """
+
+    BANK = "bank"
+    INVESTMENT = "investment"
+    TRADING = "trading"
+
+
 class ConnectionStatus(StrEnum):
     """Normalised connection status.
 

@@ -18,12 +18,11 @@ PersonalFinances/
 │   ├── src/                 # Application code
 │   ├── testing/             # Tests (mirrors src/)
 │   ├── alembic/             # Database migrations
+│   ├── dbt/                 # Data transformations (source → staging → mart)
 │   └── CLAUDE.md            # Backend-specific guidance
 ├── frontend/                # Nuxt 4 (Vue 3) - see frontend/CLAUDE.md
 │   ├── app/                 # Application code
 │   └── CLAUDE.md            # Frontend-specific guidance
-├── dbt/                     # Data transformations
-│   └── models/              # source → staging → mart
 ├── prds/                    # Product requirement documents
 └── docker-compose.yml
 ```
@@ -50,7 +49,7 @@ docker-compose up -d           # Start all services
 pre-commit install             # Install git hooks (one-time)
 pre-commit run --all-files     # Run all hooks manually
 
-# dbt (from dbt/)
+# dbt (from backend/dbt/)
 dbt run --profiles-dir . --profile duckdb_local
 dbt test --profiles-dir . --profile duckdb_local
 ```

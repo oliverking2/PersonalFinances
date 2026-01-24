@@ -10,6 +10,7 @@ from src.postgres.gocardless.operations.bank_accounts import (
     get_active_accounts,
     get_transaction_watermark,
     update_transaction_watermark,
+    upsert_bank_account_details,
     upsert_bank_accounts,
 )
 
@@ -166,3 +167,53 @@ class TestUpdateTransactionWatermark:
         """Test that ValueError is raised for non-existent account."""
         with pytest.raises(ValueError, match="not found"):
             update_transaction_watermark(db_session, "non-existent-id", date(2024, 1, 1))
+
+
+class TestUpsertBankAccountDetails:
+    """Tests for upsert_bank_account_details function."""
+
+    def test_updates_account_details(
+        self, db_session: Session, test_bank_account: BankAccount
+    ) -> None:
+        """Test that account details are updated from API response."""
+        details_response = {
+            "account": {
+                "currency": "USD",
+                "name": "Updated Account Name",
+                "product": "Current Account",
+                "cashAccountType": "CACC",
+                "ownerName": "John Doe",
+            }
+        }
+
+        result = upsert_bank_account_details(db_session, test_bank_account.id, details_response)
+        db_session.commit()
+
+        assert result.id == test_bank_account.id
+        assert result.currency == "USD"
+        assert result.name == "Updated Account Name"
+        assert result.product == "Current Account"
+        assert result.cash_account_type == "CACC"
+        assert result.owner_name == "John Doe"
+
+    def test_handles_partial_details(
+        self, db_session: Session, test_bank_account: BankAccount
+    ) -> None:
+        """Test that partial details update only specified fields."""
+        original_currency = test_bank_account.currency
+        details_response = {
+            "account": {
+                "name": "New Name Only",
+            }
+        }
+
+        result = upsert_bank_account_details(db_session, test_bank_account.id, details_response)
+        db_session.commit()
+
+        assert result.name == "New Name Only"
+        assert result.currency == original_currency  # Unchanged
+
+    def test_raises_for_nonexistent_account(self, db_session: Session) -> None:
+        """Test that ValueError is raised for non-existent account."""
+        with pytest.raises(ValueError, match="not found"):
+            upsert_bank_account_details(db_session, "nonexistent-id", {"account": {}})

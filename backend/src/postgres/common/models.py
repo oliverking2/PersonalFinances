@@ -13,7 +13,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
+from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
 from src.postgres.core import Base
 
 # Use JSON type that falls back gracefully to SQLite JSON while using JSONB on PostgreSQL
@@ -135,6 +135,9 @@ class Account(Base):
         nullable=False,
     )
     provider_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    account_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=AccountType.BANK.value
+    )
     display_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     iban: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -150,7 +153,7 @@ class Account(Base):
         default=_utc_now,
     )
 
-    # Balance fields (synced from provider tables)
+    # Balance fields (synced from provider tables - bank accounts)
     balance_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     balance_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     balance_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -159,10 +162,19 @@ class Account(Base):
         nullable=True,
     )
 
+    # Investment fields (for trading/investment accounts)
+    total_value: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    unrealised_pnl: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+
     # Relationships
     connection: Mapped[Connection] = relationship(
         "Connection",
         back_populates="accounts",
+    )
+    holdings: Mapped[list["Holding"]] = relationship(
+        "Holding",
+        back_populates="account",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -179,3 +191,50 @@ class Account(Base):
     def status_enum(self) -> AccountStatus:
         """Get status as AccountStatus enum."""
         return AccountStatus(self.status)
+
+    @property
+    def account_type_enum(self) -> AccountType:
+        """Get account_type as AccountType enum."""
+        return AccountType(self.account_type)
+
+
+class Holding(Base):
+    """Database model for investment holdings.
+
+    Represents a position in an investment or trading account.
+    Used for Trading212 positions, Vanguard fund holdings, etc.
+    """
+
+    __tablename__ = "holdings"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ticker: Mapped[str] = mapped_column(String(20), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    isin: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    average_cost: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
+    current_price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    current_value: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    unrealised_pnl: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    # Relationships
+    account: Mapped[Account] = relationship(
+        "Account",
+        back_populates="holdings",
+    )
+
+    __table_args__ = (
+        Index("idx_holdings_account_id", "account_id"),
+        Index("idx_holdings_account_ticker", "account_id", "ticker", unique=True),
+    )

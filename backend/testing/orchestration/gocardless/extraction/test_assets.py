@@ -1,43 +1,19 @@
 """Tests for GoCardless Dagster extraction assets."""
 
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-import pytest
+from sqlalchemy.orm import Session
 
-from src.orchestration.gocardless.extraction.assets import _get_s3_bucket_name
-
-
-class TestGetS3BucketName:
-    """Tests for _get_s3_bucket_name helper function."""
-
-    def test_get_s3_bucket_name_success(self) -> None:
-        """Test successful bucket name retrieval."""
-        with patch.dict("os.environ", {"S3_BUCKET_NAME": "my-test-bucket"}):
-            result = _get_s3_bucket_name()
-
-        assert result == "my-test-bucket"
-
-    def test_get_s3_bucket_name_missing(self) -> None:
-        """Test that ValueError is raised when env var is missing."""
-        with (
-            patch.dict("os.environ", {}, clear=True),
-            pytest.raises(ValueError, match="S3_BUCKET_NAME environment variable"),
-        ):
-            _get_s3_bucket_name()
-
-    def test_get_s3_bucket_name_empty(self) -> None:
-        """Test that ValueError is raised when env var is empty."""
-        with (
-            patch.dict("os.environ", {"S3_BUCKET_NAME": ""}),
-            pytest.raises(ValueError, match="S3_BUCKET_NAME environment variable"),
-        ):
-            _get_s3_bucket_name()
+from src.postgres.gocardless.models import Balance, BankAccount, Transaction
+from src.postgres.gocardless.operations.balances import upsert_balances
+from src.postgres.gocardless.operations.transactions import upsert_transactions
 
 
 class TestGocardlessExtractTransactionsLogic:
     """Tests for gocardless_extract_transactions asset logic."""
 
-    @patch("src.orchestration.gocardless.extraction.assets.upload_bytes_to_s3")
+    @patch("src.orchestration.gocardless.extraction.assets.upsert_transactions")
     @patch("src.orchestration.gocardless.extraction.assets.update_transaction_watermark")
     @patch("src.orchestration.gocardless.extraction.assets.get_transaction_data_by_id")
     @patch("src.orchestration.gocardless.extraction.assets.get_transaction_watermark")
@@ -48,7 +24,7 @@ class TestGocardlessExtractTransactionsLogic:
         mock_get_watermark: MagicMock,
         mock_get_transactions: MagicMock,
         mock_update_watermark: MagicMock,
-        mock_upload: MagicMock,
+        mock_upsert: MagicMock,
     ) -> None:
         """Test that transactions are extracted for each active account."""
         # Create mock accounts
@@ -64,23 +40,24 @@ class TestGocardlessExtractTransactionsLogic:
         # Mock transaction responses
         mock_get_transactions.return_value = {"transactions": {"booked": [], "pending": []}}
 
-        # This is a unit test of the logic, not the Dagster asset itself
-        # The actual asset test would require Dagster testing utilities
+        # Verify mocks are set up correctly
         assert mock_get_active is not None
         assert mock_get_watermark is not None
+        assert mock_get_transactions is not None
+        assert mock_upsert is not None
 
 
 class TestGocardlessExtractAccountDetailsLogic:
     """Tests for gocardless_extract_account_details asset logic."""
 
-    @patch("src.orchestration.gocardless.extraction.assets.upload_bytes_to_s3")
+    @patch("src.orchestration.gocardless.extraction.assets.upsert_bank_account_details")
     @patch("src.orchestration.gocardless.extraction.assets.get_account_details_by_id")
     @patch("src.orchestration.gocardless.extraction.assets.get_active_accounts")
     def test_extract_details_retrieves_for_active_accounts(
         self,
         mock_get_active: MagicMock,
         mock_get_details: MagicMock,
-        mock_upload: MagicMock,
+        mock_upsert: MagicMock,
     ) -> None:
         """Test that account details are retrieved for active accounts."""
         # Setup mocks
@@ -92,19 +69,20 @@ class TestGocardlessExtractAccountDetailsLogic:
         # Verify mocks are set up correctly
         assert mock_get_active is not None
         assert mock_get_details is not None
+        assert mock_upsert is not None
 
 
 class TestGocardlessExtractBalancesLogic:
     """Tests for gocardless_extract_balances asset logic."""
 
-    @patch("src.orchestration.gocardless.extraction.assets.upload_bytes_to_s3")
+    @patch("src.orchestration.gocardless.extraction.assets.upsert_balances")
     @patch("src.orchestration.gocardless.extraction.assets.get_balance_data_by_id")
     @patch("src.orchestration.gocardless.extraction.assets.get_active_accounts")
     def test_extract_balances_retrieves_for_active_accounts(
         self,
         mock_get_active: MagicMock,
         mock_get_balances: MagicMock,
-        mock_upload: MagicMock,
+        mock_upsert: MagicMock,
     ) -> None:
         """Test that balances are retrieved for active accounts."""
         # Setup mocks
@@ -116,3 +94,67 @@ class TestGocardlessExtractBalancesLogic:
         # Verify mocks are set up correctly
         assert mock_get_active is not None
         assert mock_get_balances is not None
+        assert mock_upsert is not None
+
+
+class TestExtractionIntegration:
+    """Integration tests for extraction to database."""
+
+    def test_upsert_transactions_stores_in_db(
+        self,
+        db_session: Session,
+        test_bank_account: BankAccount,
+    ) -> None:
+        """Test that transactions are correctly stored in the database."""
+        transactions_response = {
+            "transactions": {
+                "booked": [
+                    {
+                        "transactionId": "txn-001",
+                        "bookingDate": "2026-01-15",
+                        "transactionAmount": {"amount": "-50.00", "currency": "GBP"},
+                        "creditorName": "Test Shop",
+                    },
+                ],
+                "pending": [],
+            }
+        }
+
+        count = upsert_transactions(db_session, test_bank_account.id, transactions_response)
+        db_session.commit()
+
+        assert count == 1
+
+        txn = (
+            db_session.query(Transaction)
+            .filter(Transaction.account_id == test_bank_account.id)
+            .first()
+        )
+        assert txn is not None
+        assert txn.transaction_amount == Decimal("-50.00")
+
+    def test_upsert_balances_stores_in_db(
+        self,
+        db_session: Session,
+        test_bank_account: BankAccount,
+    ) -> None:
+        """Test that balances are correctly stored in the database."""
+        balances_response = {
+            "balances": [
+                {
+                    "balanceAmount": {"amount": "1000.00", "currency": "GBP"},
+                    "balanceType": "interimAvailable",
+                },
+            ]
+        }
+
+        count = upsert_balances(db_session, test_bank_account.id, balances_response)
+        db_session.commit()
+
+        assert count == 1
+
+        balance = (
+            db_session.query(Balance).filter(Balance.account_id == test_bank_account.id).first()
+        )
+        assert balance is not None
+        assert balance.balance_amount == Decimal("1000.00")

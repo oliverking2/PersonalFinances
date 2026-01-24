@@ -87,7 +87,7 @@ logs:
 # =============================================================================
 # Individual services (for development)
 # =============================================================================
-.PHONY: up-db up-backend up-frontend
+.PHONY: up-db up-backend up-frontend up-dagster
 
 up-db:
 	@$(COMPOSE) up -d postgres
@@ -102,3 +102,6 @@ up-backend:
 
 up-frontend:
 	@cd frontend && npm run dev
+
+up-dagster:
+	@cd backend && poetry run dagster dev --port 3001

@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -111,6 +112,56 @@ class Balance(Base):
     last_change_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
+
+
+class Transaction(Base):
+    """Database model for bank transactions.
+
+    Stores transaction data from GoCardless API.
+    Uses transaction_id + account_id as unique key since transaction_id
+    may not be globally unique across banks.
+    """
+
+    __tablename__ = "gc_transactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("gc_bank_accounts.id"), nullable=False, index=True
+    )
+    transaction_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    booking_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    value_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    booking_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    transaction_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+
+    # Counterparty info
+    creditor_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    creditor_account: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    debtor_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    debtor_account: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Description fields
+    remittance_information: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    bank_transaction_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    proprietary_bank_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Status
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="booked")
+
+    # Metadata
+    internal_transaction_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    extracted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    # Relationships
+    account: Mapped[BankAccount] = relationship("BankAccount")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id", "transaction_id", name="uq_gc_transactions_account_transaction"
+        ),
+        {"sqlite_autoincrement": True},
+    )
 
 
 class EndUserAgreement(Base):

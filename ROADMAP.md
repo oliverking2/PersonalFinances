@@ -16,14 +16,15 @@ Stabilise the existing data pipeline and improve core functionality.
 
 - [x] GoCardless open banking integration
 - [x] PostgreSQL for metadata storage
-- [x] S3 storage for transaction data (Parquet)
+- [x] PostgreSQL for transaction data (gc_transactions table)
 - [x] Dagster orchestration for data extraction
+- [x] Dagster sync pipeline (raw tables -> unified tables)
 - [x] dbt + DuckDB for transformations
 - [x] Basic Streamlit UI for account management
+- [x] Scheduled GoCardless job (daily at 4 AM)
 
 ### In Progress
 
-- [ ] Scheduled account refresh via Dagster
 - [ ] Link expiry handling and re-authentication flow
 
 ### Backlog
@@ -52,6 +53,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [ ] Reauthorise connection endpoint
 - [ ] Transaction endpoints (list, search, filter)
 - [ ] Analytics endpoints (aggregations from dbt marts)
+- [ ] Seed data for a specific user for demo purposes.
 
 ### Frontend (Vue + Nuxt + Tailwind)
 
@@ -66,7 +68,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Transaction list with day grouping, infinite scroll, and filters
 - [ ] Charts and visualisations (spending by category, trends)
 
-> **Note**: Frontend currently uses mock data for connections, accounts, and transactions. Backend endpoints for create/reauthorise connection and transactions are still in progress.
+> **Note**: Frontend uses real backend API for connections and accounts. Create/reauthorise endpoints return 501 (pending GoCardless OAuth implementation). Transactions still use mock data.
 
 ### Infrastructure
 
@@ -85,7 +87,12 @@ Expand beyond GoCardless to include investment and trading platforms.
 - [x] Provider-agnostic connections table (supports gocardless, trading212, vanguard)
 - [x] Provider-agnostic accounts table
 - [x] Institutions table for provider metadata
-- [ ] Dagster sync pipeline (provider tables → standardised tables)
+- [x] Dagster extraction assets (write to PostgreSQL)
+- [x] Dagster sync pipeline (provider tables -> standardised tables)
+- [x] Scheduled job with all GoCardless assets grouped together
+- [x] Account type classification (bank/investment/trading)
+- [x] Holdings table for investment positions
+- [x] Transaction storage in PostgreSQL (gc_transactions)
 
 ### Vanguard Integration
 
@@ -108,6 +115,7 @@ Expand beyond GoCardless to include investment and trading platforms.
 - [ ] Template for common bank statement formats
 - [ ] Deduplication logic
 - [ ] Historical data upload UI
+- [ ] Trigger refresh from the UI
 
 ### Manual Costs
 
@@ -205,6 +213,8 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260123-backend-test-suite.md` - pytest infrastructure
 - `20260123-frontend-authentication.md` - Login/logout flow
 - `20260124-frontend-accounts-view.md` - Accounts list page
+- `20260124-fullstack-accounts-api-integration.md` - Connect frontend to real API
+- `20260124-backend-provider-sync.md` - Dagster sync pipeline, Postgres extraction, investment account fields
 
 ### In Progress PRDs
 

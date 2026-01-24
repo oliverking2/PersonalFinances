@@ -68,6 +68,42 @@ def get_active_accounts(session: Session) -> list[BankAccount]:
     return session.query(BankAccount).filter(BankAccount.status == "READY").all()
 
 
+def upsert_bank_account_details(
+    session: Session, account_id: str, details_response: dict[str, Any]
+) -> BankAccount:
+    """Upsert a single bank account's details from the GoCardless details API.
+
+    :param session: SQLAlchemy session.
+    :param account_id: The bank account ID.
+    :param details_response: Raw response from GoCardless account details API.
+    :returns: The upserted BankAccount.
+    """
+    account = details_response.get("account", {})
+
+    existing = session.get(BankAccount, account_id)
+    if not existing:
+        logger.warning(f"Bank account {account_id} not found, cannot update details")
+        raise ValueError(f"Bank account {account_id} not found")
+
+    # Update fields from details response
+    if account.get("currency"):
+        existing.currency = account["currency"]
+    if account.get("name"):
+        existing.name = account["name"]
+    if account.get("product"):
+        existing.product = account["product"]
+    if account.get("cashAccountType"):
+        existing.cash_account_type = account["cashAccountType"]
+    if account.get("ownerName"):
+        existing.owner_name = account["ownerName"]
+    if account.get("ownerAddressUnstructured"):
+        existing.owner_address_unstructured = account["ownerAddressUnstructured"]
+
+    session.flush()
+    logger.info(f"Updated bank account details: id={account_id}")
+    return existing
+
+
 def get_transaction_watermark(session: Session, account_id: str) -> date | None:
     """Get the watermark for the most recent extract for a given bank account."""
     account = session.get(BankAccount, account_id)

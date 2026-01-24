@@ -30,7 +30,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.postgres.auth.models import RefreshToken, User
-from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
+from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution
 from src.postgres.core import Base
 from src.postgres.gocardless.models import BankAccount, RequisitionLink
@@ -232,6 +232,7 @@ def test_account(db_session: Session, test_connection: Connection) -> Account:
     account = Account(
         connection_id=test_connection.id,
         provider_id="test-gc-account-id",
+        account_type=AccountType.BANK.value,
         status=AccountStatus.ACTIVE.value,
         name="Test Account",
         display_name="My Test Account",
