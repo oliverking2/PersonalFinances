@@ -158,7 +158,7 @@ class TestListAccounts:
         data = response.json()
         acc = data["accounts"][0]
         assert acc["balance"] is not None
-        assert acc["balance"]["amount"] == "1234.56"
+        assert acc["balance"]["amount"] == 1234.56
         assert acc["balance"]["currency"] == "GBP"
         assert acc["balance"]["type"] == "interimAvailable"
 

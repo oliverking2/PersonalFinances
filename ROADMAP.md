@@ -71,13 +71,18 @@ Address tech debt and improve code quality before adding new data sources.
 
 ### Test Coverage
 
-- [ ] Add missing test files (transactions API, dependencies, orchestration definitions)
-- [ ] Improve coverage of `postgres/core.py` (currently 48%)
+- [x] Add missing test files:
+  - `testing/api/test_dependencies.py` - API dependency injection tests
+  - `testing/api/jobs/test_endpoints.py` - Jobs API endpoint tests
+  - `testing/postgres/common/operations/test_jobs.py` - Jobs CRUD operations tests
+  - `testing/postgres/common/operations/test_transactions.py` - Transactions query tests
+  - `testing/postgres/test_core.py` - Database core utilities tests
+- [x] Fixed failing balance test assertion (float vs string comparison)
 - [ ] Improve coverage of other low-coverage files
 
 ### Code Quality
 
-- [ ] Replace broad exception handlers with specific exceptions in requisitions.py
+- [x] Replace broad exception handlers with specific exceptions in requisitions.py
 
 ### Completed Tech Debt (January 2026)
 

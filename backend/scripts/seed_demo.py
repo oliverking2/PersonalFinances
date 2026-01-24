@@ -17,9 +17,10 @@ Useful for demos, UI testing, and CI/CD without real bank data.
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from random import choice, randint, uniform
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
 from src.postgres.auth.operations.users import create_user, get_user_by_username
 from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
@@ -215,8 +216,8 @@ def main() -> None:  # noqa: PLR0915
 
 
 def _create_connection_and_account(  # noqa: PLR0913
-    session,
-    user_id,
+    session: Session,
+    user_id: UUID,
     institution_id: str,
     friendly_name: str,
     account_name: str,
@@ -282,7 +283,9 @@ def _create_connection_and_account(  # noqa: PLR0913
     return connection, account
 
 
-def _create_fake_transactions(session, account: Account, num_transactions: int = 50) -> int:
+def _create_fake_transactions(
+    session: Session, account: Account, num_transactions: int = 50
+) -> int:
     """Create fake transactions for an account."""
     # Check if transactions already exist
     existing_count = session.query(Transaction).filter(Transaction.account_id == account.id).count()

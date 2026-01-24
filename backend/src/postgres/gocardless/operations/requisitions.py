@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.postgres.gocardless.models import RequisitionLink
@@ -22,14 +23,14 @@ def fetch_requisition_links(session: Session) -> list[RequisitionLink]:
 
     :param session: SQLAlchemy session for database operations
     :returns: A list of RequisitionLink objects ordered by creation date (newest first)
-    :raises: Exception if there's an error querying the database
+    :raises SQLAlchemyError: If there's an error querying the database
     """
     logger.info("Fetching requisition links from database")
     try:
         links = session.query(RequisitionLink).order_by(RequisitionLink.created.desc()).all()
         logger.info(f"Retrieved {len(links)} requisition links")
         return links
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Error fetching requisition links: {e!s}")
         raise
 
@@ -47,7 +48,7 @@ def fetch_all_requisition_ids(session: Session) -> list[str]:
         requisition_ids = [id_tuple[0] for id_tuple in ids]
         logger.info(f"Retrieved {len(requisition_ids)} requisition IDs")
         return requisition_ids
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to fetch requisition IDs: {e}")
         raise
 
@@ -65,7 +66,7 @@ def add_requisition_link(
     :param data: Dictionary containing requisition link data from GoCardless API.
     :param friendly_name: User-provided friendly name for this connection.
     :returns: The created RequisitionLink object.
-    :raises Exception: If there's an error adding the requisition link to the database.
+    :raises SQLAlchemyError: If there's an error adding the requisition link to the database.
     """
     logger.info(f"Adding new requisition link for institution: {data['institution_id']}")
     req = RequisitionLink(
@@ -88,7 +89,7 @@ def add_requisition_link(
         session.add(req)
         session.commit()
         logger.info(f"Successfully added requisition link with ID: {data['id']}")
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to add requisition link: {e!s}")
         raise
 
@@ -141,7 +142,7 @@ def update_requisition_record(session: Session, requisition_id: str, data: dict[
         session.commit()
         logger.info(f"Updated requisition {requisition_id} with fields: {updated_fields}")
         return True
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to update requisition {requisition_id}: {e}")
         session.rollback()
         raise
@@ -156,7 +157,7 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
     :param req_id: The requisition ID to upsert.
     :param new_status: The updated status value from GoCardless.
     :returns: The upserted RequisitionLink object.
-    :raises: Exception if there's an error updating the database
+    :raises SQLAlchemyError: If there's an error updating the database
     """
     logger.info(f"Upserting requisition link with ID: {req_id}, new status: {new_status}")
     try:
@@ -188,7 +189,7 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
         session.commit()
         logger.debug(f"Successfully upserted requisition link with ID: {req_id}")
         return req
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to upsert requisition link with ID {req_id}: {e!s}")
         raise
 
