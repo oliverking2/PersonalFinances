@@ -11,6 +11,10 @@ backend/
 │   ├── aws/            # S3, SSM clients
 │   ├── orchestration/  # Dagster jobs & assets
 │   ├── postgres/       # SQLAlchemy models & operations
+│   │   ├── auth/       # User authentication (users, refresh_tokens)
+│   │   ├── common/     # Provider-agnostic models (connections, accounts, institutions)
+│   │   ├── gocardless/ # GoCardless-specific raw data (requisitions, bank_accounts, balances)
+│   │   └── core.py     # Base, engine, session utilities
 │   ├── providers/      # External API clients (GoCardless)
 │   └── utils/          # Shared utilities
 ├── testing/            # Tests (mirrors src/ structure)
@@ -61,6 +65,28 @@ poetry run dagster dev                                   # Dagster dev server
 - **Database operations** take `Session` as first param; caller manages transactions.
 - **API endpoints** use Pydantic models for request/response, `Depends()` for injection.
 - **dbt** follows source → staging → mart layer convention.
+
+## Data Architecture
+
+The database uses a two-layer approach for multi-provider support:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Standardised Tables                       │
+│  connections    accounts    institutions                     │
+│  (postgres/common/)                                          │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ sync/backfill
+┌───────────────────────────▼─────────────────────────────────┐
+│                    Raw Provider Tables                       │
+│  gc_requisition_links    gc_bank_accounts    gc_balances    │
+│  (postgres/gocardless/)                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **Standardised tables** (`postgres/common/`): Provider-agnostic, used by API endpoints
+- **Raw tables** (`postgres/gocardless/`): Provider-specific, source of truth for Dagster
+- **Enums** in `postgres/common/enums.py`: Provider, ConnectionStatus, AccountStatus with mapping helpers
 
 ## File Placement
 
