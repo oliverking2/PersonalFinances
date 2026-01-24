@@ -6,6 +6,7 @@ Shows connections grouped with their nested accounts
 
 <script setup lang="ts">
 import type { Connection, Account } from '~/types/accounts'
+import { useToastStore } from '~/stores/toast'
 
 // ---------------------------------------------------------------------------
 // Composables
@@ -19,6 +20,10 @@ const {
   reauthoriseConnection,
   ApiError,
 } = useAccountsApi()
+
+const route = useRoute()
+const router = useRouter()
+const toast = useToastStore()
 
 // ---------------------------------------------------------------------------
 // State
@@ -86,8 +91,31 @@ async function loadData() {
   }
 }
 
-// Load data on mount
-onMounted(loadData)
+// ---------------------------------------------------------------------------
+// OAuth Callback Handling
+// ---------------------------------------------------------------------------
+
+// Handle return from GoCardless OAuth flow
+// Backend redirects to /accounts?callback=success or ?callback=error&reason=...
+function handleOAuthCallback() {
+  const callback = route.query.callback as string | undefined
+
+  if (callback === 'success') {
+    toast.success('Bank account connected successfully')
+    // Clear query params from URL to prevent re-triggering on refresh
+    router.replace({ query: {} })
+  } else if (callback === 'error') {
+    const reason = (route.query.reason as string) || 'Unknown error'
+    toast.error(`Failed to connect bank: ${reason}`)
+    router.replace({ query: {} })
+  }
+}
+
+// Load data on mount and handle any OAuth callback
+onMounted(() => {
+  handleOAuthCallback()
+  loadData()
+})
 
 // ---------------------------------------------------------------------------
 // Modal Handlers
