@@ -87,7 +87,7 @@ logs:
 # =============================================================================
 # Individual services (for development)
 # =============================================================================
-.PHONY: up-db up-backend up-frontend migrate
+.PHONY: up-db up-backend up-frontend
 
 up-db:
 	@$(COMPOSE) up -d postgres
@@ -95,8 +95,6 @@ up-db:
 		sleep 1; \
 	done
 	@echo "Postgres ready."
-
-migrate:
 	@cd backend && poetry run alembic upgrade head
 
 up-backend:
