@@ -34,11 +34,16 @@ Claude writes code directly with clear comments explaining the how and why. Chan
 frontend/
 ├── app/
 │   ├── app.vue              # Root component
-│   ├── components/          # Reusable UI components (AppButton, AppInput, etc.)
+│   ├── components/          # UI components
+│   │   ├── App*.vue         # Shared components (AppButton, AppInput)
+│   │   ├── accounts/        # Account/connection components
+│   │   └── transactions/    # Transaction components
+│   ├── composables/         # Reusable logic (API calls, utilities)
 │   ├── layouts/             # Page layouts (default, etc.)
 │   ├── middleware/          # Route middleware (auth, etc.)
 │   ├── pages/               # File-based routing
-│   └── stores/              # Pinia stores
+│   ├── stores/              # Pinia stores (auth)
+│   └── types/               # TypeScript interfaces
 ├── nuxt.config.ts           # Nuxt configuration (includes Typekit fonts)
 ├── tailwind.config.ts       # Tailwind theme and colours
 └── package.json
@@ -74,6 +79,100 @@ Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.confi
 - **Client-only auth**: Auth middleware runs only on the client for simplicity. SSR would require cookie forwarding which adds complexity.
 - **Simple refresh flow**: Check token expiry before API calls. If expired, refresh. If refresh fails, redirect to login.
 - **Component-based styling**: Reusable components (AppButton, AppInput) encapsulate Tailwind classes to reduce duplication.
+- **Mock-first development**: Frontend uses mock API composables until backend endpoints are ready. This allows parallel development.
+
+## Patterns
+
+### API Composables (`composables/use*Api.ts`)
+
+Each domain has a composable that exports API functions. Currently using mock data with simulated delays.
+
+```typescript
+// Pattern: composables/useExampleApi.ts
+export function useExampleApi() {
+  async function fetchItems(): Promise<ItemListResponse> {
+    console.log('[MOCK] GET /api/items')
+    await randomDelay() // 200-500ms
+    return { items: MOCK_ITEMS, total: MOCK_ITEMS.length }
+  }
+
+  return { fetchItems }
+}
+```
+
+### Component Organisation
+
+Feature components are grouped in subdirectories:
+
+```
+components/
+├── accounts/
+│   ├── AccountRow.vue         # Single account display
+│   ├── ConnectionCard.vue     # Connection with nested accounts
+│   └── ...
+└── transactions/
+    ├── TransactionRow.vue     # Single transaction
+    ├── TransactionDayGroup.vue # Day header + transactions
+    └── TransactionFilters.vue  # Filter controls
+```
+
+### Page State Pattern
+
+Pages follow a consistent structure:
+
+```typescript
+// State
+const items = ref<Item[]>([])
+const loading = ref(true)
+const error = ref('')
+
+// Load data on mount
+onMounted(loadData)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await fetchItems()
+    items.value = response.items
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load'
+  } finally {
+    loading.value = false
+  }
+}
+```
+
+### Infinite Scroll
+
+Use IntersectionObserver with a sentinel element:
+
+```typescript
+const sentinelRef = ref<HTMLDivElement | null>(null)
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    if (entries[0]?.isIntersecting && hasMore.value) {
+      loadMore()
+    }
+  },
+  { rootMargin: '100px' }, // Load early
+)
+
+watch(sentinelRef, (el) => el && observer.observe(el))
+onUnmounted(() => observer.disconnect())
+```
+
+### Types (`types/*.ts`)
+
+Each domain has a types file with interfaces matching backend Pydantic models:
+
+```typescript
+// types/example.ts
+export interface Item { ... }
+export interface ItemListResponse { items: Item[]; total: number }
+export interface ItemQueryParams { search?: string; page?: number }
+```
 
 ## Backend API
 
