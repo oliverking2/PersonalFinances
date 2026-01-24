@@ -118,6 +118,7 @@ Expand beyond GoCardless to include investment and trading platforms.
 
 - [ ] Budget tracking
 - [ ] Planned income
+- [ ] Forecasting
 
 ---
 
