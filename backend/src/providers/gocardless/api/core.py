@@ -7,6 +7,12 @@ import boto3
 import requests
 from botocore.config import Config
 from dotenv import load_dotenv
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.aws.ssm_parameters import get_parameter_data_from_ssm
 from src.utils.logging import setup_dagster_logger
@@ -16,6 +22,9 @@ logger = setup_dagster_logger(__name__)
 
 RATE_LIMIT_STATUS_CODE = 429
 REQUEST_TIMEOUT = 30  # seconds
+MAX_RETRIES = 3
+SERVER_ERROR_MIN = 500
+SERVER_ERROR_MAX = 600
 
 
 class GoCardlessError(Exception):
@@ -29,6 +38,38 @@ class GoCardlessRateLimitError(GoCardlessError):
     """Custom exception class for GoCardless API Rate Limit errors."""
 
 
+def _is_retryable_error(exception: BaseException) -> bool:
+    """Determine if an exception should trigger a retry.
+
+    Retries on:
+    - Connection errors (network issues)
+    - Timeout errors
+    - Server errors (5xx status codes)
+
+    :param exception: The exception to check.
+    :returns: True if the request should be retried.
+    """
+    if isinstance(exception, requests.exceptions.ConnectionError):
+        return True
+    if isinstance(exception, requests.exceptions.Timeout):
+        return True
+    if isinstance(exception, requests.exceptions.HTTPError):
+        response = exception.response
+        if response is not None and SERVER_ERROR_MIN <= response.status_code < SERVER_ERROR_MAX:
+            return True
+    return False
+
+
+def _log_retry(retry_state: Any) -> None:
+    """Log retry attempts for debugging.
+
+    :param retry_state: The tenacity retry state.
+    """
+    exception = retry_state.outcome.exception()
+    attempt = retry_state.attempt_number
+    logger.warning(f"Request failed (attempt {attempt}/{MAX_RETRIES}): {exception!s}")
+
+
 class GoCardlessCredentials:
     """GoCardless API credentials manager.
 
@@ -39,7 +80,7 @@ class GoCardlessCredentials:
     def __init__(self) -> None:
         """Initialise the credentials class.
 
-        :raises EnvironmentError: If required environment variables are not set
+        :raises EnvironmentError: If required environment variables are not set.
         """
         logger.debug("Initialising GoCardless credentials")
 
@@ -58,6 +99,8 @@ class GoCardlessCredentials:
         self._access_token: str | None = None
         self._access_token_expiry: float | None = None
 
+        self._session = requests.Session()
+
         logger.info("GoCardless credentials initialised successfully")
 
     def _get_access_token(self) -> str:
@@ -74,7 +117,7 @@ class GoCardlessCredentials:
         }
 
         try:
-            response = requests.post(
+            response = self._session.post(
                 "https://bankaccountdata.gocardless.com/api/v2/token/new/",
                 json=payload,
                 timeout=REQUEST_TIMEOUT,
@@ -104,8 +147,8 @@ class GoCardlessCredentials:
 
         Automatically handles token expiry and refreshes tokens when needed.
 
-        :returns: Valid access token string
-        :raises ValueError: If token cannot be obtained
+        :returns: Valid access token string.
+        :raises ValueError: If token cannot be obtained.
         """
         if self._access_token_expiry is None:
             # initial run, get a token
@@ -133,18 +176,27 @@ class GoCardlessCredentials:
         if response.status_code == RATE_LIMIT_STATUS_CODE:
             raise GoCardlessRateLimitError(f"Rate limited by GoCardless API: {response.text}")
 
+    @retry(
+        retry=retry_if_exception(_is_retryable_error),
+        stop=stop_after_attempt(MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        before_sleep=_log_retry,
+        reraise=True,
+    )
     def make_get_request(
         self, url: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """Make a GET request to the specified URL using the current access token.
 
+        Automatically retries on transient failures with exponential backoff.
+
         :param url: The URL to request.
         :param params: Optional query parameters.
         :returns: Parsed JSON response.
         :raises GoCardlessRateLimitError: If rate limited.
-        :raises requests.RequestException: If request fails.
+        :raises requests.RequestException: If request fails after retries.
         """
-        r = requests.get(
+        r = self._session.get(
             url,
             headers={"Authorization": f"Bearer {self.access_token}"},
             params=params,
@@ -155,6 +207,13 @@ class GoCardlessCredentials:
 
         return r.json()
 
+    @retry(
+        retry=retry_if_exception(_is_retryable_error),
+        stop=stop_after_attempt(MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        before_sleep=_log_retry,
+        reraise=True,
+    )
     def make_post_request(
         self,
         url: str,
@@ -163,14 +222,16 @@ class GoCardlessCredentials:
     ) -> dict[str, Any]:
         """Make a POST request to the specified URL using the current access token.
 
+        Automatically retries on transient failures with exponential backoff.
+
         :param url: The URL to request.
         :param params: Optional query parameters.
         :param body: Optional JSON body.
         :returns: Parsed JSON response.
         :raises GoCardlessRateLimitError: If rate limited.
-        :raises requests.RequestException: If request fails.
+        :raises requests.RequestException: If request fails after retries.
         """
-        r = requests.post(
+        r = self._session.post(
             url,
             headers={"Authorization": f"Bearer {self.access_token}"},
             params=params,
@@ -182,16 +243,25 @@ class GoCardlessCredentials:
 
         return r.json()
 
+    @retry(
+        retry=retry_if_exception(_is_retryable_error),
+        stop=stop_after_attempt(MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        before_sleep=_log_retry,
+        reraise=True,
+    )
     def make_delete_request(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a DELETE request to the specified URL using the current access token.
+
+        Automatically retries on transient failures with exponential backoff.
 
         :param url: The URL to request.
         :param params: Optional query parameters.
         :returns: Parsed JSON response.
         :raises GoCardlessRateLimitError: If rate limited.
-        :raises requests.RequestException: If request fails.
+        :raises requests.RequestException: If request fails after retries.
         """
-        r = requests.delete(
+        r = self._session.delete(
             url,
             headers={"Authorization": f"Bearer {self.access_token}"},
             params=params,
@@ -202,6 +272,13 @@ class GoCardlessCredentials:
 
         return r.json()
 
+    @retry(
+        retry=retry_if_exception(_is_retryable_error),
+        stop=stop_after_attempt(MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        before_sleep=_log_retry,
+        reraise=True,
+    )
     def make_put_request(
         self,
         url: str,
@@ -210,14 +287,16 @@ class GoCardlessCredentials:
     ) -> dict[str, Any]:
         """Make a PUT request to the specified URL using the current access token.
 
+        Automatically retries on transient failures with exponential backoff.
+
         :param url: The URL to request.
         :param params: Optional query parameters.
         :param body: Optional JSON body.
         :returns: Parsed JSON response.
         :raises GoCardlessRateLimitError: If rate limited.
-        :raises requests.RequestException: If request fails.
+        :raises requests.RequestException: If request fails after retries.
         """
-        r = requests.put(
+        r = self._session.put(
             url,
             headers={"Authorization": f"Bearer {self.access_token}"},
             params=params,

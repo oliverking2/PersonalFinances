@@ -29,7 +29,3 @@ def get_parameter_data_from_ssm(ssm_client: "SSMClient", parameter_name: str) ->
     except ssm_client.exceptions.ParameterNotFound:
         logger.error(f"Parameter {parameter_name} not found")
         raise
-
-    except Exception as e:
-        logger.error(f"Error retrieving parameter data: {e!s}", exc_info=True)
-        raise
