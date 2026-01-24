@@ -69,6 +69,25 @@ def test_expired_connection_in_db(
 
 
 @pytest.fixture
+def test_pending_connection_in_db(
+    api_db_session: Session, test_user_in_db: User, test_institution_in_db: Institution
+) -> Connection:
+    """Create a pending connection in the database (OAuth flow abandoned)."""
+    connection = Connection(
+        user_id=test_user_in_db.id,
+        provider=Provider.GOCARDLESS.value,
+        provider_id="test-pending-req-id",
+        institution_id=test_institution_in_db.id,
+        friendly_name="Pending Connection",
+        status=ConnectionStatus.PENDING.value,
+        created_at=datetime.now(),
+    )
+    api_db_session.add(connection)
+    api_db_session.commit()
+    return connection
+
+
+@pytest.fixture
 def test_account_in_db(api_db_session: Session, test_connection_in_db: Connection) -> Account:
     """Create an account in the database."""
     account = Account(
@@ -404,20 +423,56 @@ class TestReauthoriseConnection:
         assert data["id"] == str(test_expired_connection_in_db.id)
         assert data["link"] == "https://ob.gocardless.com/psd2/start/reauth-req-id-456"
 
-    def test_returns_400_for_non_expired_connection(
+    @patch("src.api.connections.endpoints.create_link")
+    def test_reauthorises_pending_connection(
+        self,
+        mock_create_link: MagicMock,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_pending_connection_in_db: Connection,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should generate new auth link for pending connection (abandoned OAuth)."""
+        monkeypatch.setenv("GC_CALLBACK_URL", "http://localhost:8000/api/connections/callback")
+
+        mock_create_link.return_value = {
+            "id": "retry-req-id-789",
+            "created": "2026-01-24T12:00:00Z",
+            "redirect": "http://localhost:8000/api/connections/callback",
+            "status": "CR",
+            "institution_id": "CHASE_CHASGB2L",
+            "agreement": "agreement-id",
+            "reference": "ref-789",
+            "link": "https://ob.gocardless.com/psd2/start/retry-req-id-789",
+            "ssn": None,
+            "account_selection": False,
+            "redirect_immediate": False,
+        }
+
+        response = client.post(
+            f"/api/connections/{test_pending_connection_in_db.id}/reauthorise",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(test_pending_connection_in_db.id)
+        assert data["link"] == "https://ob.gocardless.com/psd2/start/retry-req-id-789"
+
+    def test_returns_400_for_active_connection(
         self,
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_connection_in_db: Connection,
     ) -> None:
-        """Should return 400 if connection is not expired."""
+        """Should return 400 if connection is already active."""
         response = client.post(
             f"/api/connections/{test_connection_in_db.id}/reauthorise",
             headers=api_auth_headers,
         )
 
         assert response.status_code == 400
-        assert "not expired" in response.json()["detail"]
+        assert "cannot be reauthorised" in response.json()["detail"]
 
     def test_returns_404_for_nonexistent_connection(
         self,

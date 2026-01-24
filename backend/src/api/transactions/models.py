@@ -14,7 +14,8 @@ class TransactionResponse(BaseModel):
     account_id: str = Field(..., description="Account ID")
     booking_date: date | None = Field(None, description="Booking date")
     value_date: date | None = Field(None, description="Value date")
-    amount: Decimal = Field(..., description="Transaction amount")
+    # Use float for JSON serialization - Decimal would serialize as string
+    amount: float = Field(..., description="Transaction amount")
     currency: str = Field(..., description="Currency code")
     description: str | None = Field(None, description="Transaction description")
     merchant_name: str | None = Field(None, description="Merchant name")

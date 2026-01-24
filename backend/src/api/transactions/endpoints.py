@@ -82,7 +82,7 @@ def _to_response(txn: Transaction) -> TransactionResponse:
         account_id=str(txn.account_id),
         booking_date=txn.booking_date.date() if txn.booking_date else None,
         value_date=txn.value_date.date() if txn.value_date else None,
-        amount=txn.amount,
+        amount=float(txn.amount),
         currency=txn.currency,
         description=txn.description,
         merchant_name=txn.counterparty_name,

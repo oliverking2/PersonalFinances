@@ -127,7 +127,7 @@ def _to_response(account: Account) -> AccountResponse:
     balance = None
     if account.balance_amount is not None and account.balance_currency is not None:
         balance = AccountBalance(
-            amount=account.balance_amount,
+            amount=float(account.balance_amount),
             currency=account.balance_currency,
             type=account.balance_type or "unknown",
         )

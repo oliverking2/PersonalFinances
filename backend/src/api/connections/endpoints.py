@@ -305,17 +305,18 @@ def reauthorise_connection(
     current_user: User = Depends(get_current_user),
     creds: GoCardlessCredentials = Depends(get_gocardless_credentials),
 ) -> ReauthoriseConnectionResponse:
-    """Generate a new authorisation URL for an expired connection.
+    """Generate a new authorisation URL for a connection that needs (re)authorisation.
 
     Creates a new requisition for the same institution and updates the connection
-    to use the new requisition ID.
+    to use the new requisition ID. Works for both EXPIRED connections and PENDING
+    connections where the user abandoned the OAuth flow.
 
     :param connection_id: Connection UUID to reauthorise.
     :param db: Database session.
     :param current_user: Authenticated user.
     :param creds: GoCardless credentials.
     :returns: Reauthorisation link.
-    :raises HTTPException: If connection not found, not owned by user, or not expired.
+    :raises HTTPException: If connection not found, not owned by user, or already active.
     """
     connection = get_connection_by_id(db, connection_id)
     if not connection:
@@ -323,11 +324,12 @@ def reauthorise_connection(
     if connection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
 
-    # Verify connection is expired
-    if connection.status != ConnectionStatus.EXPIRED.value:
+    # Only allow reauthorisation for EXPIRED or PENDING connections
+    allowed_statuses = {ConnectionStatus.EXPIRED.value, ConnectionStatus.PENDING.value}
+    if connection.status not in allowed_statuses:
         raise HTTPException(
             status_code=400,
-            detail=f"Connection is not expired. Current status: {connection.status}",
+            detail=f"Connection cannot be reauthorised. Current status: {connection.status}",
         )
 
     # Get callback URL from environment

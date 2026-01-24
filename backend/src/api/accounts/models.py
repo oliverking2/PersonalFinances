@@ -1,7 +1,6 @@
 """Pydantic models for account endpoints."""
 
 from datetime import datetime
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +10,8 @@ from src.postgres.common.enums import AccountStatus
 class AccountBalance(BaseModel):
     """Balance information for an account."""
 
-    amount: Decimal = Field(..., description="Balance amount")
+    # Use float for JSON serialization - Decimal would serialize as string
+    amount: float = Field(..., description="Balance amount")
     currency: str = Field(..., description="Currency code")
     type: str = Field(..., description="Balance type")
 
