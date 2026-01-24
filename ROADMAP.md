@@ -63,12 +63,6 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Connection management UI (add, rename, reauthorise, delete)
 - [x] Transaction list with day grouping, infinite scroll, and filters
 
-### Infrastructure
-
-- [ ] Docker setup for frontend
-- [ ] Nginx reverse proxy configuration
-- [ ] Environment-based configuration
-
 ---
 
 ## Phase 2.5: Consolidation & Quality
