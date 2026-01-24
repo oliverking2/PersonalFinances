@@ -1,6 +1,6 @@
 # PRD: Backend Critical Bug Fixes
 
-**Status**: In Progress
+**Status**: Complete
 **Author**: Claude
 **Created**: 2026-01-17
 **Updated**: 2026-01-23
@@ -44,7 +44,7 @@ The current codebase has several issues that prevent normal operation:
 
 **Fix**: Add `friendly_name` parameter to `add_requisition_link()` and pass it from the API.
 
-**Status**: [ ] Not started
+**Status**: [x] Complete (already implemented)
 
 ### 2. Rate Limit Handling Missing on POST/PUT/DELETE
 
@@ -54,7 +54,7 @@ The current codebase has several issues that prevent normal operation:
 
 **Fix**: Add rate limit checking to all HTTP methods in `GoCardlessCredentials`.
 
-**Status**: [ ] Not started
+**Status**: [x] Complete (already implemented)
 
 ### 3. Missing Timeouts on All HTTP Requests
 
@@ -64,7 +64,7 @@ The current codebase has several issues that prevent normal operation:
 
 **Fix**: Add `timeout=30` to all requests calls. Add `Config(connect_timeout=30, read_timeout=60)` to boto3 clients.
 
-**Status**: [ ] Not started
+**Status**: [x] Complete - Added timeout config to SSM client in `core.py` and created `s3_resource_with_timeout` in `resources.py`
 
 ### 4. Environment Variable Crash
 
@@ -74,7 +74,7 @@ The current codebase has several issues that prevent normal operation:
 
 **Fix**: Use `os.getenv()` with validation or use Dagster resource configuration.
 
-**Status**: [ ] Not started
+**Status**: [x] Complete (already implemented with `_get_s3_bucket_name()` helper)
 
 ---
 
@@ -82,17 +82,18 @@ The current codebase has several issues that prevent normal operation:
 
 ### Phase 1: Immediate Fixes
 
-- [ ] Fix `friendly_name` in requisition creation
-- [ ] Add rate limit checking to all HTTP methods
-- [ ] Add timeouts to all network requests
-- [ ] Fix environment variable handling in Dagster assets
+- [x] Fix `friendly_name` in requisition creation
+- [x] Add rate limit checking to all HTTP methods
+- [x] Add timeouts to all network requests
+- [x] Fix environment variable handling in Dagster assets
 
 ---
 
 ## Testing Strategy
 
-- [ ] Unit tests for rate limit handling
-- [ ] Unit tests for timeout behaviour
+- [x] Unit tests for rate limit handling
+- [x] Unit tests for timeout behaviour
+- [x] Unit tests for S3 bucket name validation
 - [ ] Manual test of requisition creation flow
 
 ---

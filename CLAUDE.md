@@ -76,6 +76,8 @@ PRDs use the format: `YYYYMMDD-{scope}-feature-name.md`
 | `infra`     | Docker, CI/CD, deployment      |
 | `data`      | dbt models, data pipeline      |
 
+Once a PRD is fully implemented, move it to `prds/complete/`.
+
 ## Validation
 
 All changes must pass before complete:

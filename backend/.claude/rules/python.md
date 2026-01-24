@@ -57,3 +57,16 @@
 
 - Absolute imports within `src/`
 - Group: stdlib, third-party, local
+- Type-only imports (e.g., `mypy_boto3_*` stubs) go in `TYPE_CHECKING` block to avoid runtime dependencies. Use `from __future__ import annotations` to defer annotation evaluation:
+
+  ```python
+  from __future__ import annotations
+
+  from typing import TYPE_CHECKING
+
+  if TYPE_CHECKING:
+      from mypy_boto3_s3 import S3Client
+
+  def get_client() -> S3Client:  # Works at runtime
+      ...
+  ```

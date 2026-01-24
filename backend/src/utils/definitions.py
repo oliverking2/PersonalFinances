@@ -18,15 +18,30 @@ logger = setup_dagster_logger(__name__)
 load_dotenv()
 
 
+def is_local_environment() -> bool:
+    """Check if running in local development environment.
+
+    :return: True if ENVIRONMENT is 'local', False otherwise.
+    """
+    return os.getenv("ENVIRONMENT") == "local"
+
+
 def get_postgres_host() -> str:
     """Get PostgreSQL hostname from environment.
 
+    In local environment, always returns 'localhost' for safety.
+    In other environments, uses POSTGRES_HOSTNAME.
+
     :return: The PostgreSQL hostname.
-    :raises ValueError: If POSTGRES_HOSTNAME is not set.
+    :raises ValueError: If POSTGRES_HOSTNAME is not set in non-local environments.
     """
+    if is_local_environment():
+        logger.debug("Local environment detected, using localhost")
+        return "localhost"
+
     postgres_host = os.getenv("POSTGRES_HOSTNAME")
     if not postgres_host:
-        raise ValueError("Environment variable POSTGRES_HOSTNAME not set.")
+        raise ValueError("POSTGRES_HOSTNAME not set")
     logger.debug(f"PostgreSQL host configured as: {postgres_host}")
     return postgres_host
 
@@ -131,11 +146,3 @@ def refresh_token_expire_days() -> int:
     :return: Refresh token expiry in days (default: 30).
     """
     return int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
-
-
-def is_local_environment() -> bool:
-    """Check if running in local development environment.
-
-    :return: True if ENVIRONMENT is 'local', False otherwise.
-    """
-    return os.getenv("ENVIRONMENT") == "local"

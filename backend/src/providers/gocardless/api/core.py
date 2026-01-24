@@ -5,6 +5,7 @@ from typing import Any
 
 import boto3
 import requests
+from botocore.config import Config
 from dotenv import load_dotenv
 
 from src.aws.ssm_parameters import get_parameter_data_from_ssm
@@ -42,7 +43,10 @@ class GoCardlessCredentials:
         """
         logger.debug("Initialising GoCardless credentials")
 
-        ssm_client = boto3.client("ssm")
+        ssm_client = boto3.client(
+            "ssm",
+            config=Config(connect_timeout=REQUEST_TIMEOUT, read_timeout=REQUEST_TIMEOUT),
+        )
         load_dotenv()
 
         secret_id = get_parameter_data_from_ssm(ssm_client, "/secrets/gocardless/secret_id")
