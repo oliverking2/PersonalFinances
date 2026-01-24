@@ -27,9 +27,22 @@ Watch for: command injection, XSS, SQL injection, path traversal. Fix immediatel
 
 ## After Changes
 
-1. Run `make check` in backend/
-2. Update `README.md` if behaviour changed
-3. Update `ROADMAP.md` if feature completed
+1. Run `make check` in affected directories (backend/, frontend/)
+2. Update documentation if behaviour changed:
+   - `README.md` - User-facing changes
+   - `ROADMAP.md` - Mark completed items, add new items discussed
+   - `CLAUDE.md` files - New patterns, structures, or conventions
+   - `prds/` - Move completed PRDs to `prds/complete/`
+
+## Documentation Feedback Loop
+
+After completing a significant piece of work, always review:
+
+1. **ROADMAP.md** - Is the completed work reflected? Any new items to add?
+2. **CLAUDE.md** - Any new patterns or structures worth documenting?
+3. **PRDs** - Should completed PRDs be moved to `prds/complete/`?
+
+This keeps documentation in sync with the codebase.
 
 ## When Uncertain
 

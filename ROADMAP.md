@@ -8,7 +8,7 @@ A self-hosted personal finance platform that aggregates all financial data in on
 
 ---
 
-## Phase 1: Foundation (Current)
+## Phase 1: Foundation
 
 Stabilise the existing data pipeline and improve core functionality.
 
@@ -23,8 +23,6 @@ Stabilise the existing data pipeline and improve core functionality.
 
 ### In Progress
 
-- [ ] Friendly names for bank accounts
-- [ ] Fix requisition deletion (actually delete in GoCardless)
 - [ ] Scheduled account refresh via Dagster
 - [ ] Link expiry handling and re-authentication flow
 
@@ -33,7 +31,7 @@ Stabilise the existing data pipeline and improve core functionality.
 - [ ] Improve error handling in GoCardless API client
 - [ ] Add retry logic for failed extractions
 - [ ] Historical data backfill tooling
-- [ ] Data quality checks in dbt
+- [ ] Data quality checks in dbt (see `prds/20260123-data-dbt-improvements.md`)
 
 ---
 
@@ -45,21 +43,30 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 
 - [x] Project structure setup (`src/api/`)
 - [x] Authentication (JWT access tokens + refresh token cookies)
-- [ ] Account endpoints (list, get, update friendly name)
+- [x] Unified connections/accounts architecture (provider-agnostic)
+- [x] Institutions API (list, get)
+- [x] Connection endpoints (list, get, update friendly name, delete)
+- [x] Account endpoints (list, get, update display name, filter by connection)
+- [x] Balance lookup (included in account responses from gc_balances)
+- [ ] Create connection endpoint (GoCardless OAuth flow)
+- [ ] Reauthorise connection endpoint
 - [ ] Transaction endpoints (list, search, filter)
-- [ ] Balance endpoints (current, historical)
-- [ ] Connection management endpoints (create link, delete, refresh)
 - [ ] Analytics endpoints (aggregations from dbt marts)
 
 ### Frontend (Vue + Nuxt + Tailwind)
 
-- [ ] Project setup in `frontend/` directory
-- [ ] Authentication flow
-- [ ] Dashboard view (account overview, balances)
-- [ ] Accounts list with friendly names
-- [ ] Transaction list with search/filter
-- [ ] Connection management UI
+- [x] Project setup in `frontend/` directory
+- [x] Tailwind theme and reusable components (AppButton, AppInput)
+- [x] Authentication flow (login, logout, token refresh)
+- [x] Auth middleware and Pinia store
+- [x] Dashboard view (placeholder)
+- [x] Accounts list view with balances and status indicators
+- [x] Account display name editing (modal)
+- [x] Connection management UI (add, rename, reauthorise, delete)
+- [x] Transaction list with day grouping, infinite scroll, and filters
 - [ ] Charts and visualisations (spending by category, trends)
+
+> **Note**: Frontend currently uses mock data for connections, accounts, and transactions. Backend endpoints for create/reauthorise connection and transactions are still in progress.
 
 ### Infrastructure
 
@@ -72,6 +79,13 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 ## Phase 3: Additional Data Sources
 
 Expand beyond GoCardless to include investment and trading platforms.
+
+### Unified Provider Architecture
+
+- [x] Provider-agnostic connections table (supports gocardless, trading212, vanguard)
+- [x] Provider-agnostic accounts table
+- [x] Institutions table for provider metadata
+- [ ] Dagster sync pipeline (provider tables → standardised tables)
 
 ### Vanguard Integration
 
@@ -94,6 +108,16 @@ Expand beyond GoCardless to include investment and trading platforms.
 - [ ] Template for common bank statement formats
 - [ ] Deduplication logic
 - [ ] Historical data upload UI
+
+### Manual Costs
+
+- [ ] Student loans
+- [ ] Mortgage payments
+
+### Financial Planning
+
+- [ ] Budget tracking
+- [ ] Planned income
 
 ---
 
@@ -169,3 +193,22 @@ Items not yet scheduled but worth exploring:
 New features should have a PRD in `prds/` before implementation. See `prds/_template.md` for the format.
 
 PRD naming convention: `prds/YYYYMMDD-{scope}-feature-name.md`
+
+Once a PRD is fully implemented, move it to `prds/complete/`.
+
+### Completed PRDs
+
+- `20260123-backend-authentication.md` - JWT auth with refresh tokens
+- `20260123-backend-bug-fixes.md` - Various bug fixes
+- `20260123-backend-code-quality.md` - Linting, types, test coverage
+- `20260123-backend-test-suite.md` - pytest infrastructure
+- `20260123-frontend-authentication.md` - Login/logout flow
+- `20260124-frontend-accounts-view.md` - Accounts list page
+
+### In Progress PRDs
+
+- `20260124-backend-unified-connections.md` - Provider-agnostic data layer
+
+### Implemented Without PRD
+
+- Frontend transactions view - Day-grouped list with infinite scroll, filters (search, account, date range, amount range)

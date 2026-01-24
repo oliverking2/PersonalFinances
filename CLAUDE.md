@@ -87,7 +87,14 @@ cd backend && make check    # Backend validation
 cd frontend && make check   # Frontend validation
 ```
 
-Update `README.md` and `ROADMAP.md` when completing features.
+## After Completing Work
+
+1. **Run validation** in affected directories
+2. **Update documentation**:
+   - `ROADMAP.md` - Mark completed items, add new items discussed
+   - `README.md` - If user-facing behaviour changed
+   - `CLAUDE.md` files - If new patterns or structures established
+3. **Move completed PRDs** to `prds/complete/`
 
 ## See Also
 
