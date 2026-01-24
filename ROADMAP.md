@@ -149,6 +149,7 @@ Improve the user experience and visual design of the app.
 
 - [ ] Account config popup on the accounts page
   - [ ] Min balance alerts etc.
+  - [ ] Last sync date
 - [ ] Account favourites/reordering (pin important accounts to top)
 
 ### Transactions

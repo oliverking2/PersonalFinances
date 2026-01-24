@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.api.jobs.models import JobResponse
 from src.postgres.common.enums import ConnectionStatus, Provider
 
 
@@ -26,6 +27,7 @@ class ConnectionResponse(BaseModel):
     account_count: int = Field(0, description="Number of linked accounts")
     created_at: datetime = Field(..., description="Creation timestamp")
     expires_at: datetime | None = Field(None, description="Expiration timestamp")
+    latest_sync_job: JobResponse | None = Field(None, description="Most recent sync job")
 
     model_config = {"from_attributes": True}
 

@@ -10,7 +10,7 @@ packages = [
 
 [tool.poetry.scripts]
 seed-gocardless = "scripts.seed_gocardless:main"
-seed-dev = "scripts.seed_dev:main"
+seed-user = "scripts.seed_user:main"
 seed-demo = "scripts.seed_demo:main"
 bootstrap-duckdb = "scripts.bootstrap_duckdb:bootstrap"
 
@@ -102,7 +102,8 @@ ignore = [
     "E501"   # Line too long (handled by formatter)
 ]
 
-per-file-ignores = { "__init__.py" = ["D"], "testing/**/*.py" = ["PLR2004"] }  # PLR2004: Magic values OK in tests
+# UP045: Dagster Config requires Optional[] syntax, not X | None union
+per-file-ignores = { "__init__.py" = ["D"], "testing/**/*.py" = ["PLR2004"], "src/orchestration/**/*.py" = ["UP045"] }
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"  # Regex for unused variables
 

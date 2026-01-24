@@ -2,14 +2,22 @@
 
 These assets sync data from raw GoCardless tables (gc_requisition_links,
 gc_bank_accounts, gc_balances) to the unified tables (connections, accounts).
+
+Assets can be configured with a connection_id to filter to a specific connection:
+    run_config = {"ops": {"*": {"config": {"connection_id": "uuid-here"}}}}
 """
+
+from typing import Optional
+from uuid import UUID
 
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    Config,
     Definitions,
     asset,
 )
+from sqlalchemy.orm import Session
 
 from src.orchestration.resources import PostgresDatabase
 from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
@@ -20,7 +28,43 @@ from src.postgres.common.operations.sync import (
     sync_all_gocardless_connections,
     sync_all_gocardless_institutions,
     sync_all_gocardless_transactions,
+    sync_gocardless_connection,
 )
+
+
+class ConnectionScopeConfig(Config):
+    """Config for scoping sync to a specific connection."""
+
+    connection_id: Optional[str] = None
+
+
+def _get_connection_for_sync(
+    session: Session, connection_id: str, context: AssetExecutionContext
+) -> Optional[Connection]:
+    """Get a specific connection for syncing.
+
+    :param session: SQLAlchemy session.
+    :param connection_id: Connection UUID as string.
+    :param context: Asset execution context for logging.
+    :returns: Connection or None if not found.
+    """
+    try:
+        conn_uuid = UUID(connection_id)
+    except ValueError:
+        context.log.error(f"Invalid connection_id format: {connection_id}")
+        return None
+
+    connection = session.get(Connection, conn_uuid)
+    if connection is None:
+        context.log.error(f"Connection not found: {connection_id}")
+        return None
+
+    if connection.provider != Provider.GOCARDLESS.value:
+        context.log.error(f"Connection {connection_id} is not a GoCardless connection")
+        return None
+
+    context.log.info(f"Scoped sync to connection {connection_id}")
+    return connection
 
 
 @asset(
@@ -30,7 +74,7 @@ from src.postgres.common.operations.sync import (
     description="Sync GoCardless requisitions to unified connections table.",
     required_resource_keys={"postgres_database"},
 )
-def sync_gc_connections(context: AssetExecutionContext) -> None:
+def sync_gc_connections(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
     """Sync GoCardless requisitions to the unified connections table.
 
     This asset reads from gc_requisition_links and updates the
@@ -41,6 +85,17 @@ def sync_gc_connections(context: AssetExecutionContext) -> None:
     context.log.info("Starting GoCardless connection sync")
 
     with postgres_database.get_session() as session:
+        # If scoped to a specific connection, sync only that one
+        if config.connection_id:
+            connection = _get_connection_for_sync(session, config.connection_id, context)
+            if connection is None:
+                return  # Error already logged
+
+            synced = sync_gocardless_connection(session, connection)
+            context.log.info(f"Synced single connection: id={synced.id}, status={synced.status}")
+            return
+
+        # Otherwise sync all connections
         connections = sync_all_gocardless_connections(session)
 
         if not connections:
@@ -67,7 +122,7 @@ def sync_gc_connections(context: AssetExecutionContext) -> None:
     description="Sync GoCardless bank accounts to unified accounts table.",
     required_resource_keys={"postgres_database"},
 )
-def sync_gc_accounts(context: AssetExecutionContext) -> None:
+def sync_gc_accounts(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
     """Sync GoCardless bank accounts to the unified accounts table.
 
     This asset reads from gc_bank_accounts and gc_balances, then upserts
@@ -78,7 +133,30 @@ def sync_gc_accounts(context: AssetExecutionContext) -> None:
     context.log.info("Starting GoCardless account sync")
 
     with postgres_database.get_session() as session:
-        # Get all active GoCardless connections
+        # If scoped to a specific connection, sync only that one
+        if config.connection_id:
+            connection = _get_connection_for_sync(session, config.connection_id, context)
+            if connection is None:
+                return  # Error already logged
+
+            if connection.status != ConnectionStatus.ACTIVE.value:
+                context.log.warning(
+                    f"Connection {connection.id} is not active (status={connection.status}), "
+                    f"skipping account sync"
+                )
+                return
+
+            accounts = sync_all_gocardless_accounts(session, connection)
+            synced_ids = {acc.provider_id for acc in accounts}
+            inactive_count = mark_missing_accounts_inactive(session, connection, synced_ids)
+            if inactive_count:
+                context.log.info(
+                    f"Marked {inactive_count} accounts inactive for connection {connection.id}"
+                )
+            context.log.info(f"Synced {len(accounts)} accounts for connection {connection.id}")
+            return
+
+        # Otherwise sync all active connections
         connections = (
             session.query(Connection)
             .filter(
@@ -135,14 +213,23 @@ def sync_gc_accounts(context: AssetExecutionContext) -> None:
     description="Sync GoCardless institutions to unified institutions table.",
     required_resource_keys={"postgres_database"},
 )
-def sync_gc_institutions(context: AssetExecutionContext) -> None:
+def sync_gc_institutions(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
     """Sync GoCardless institutions to the unified institutions table.
 
     This asset reads from gc_institutions and upserts to the
     institutions table. Depends on extraction asset to populate gc_institutions first.
+
+    Note: This asset does not filter by connection_id as institutions are global.
+    The config parameter is accepted for consistency with other sync assets.
     """
     postgres_database: PostgresDatabase = context.resources.postgres_database
     context.log.info("Starting GoCardless institution sync")
+
+    # Institutions are global, not connection-scoped
+    if config.connection_id:
+        context.log.info(
+            "connection_id provided but institutions are global - syncing all institutions"
+        )
 
     with postgres_database.get_session() as session:
         institutions = sync_all_gocardless_institutions(session)
@@ -167,7 +254,7 @@ def sync_gc_institutions(context: AssetExecutionContext) -> None:
     description="Sync GoCardless transactions to unified transactions table.",
     required_resource_keys={"postgres_database"},
 )
-def sync_gc_transactions(context: AssetExecutionContext) -> None:
+def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
     """Sync GoCardless transactions to the unified transactions table.
 
     This asset reads from gc_transactions and upserts to the transactions table.
@@ -177,7 +264,36 @@ def sync_gc_transactions(context: AssetExecutionContext) -> None:
     context.log.info("Starting GoCardless transaction sync")
 
     with postgres_database.get_session() as session:
-        # Get all active accounts from active GoCardless connections
+        # If scoped to a specific connection, sync only accounts for that connection
+        if config.connection_id:
+            connection = _get_connection_for_sync(session, config.connection_id, context)
+            if connection is None:
+                return  # Error already logged
+
+            accounts = (
+                session.query(Account)
+                .filter(
+                    Account.connection_id == connection.id,
+                    Account.status == AccountStatus.ACTIVE.value,
+                )
+                .all()
+            )
+
+            if not accounts:
+                context.log.warning(f"No active accounts found for connection {connection.id}")
+                return
+
+            total_transactions = 0
+            for account in accounts:
+                transactions = sync_all_gocardless_transactions(session, account)
+                total_transactions += len(transactions)
+
+            context.log.info(
+                f"Synced {total_transactions} transactions for connection {connection.id}"
+            )
+            return
+
+        # Otherwise sync all active accounts from all active connections
         accounts = (
             session.query(Account)
             .join(Connection)

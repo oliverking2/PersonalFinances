@@ -6,6 +6,7 @@ Shows connections grouped with their nested accounts
 
 <script setup lang="ts">
 import type { Connection, Account } from '~/types/accounts'
+import type { Job } from '~/types/jobs'
 import { useToastStore } from '~/stores/toast'
 
 // ---------------------------------------------------------------------------
@@ -18,6 +19,8 @@ const {
   updateAccount,
   deleteConnection,
   reauthoriseConnection,
+  triggerConnectionSync,
+  fetchJob,
   ApiError,
 } = useAccountsApi()
 
@@ -44,6 +47,10 @@ const editingEntity = ref<{
   currentName: string
 } | null>(null)
 const deletingConnection = ref<Connection | null>(null)
+
+// Sync state - tracks which connections are currently syncing
+const syncingConnections = ref<Set<string>>(new Set())
+const syncJobs = ref<Map<string, Job>>(new Map()) // Latest job per connection
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -84,6 +91,14 @@ async function loadData() {
 
     connections.value = connectionsResponse.connections
     accounts.value = accountsResponse.accounts
+
+    // Initialize syncJobs from connection data (preserves failed status across refreshes)
+    for (const conn of connections.value) {
+      if (conn.latest_sync_job && !syncingConnections.value.has(conn.id)) {
+        // Only update if we're not currently syncing (don't overwrite in-progress state)
+        syncJobs.value.set(conn.id, conn.latest_sync_job)
+      }
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load data'
   } finally {
@@ -231,6 +246,84 @@ async function handleReauthorise(connection: Connection) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Sync Handling
+// ---------------------------------------------------------------------------
+
+async function handleSync(connection: Connection) {
+  // Don't start another sync if already syncing
+  if (syncingConnections.value.has(connection.id)) {
+    return
+  }
+
+  try {
+    // Mark as syncing
+    syncingConnections.value.add(connection.id)
+
+    // Trigger sync and get job
+    const job = await triggerConnectionSync(connection.id)
+    syncJobs.value.set(connection.id, job)
+
+    // If job failed immediately (e.g., Dagster unavailable), show error
+    if (job.status === 'failed') {
+      toast.error(`Sync failed: ${job.error_message || 'Unknown error'}`)
+      syncingConnections.value.delete(connection.id)
+      return
+    }
+
+    // Show starting message
+    toast.success('Sync started')
+
+    // Start polling for job status
+    pollJobStatus(job.id, connection.id)
+  } catch (e) {
+    console.error('Failed to trigger sync:', e)
+    toast.error('Failed to start sync')
+    syncingConnections.value.delete(connection.id)
+  }
+}
+
+// Poll for job completion
+async function pollJobStatus(
+  jobId: string,
+  connectionId: string,
+  pollCount = 0,
+) {
+  // Stop polling after ~5 minutes (150 polls * 2 seconds)
+  const maxPolls = 150
+
+  try {
+    const job = await fetchJob(jobId)
+    syncJobs.value.set(connectionId, job)
+
+    if (job.status === 'completed') {
+      // Success! Reload data and notify
+      toast.success('Sync complete')
+      syncingConnections.value.delete(connectionId)
+      await loadData()
+    } else if (job.status === 'failed') {
+      // Failed
+      toast.error(`Sync failed: ${job.error_message || 'Unknown error'}`)
+      syncingConnections.value.delete(connectionId)
+    } else if (pollCount < maxPolls) {
+      // Still running, poll again in 2 seconds
+      setTimeout(() => pollJobStatus(jobId, connectionId, pollCount + 1), 2000)
+    } else {
+      // Timeout
+      toast.error('Sync timed out. Check back later.')
+      syncingConnections.value.delete(connectionId)
+    }
+  } catch (e) {
+    console.error('Failed to poll job status:', e)
+    // Keep trying a few more times on network errors
+    if (pollCount < 5) {
+      setTimeout(() => pollJobStatus(jobId, connectionId, pollCount + 1), 2000)
+    } else {
+      syncingConnections.value.delete(connectionId)
+    }
+  }
+}
 </script>
 
 <template>
@@ -242,25 +335,53 @@ async function handleReauthorise(connection: Connection) {
         <p class="mt-1 text-muted">Manage your connected bank accounts</p>
       </div>
 
-      <!-- New Connection button -->
-      <button
-        type="button"
-        class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
-        @click="openCreateModal"
-      >
-        <!-- Plus icon -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          class="h-5 w-5"
+      <!-- Action buttons -->
+      <div class="flex items-center gap-3">
+        <!-- Refresh button (only shown when there are connections) -->
+        <button
+          v-if="hasConnections"
+          type="button"
+          class="flex items-center gap-2 rounded-lg border border-border px-4 py-2 font-medium text-muted transition-colors hover:bg-border hover:text-foreground"
+          :disabled="syncingConnections.size > 0"
+          @click="loadData"
         >
-          <path
-            d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
-          />
-        </svg>
-        New Connection
-      </button>
+          <!-- Refresh icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-5 w-5"
+            :class="{ 'animate-spin': syncingConnections.size > 0 }"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Refresh
+        </button>
+
+        <!-- New Connection button -->
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
+          @click="openCreateModal"
+        >
+          <!-- Plus icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-5 w-5"
+          >
+            <path
+              d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+            />
+          </svg>
+          New Connection
+        </button>
+      </div>
     </div>
 
     <!-- Loading state -->
@@ -323,10 +444,13 @@ async function handleReauthorise(connection: Connection) {
         :key="connection.id"
         :connection="connection"
         :accounts="accountsByConnection[connection.id] || []"
+        :sync-job="syncJobs.get(connection.id) || null"
+        :syncing="syncingConnections.has(connection.id)"
         @edit-connection="openEditConnectionModal"
         @edit-account="openEditAccountModal"
         @reauthorise="handleReauthorise"
         @delete="openDeleteConfirm"
+        @sync="handleSync"
       />
     </div>
 

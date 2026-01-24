@@ -91,3 +91,29 @@ def map_gc_account_status(gc_status: str | None) -> AccountStatus:
     :returns: Normalised AccountStatus.
     """
     return _GC_ACCOUNT_STATUS_MAP.get(gc_status, AccountStatus.INACTIVE)
+
+
+class JobType(StrEnum):
+    """Type of background job.
+
+    - SYNC: Data synchronisation job (fetch from provider, update local data)
+    - EXPORT: Data export job (generate reports, CSV files, etc.)
+    """
+
+    SYNC = "sync"
+    EXPORT = "export"
+
+
+class JobStatus(StrEnum):
+    """Background job execution status.
+
+    - PENDING: Job created but not yet started
+    - RUNNING: Job is currently executing
+    - COMPLETED: Job finished successfully
+    - FAILED: Job failed with an error
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"

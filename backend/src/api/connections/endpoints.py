@@ -21,8 +21,9 @@ from src.api.connections.models import (
     UpdateConnectionRequest,
 )
 from src.api.dependencies import get_current_user, get_db, get_gocardless_credentials
+from src.api.jobs.models import JobResponse
 from src.postgres.auth.models import User
-from src.postgres.common.enums import ConnectionStatus, Provider
+from src.postgres.common.enums import ConnectionStatus, JobStatus, JobType, Provider
 from src.postgres.common.models import Connection
 from src.postgres.common.operations.connections import (
     create_connection as db_create_connection,
@@ -36,10 +37,20 @@ from src.postgres.common.operations.connections import (
     update_connection_status,
 )
 from src.postgres.common.operations.institutions import get_institution_by_id
+from src.postgres.common.operations.jobs import (
+    create_job,
+    get_latest_job_for_entity,
+    update_job_status,
+)
 from src.postgres.gocardless.models import RequisitionLink
 from src.postgres.gocardless.operations.requisitions import (
     add_requisition_link,
     update_requisition_record,
+)
+from src.providers.dagster import (
+    GOCARDLESS_CONNECTION_SYNC_JOB,
+    build_gocardless_run_config,
+    trigger_job,
 )
 from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.providers.gocardless.api.requisition import (
@@ -66,7 +77,7 @@ def list_connections(
     """
     connections = get_connections_by_user_id(db, current_user.id)
     return ConnectionListResponse(
-        connections=[_to_response(conn) for conn in connections],
+        connections=[_to_response(conn, db) for conn in connections],
         total=len(connections),
     )
 
@@ -118,6 +129,30 @@ def oauth_callback(
             # Linked - connection is active
             update_connection_status(db, connection.id, ConnectionStatus.ACTIVE)
             logger.info(f"Connection activated: id={connection.id}")
+
+            # Auto-trigger sync for the newly activated connection
+            job = create_job(
+                db,
+                user_id=connection.user_id,
+                job_type=JobType.SYNC,
+                entity_type="connection",
+                entity_id=connection.id,
+            )
+
+            run_config = build_gocardless_run_config(str(connection.id))
+            run_id = trigger_job(GOCARDLESS_CONNECTION_SYNC_JOB, run_config)
+
+            if run_id:
+                update_job_status(db, job.id, JobStatus.RUNNING, dagster_run_id=run_id)
+                logger.info(
+                    f"Auto-triggered sync for connection {connection.id}: job={job.id}, run={run_id}"
+                )
+            else:
+                update_job_status(db, job.id, JobStatus.FAILED, error_message="Dagster unavailable")
+                logger.warning(
+                    f"Failed to auto-trigger sync for connection {connection.id}: Dagster unavailable"
+                )
+
         elif new_status in ("EX", "RJ", "SA", "GA"):
             # Expired, Rejected, Suspended, or Giving Access error
             update_connection_status(db, connection.id, ConnectionStatus.EXPIRED)
@@ -153,7 +188,7 @@ def get_connection(
         raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
     if connection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
-    return _to_response(connection)
+    return _to_response(connection, db)
 
 
 @router.post("", response_model=CreateConnectionResponse, summary="Create new connection")
@@ -268,7 +303,7 @@ def update_connection(
     db.commit()
     db.refresh(updated)
     logger.info(f"Updated connection: id={connection_id}")
-    return _to_response(updated)
+    return _to_response(updated, db)
 
 
 @router.delete("/{connection_id}", status_code=204, summary="Delete connection")
@@ -420,8 +455,99 @@ def reauthorise_connection(
         ) from e
 
 
-def _to_response(connection: Connection) -> ConnectionResponse:
-    """Convert a Connection model to response."""
+@router.post(
+    "/{connection_id}/sync",
+    status_code=202,
+    response_model=JobResponse,
+    summary="Trigger connection sync",
+)
+def trigger_connection_sync(
+    connection_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> JobResponse:
+    """Trigger a data sync for a specific connection.
+
+    This endpoint creates a background job to sync data from the bank
+    for the specified connection. The job runs asynchronously via Dagster.
+
+    :param connection_id: Connection UUID to sync.
+    :param db: Database session.
+    :param current_user: Authenticated user.
+    :returns: Job details with status.
+    :raises HTTPException: If connection not found or not owned by user.
+    """
+    connection = get_connection_by_id(db, connection_id)
+    if not connection:
+        raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
+    if connection.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
+
+    if connection.status != ConnectionStatus.ACTIVE.value:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot sync connection with status '{connection.status}'. "
+            f"Connection must be active.",
+        )
+
+    # Create job record
+    job = create_job(
+        db,
+        user_id=current_user.id,
+        job_type=JobType.SYNC,
+        entity_type="connection",
+        entity_id=connection_id,
+    )
+
+    # Trigger Dagster job with connection scope
+    run_config = build_gocardless_run_config(str(connection_id))
+    run_id = trigger_job(GOCARDLESS_CONNECTION_SYNC_JOB, run_config)
+
+    if run_id:
+        update_job_status(db, job.id, JobStatus.RUNNING, dagster_run_id=run_id)
+        logger.info(f"Triggered sync for connection {connection_id}: job={job.id}, run={run_id}")
+    else:
+        update_job_status(db, job.id, JobStatus.FAILED, error_message="Dagster unavailable")
+        logger.warning(
+            f"Failed to trigger sync for connection {connection_id}: Dagster unavailable"
+        )
+
+    db.commit()
+    db.refresh(job)
+
+    return JobResponse(
+        id=str(job.id),
+        job_type=JobType(job.job_type),
+        status=JobStatus(job.status),
+        entity_type=job.entity_type,
+        entity_id=str(job.entity_id) if job.entity_id else None,
+        dagster_run_id=job.dagster_run_id,
+        error_message=job.error_message,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+    )
+
+
+def _to_response(connection: Connection, db: Session) -> ConnectionResponse:
+    """Convert a Connection model to response, including latest sync job."""
+    # Get latest sync job for this connection
+    latest_job = get_latest_job_for_entity(db, "connection", connection.id, JobType.SYNC)
+    latest_sync_job = None
+    if latest_job:
+        latest_sync_job = JobResponse(
+            id=str(latest_job.id),
+            job_type=JobType(latest_job.job_type),
+            status=JobStatus(latest_job.status),
+            entity_type=latest_job.entity_type,
+            entity_id=str(latest_job.entity_id) if latest_job.entity_id else None,
+            dagster_run_id=latest_job.dagster_run_id,
+            error_message=latest_job.error_message,
+            created_at=latest_job.created_at,
+            started_at=latest_job.started_at,
+            completed_at=latest_job.completed_at,
+        )
+
     return ConnectionResponse(
         id=str(connection.id),
         friendly_name=connection.friendly_name,
@@ -435,4 +561,5 @@ def _to_response(connection: Connection) -> ConnectionResponse:
         account_count=len(connection.accounts) if connection.accounts else 0,
         created_at=connection.created_at,
         expires_at=connection.expires_at,
+        latest_sync_job=latest_sync_job,
     )

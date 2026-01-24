@@ -3,6 +3,8 @@
 // TypeScript interfaces for connections, accounts, and institutions
 // =============================================================================
 
+import type { Job } from './jobs'
+
 // -----------------------------------------------------------------------------
 // Status Enums
 // -----------------------------------------------------------------------------
@@ -42,6 +44,7 @@ export interface Connection {
   account_count: number // Number of accounts in this connection
   created_at: string // ISO timestamp
   expires_at?: string // ISO timestamp - when auth expires
+  latest_sync_job?: Job | null // Most recent sync job for this connection
 }
 
 // -----------------------------------------------------------------------------

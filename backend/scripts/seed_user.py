@@ -1,12 +1,18 @@
-"""Seed script to create a development user and link existing GoCardless data.
+"""Seed script to create a user and link existing GoCardless data.
 
 Usage:
     cd backend
-    poetry run seed-dev
+    poetry run seed-user
+
+Required environment variables:
+    DEFAULT_USER_USERNAME - Username for the user
+    DEFAULT_USER_PASSWORD - Password for the user
+    DEFAULT_USER_FIRST_NAME - First name
+    DEFAULT_USER_LAST_NAME - Last name
 
 This script:
-1. Creates a dev user (username: "dev", password: "devpassword123") if not exists
-2. Links existing RequisitionLinks to the dev user via Connection records
+1. Creates a user from env vars if not exists
+2. Links existing RequisitionLinks to the user via Connection records
 3. Syncs accounts from gc_bank_accounts to the unified accounts table
 4. Syncs transactions from gc_transactions to the unified transactions table
 
@@ -14,6 +20,8 @@ This allows testing the full flow with real bank data that was previously
 pulled via the GoCardless seed script.
 """
 
+import os
+import sys
 from datetime import UTC, datetime
 
 from dotenv import load_dotenv
@@ -36,33 +44,51 @@ from src.postgres.core import create_session
 from src.postgres.gocardless.models import GoCardlessInstitution, RequisitionLink
 from src.utils.definitions import gocardless_database_url
 
-# Dev user credentials
-DEV_USERNAME = "dev"
-DEV_PASSWORD = "devpassword123"
-DEV_FIRST_NAME = "Dev"
-DEV_LAST_NAME = "User"
+
+def get_required_env(name: str) -> str:
+    """Get a required environment variable or exit with error.
+
+    :param name: Environment variable name.
+    :returns: The value.
+    """
+    value = os.environ.get(name)
+    if not value:
+        print(f"Error: Required environment variable {name} is not set")
+        print("See backend/.env_example for required variables")
+        sys.exit(1)
+    return value
 
 
-def get_or_create_dev_user(session: Session) -> User:
-    """Get or create the development user.
+def get_or_create_user(
+    session: Session,
+    username: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+) -> User:
+    """Get or create the user.
 
     :param session: SQLAlchemy session.
-    :returns: The dev user.
+    :param username: Username.
+    :param password: Password.
+    :param first_name: First name.
+    :param last_name: Last name.
+    :returns: The user.
     """
-    user = get_user_by_username(session, DEV_USERNAME)
+    user = get_user_by_username(session, username)
     if user:
-        print(f"Found existing dev user: id={user.id}")
+        print(f"Found existing user: id={user.id}, username={username}")
         return user
 
     user = create_user(
         session,
-        username=DEV_USERNAME,
-        password=DEV_PASSWORD,
-        first_name=DEV_FIRST_NAME,
-        last_name=DEV_LAST_NAME,
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
     )
     session.commit()
-    print(f"Created dev user: id={user.id}, username={DEV_USERNAME}")
+    print(f"Created user: id={user.id}, username={username}")
     return user
 
 
@@ -100,7 +126,7 @@ def ensure_institution_exists(session: Session, institution_id: str) -> Institut
 
 
 def link_requisitions_to_user(session: Session, user: User) -> int:
-    """Link existing RequisitionLinks to the dev user via Connection records.
+    """Link existing RequisitionLinks to the user via Connection records.
 
     :param session: SQLAlchemy session.
     :param user: The user to link requisitions to.
@@ -201,11 +227,17 @@ def sync_transactions_for_accounts(session: Session) -> int:
 
 
 def main() -> None:  # noqa: PLR0915
-    """Run the development user seed process."""
+    """Run the user seed process."""
     load_dotenv()
 
+    # Get required config from environment
+    username = get_required_env("DEFAULT_USER_USERNAME")
+    password = get_required_env("DEFAULT_USER_PASSWORD")
+    first_name = get_required_env("DEFAULT_USER_FIRST_NAME")
+    last_name = get_required_env("DEFAULT_USER_LAST_NAME")
+
     print("=" * 60)
-    print("Development User Seed Script")
+    print("User Seed Script")
     print("=" * 60)
     print()
 
@@ -213,9 +245,9 @@ def main() -> None:  # noqa: PLR0915
     session = create_session(gocardless_database_url())
 
     try:
-        # Step 1: Create/get dev user
-        print("Step 1: Creating/getting dev user...")
-        user = get_or_create_dev_user(session)
+        # Step 1: Create/get user
+        print("Step 1: Creating/getting user...")
+        user = get_or_create_user(session, username, password, first_name, last_name)
         print()
 
         # Step 2: Link requisitions to user (if any exist)
@@ -252,16 +284,16 @@ def main() -> None:  # noqa: PLR0915
         print("=" * 60)
         print("Summary")
         print("=" * 60)
-        print(f"Dev user: {DEV_USERNAME} / {DEV_PASSWORD}")
+        print(f"User: {username}")
         print(f"Connections created: {connections_created}")
         print(f"Accounts synced: {accounts_synced}")
         print(f"Transactions synced: {transactions_synced}")
         print()
-        print("You can now log in with the dev user credentials.")
+        print("You can now log in with the user credentials.")
         if connections_created == 0:
             print()
             print("Tip: Run 'make seed-gocardless' to fetch bank data, then")
-            print("     run 'make seed-dev' again to link it to the dev user.")
+            print("     run 'make seed-user' again to link it to the user.")
 
     except Exception as e:
         print(f"Error: {e}")

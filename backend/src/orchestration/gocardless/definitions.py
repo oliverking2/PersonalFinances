@@ -1,6 +1,7 @@
 """GoCardless Dagster Definitions."""
 
 from dagster import (
+    AssetKey,
     AssetSelection,
     Definitions,
     ScheduleDefinition,
@@ -11,14 +12,34 @@ from src.orchestration.gocardless.background_jobs.definitions import gocardless_
 from src.orchestration.gocardless.extraction.assets import extraction_asset_defs
 from src.orchestration.gocardless.sync.assets import sync_asset_defs
 
-# Create a job that runs all assets in the "gocardless" group
+# Full sync job - runs all assets including global ones (institutions, requisitions)
+# Used by the daily schedule
 gocardless_sync_job = define_asset_job(
     name="gocardless_sync_job",
     selection=AssetSelection.groups("gocardless"),
-    description="Extract data from GoCardless API and sync to unified tables.",
+    description="Full sync: extract all data from GoCardless API and sync to unified tables.",
 )
 
-# Schedule the job to run daily at 4 AM
+# Connection-scoped sync job - only runs assets relevant to a specific connection
+# Excludes institutions and requisitions (global data)
+# Used for manual refresh and post-OAuth sync
+CONNECTION_SYNC_ASSETS = [
+    # Extraction (from GoCardless API to raw tables)
+    AssetKey(["source", "gocardless", "extract", "transactions"]),
+    AssetKey(["source", "gocardless", "extract", "account_details"]),
+    AssetKey(["source", "gocardless", "extract", "account_balances"]),
+    # Sync (from raw tables to unified tables)
+    AssetKey(["sync", "gocardless", "accounts"]),
+    AssetKey(["sync", "gocardless", "transactions"]),
+]
+
+gocardless_connection_sync_job = define_asset_job(
+    name="gocardless_connection_sync_job",
+    selection=AssetSelection.assets(*CONNECTION_SYNC_ASSETS),
+    description="Connection-scoped sync: extract and sync data for a specific connection.",
+)
+
+# Schedule the full job to run daily at 4 AM
 gocardless_sync_schedule = ScheduleDefinition(
     job=gocardless_sync_job,
     cron_schedule="0 4 * * *",
@@ -30,7 +51,7 @@ gocardless_defs = Definitions.merge(
     gocardless_background_job_defs,
     sync_asset_defs,
     Definitions(
-        jobs=[gocardless_sync_job],
+        jobs=[gocardless_sync_job, gocardless_connection_sync_job],
         schedules=[gocardless_sync_schedule],
     ),
 )

@@ -2,19 +2,27 @@
 
 These assets extract data from the GoCardless API and write to Postgres.
 dbt then reads from Postgres and transforms into DuckDB for analytics.
+
+Assets can be configured with a connection_id to filter to a specific connection:
+    run_config = {"ops": {"*": {"config": {"connection_id": "uuid-here"}}}}
 """
 
 from datetime import date
+from typing import Optional
+from uuid import UUID
 
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    Config,
     Definitions,
     asset,
 )
 from dateutil.relativedelta import relativedelta
+from sqlalchemy.orm import Session
 
 from src.orchestration.resources import PostgresDatabase
+from src.postgres.common.models import Connection
 from src.postgres.gocardless.operations.balances import upsert_balances
 from src.postgres.gocardless.operations.bank_accounts import (
     get_active_accounts,
@@ -35,13 +43,46 @@ from src.providers.gocardless.api.institutions import get_institutions
 from src.providers.gocardless.api.requisition import get_all_requisition_data
 
 
+class ConnectionScopeConfig(Config):
+    """Config for scoping extraction to a specific connection."""
+
+    connection_id: Optional[str] = None
+
+
+def _get_requisition_id_for_connection(
+    session: Session, connection_id: str, context: AssetExecutionContext
+) -> Optional[str]:
+    """Get the requisition ID for a connection.
+
+    :param session: SQLAlchemy session.
+    :param connection_id: Connection UUID as string.
+    :param context: Asset execution context for logging.
+    :returns: Requisition ID (provider_id) or None if connection not found.
+    """
+    try:
+        conn_uuid = UUID(connection_id)
+    except ValueError:
+        context.log.error(f"Invalid connection_id format: {connection_id}")
+        return None
+
+    connection = session.get(Connection, conn_uuid)
+    if connection is None:
+        context.log.error(f"Connection not found: {connection_id}")
+        return None
+
+    context.log.info(f"Scoped to connection {connection_id}, requisition {connection.provider_id}")
+    return connection.provider_id
+
+
 @asset(
     key=AssetKey(["source", "gocardless", "extract", "transactions"]),
     group_name="gocardless",
     description="Extract transactions from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
 )
-def gocardless_extract_transactions(context: AssetExecutionContext) -> None:
+def gocardless_extract_transactions(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
     """Extract bank account transactions from GoCardless to Postgres."""
     creds: GoCardlessCredentials = context.resources.gocardless_api
     postgres_database: PostgresDatabase = context.resources.postgres_database
@@ -49,7 +90,16 @@ def gocardless_extract_transactions(context: AssetExecutionContext) -> None:
     today = date.today()
 
     with postgres_database.get_session() as session:
-        for account in get_active_accounts(session):
+        # Determine requisition filter if scoped to a connection
+        requisition_id = None
+        if config.connection_id:
+            requisition_id = _get_requisition_id_for_connection(
+                session, config.connection_id, context
+            )
+            if requisition_id is None:
+                return  # Error already logged
+
+        for account in get_active_accounts(session, requisition_id):
             watermark = get_transaction_watermark(session, account.id)
 
             context.log.info(f"Watermark for account {account.id}: {watermark}")
@@ -84,13 +134,24 @@ def gocardless_extract_transactions(context: AssetExecutionContext) -> None:
     description="Extract account details from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
 )
-def gocardless_extract_account_details(context: AssetExecutionContext) -> None:
+def gocardless_extract_account_details(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
     """Extract bank account details from GoCardless to Postgres."""
     creds: GoCardlessCredentials = context.resources.gocardless_api
     postgres_database: PostgresDatabase = context.resources.postgres_database
 
     with postgres_database.get_session() as session:
-        accounts = get_active_accounts(session)
+        # Determine requisition filter if scoped to a connection
+        requisition_id = None
+        if config.connection_id:
+            requisition_id = _get_requisition_id_for_connection(
+                session, config.connection_id, context
+            )
+            if requisition_id is None:
+                return  # Error already logged
+
+        accounts = get_active_accounts(session, requisition_id)
         for account in accounts:
             context.log.info(f"Extracting account details for {account.id}")
 
@@ -106,13 +167,24 @@ def gocardless_extract_account_details(context: AssetExecutionContext) -> None:
     description="Extract account balances from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
 )
-def gocardless_extract_balances(context: AssetExecutionContext) -> None:
+def gocardless_extract_balances(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
     """Extract bank account balances from GoCardless to Postgres."""
     creds: GoCardlessCredentials = context.resources.gocardless_api
     postgres_database: PostgresDatabase = context.resources.postgres_database
 
     with postgres_database.get_session() as session:
-        accounts = get_active_accounts(session)
+        # Determine requisition filter if scoped to a connection
+        requisition_id = None
+        if config.connection_id:
+            requisition_id = _get_requisition_id_for_connection(
+                session, config.connection_id, context
+            )
+            if requisition_id is None:
+                return  # Error already logged
+
+        accounts = get_active_accounts(session, requisition_id)
         for account in accounts:
             context.log.info(f"Extracting balance for account {account.id}")
 
@@ -128,10 +200,22 @@ def gocardless_extract_balances(context: AssetExecutionContext) -> None:
     description="Extract institutions from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
 )
-def gocardless_extract_institutions(context: AssetExecutionContext) -> None:
-    """Extract institution metadata from GoCardless to Postgres."""
+def gocardless_extract_institutions(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
+    """Extract institution metadata from GoCardless to Postgres.
+
+    Note: This asset does not filter by connection_id as institutions are global.
+    The config parameter is accepted for consistency with other extraction assets.
+    """
     creds: GoCardlessCredentials = context.resources.gocardless_api
     postgres_database: PostgresDatabase = context.resources.postgres_database
+
+    # Institutions are global, not connection-scoped
+    if config.connection_id:
+        context.log.info(
+            "connection_id provided but institutions are global - extracting all institutions"
+        )
 
     context.log.info("Fetching institutions from GoCardless API")
     institutions = get_institutions(creds)
@@ -148,14 +232,26 @@ def gocardless_extract_institutions(context: AssetExecutionContext) -> None:
     description="Extract requisition status from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
 )
-def gocardless_extract_requisitions(context: AssetExecutionContext) -> None:
+def gocardless_extract_requisitions(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
     """Extract requisition status from GoCardless to Postgres.
 
     Updates existing requisitions with latest status from GoCardless API.
     Does not create new requisitions (those are created via OAuth flow).
+
+    Note: This asset fetches all requisitions from GoCardless API regardless of
+    connection_id, as the GoCardless API doesn't support filtering. The config
+    parameter is accepted for consistency with other extraction assets.
     """
     creds: GoCardlessCredentials = context.resources.gocardless_api
     postgres_database: PostgresDatabase = context.resources.postgres_database
+
+    # Requisition status is fetched globally from GoCardless API
+    if config.connection_id:
+        context.log.info(
+            "connection_id provided but requisitions are fetched globally from GoCardless"
+        )
 
     context.log.info("Fetching requisitions from GoCardless API")
     requisitions = get_all_requisition_data(creds)

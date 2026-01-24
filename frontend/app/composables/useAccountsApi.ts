@@ -15,6 +15,7 @@ import type {
   UpdateAccountRequest,
   ReauthoriseResponse,
 } from '~/types/accounts'
+import type { Job, JobListResponse } from '~/types/jobs'
 import {
   useAuthenticatedFetch,
   ApiError,
@@ -111,6 +112,51 @@ export function useAccountsApi() {
   }
 
   // ---------------------------------------------------------------------------
+  // Sync / Jobs API
+  // ---------------------------------------------------------------------------
+
+  // Trigger a sync for a specific connection
+  async function triggerConnectionSync(connectionId: string): Promise<Job> {
+    return authFetch<Job>(`/api/connections/${connectionId}/sync`, {
+      method: 'POST',
+    })
+  }
+
+  // Get a job by ID (also updates status from Dagster if running)
+  async function fetchJob(jobId: string): Promise<Job> {
+    return authFetch<Job>(`/api/jobs/${jobId}`)
+  }
+
+  // List jobs, optionally filtered by entity
+  async function fetchJobs(params?: {
+    entity_type?: string
+    entity_id?: string
+    job_type?: string
+    limit?: number
+  }): Promise<JobListResponse> {
+    const query = new URLSearchParams()
+    if (params?.entity_type) query.set('entity_type', params.entity_type)
+    if (params?.entity_id) query.set('entity_id', params.entity_id)
+    if (params?.job_type) query.set('job_type', params.job_type)
+    if (params?.limit) query.set('limit', params.limit.toString())
+
+    const queryString = query.toString()
+    const url = queryString ? `/api/jobs?${queryString}` : '/api/jobs'
+    return authFetch<JobListResponse>(url)
+  }
+
+  // Get the most recent sync job for a connection
+  async function getLatestSyncJob(connectionId: string): Promise<Job | null> {
+    const response = await fetchJobs({
+      entity_type: 'connection',
+      entity_id: connectionId,
+      job_type: 'sync',
+      limit: 1,
+    })
+    return response.jobs[0] || null
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
   return {
@@ -127,6 +173,12 @@ export function useAccountsApi() {
 
     // Institutions
     fetchInstitutions,
+
+    // Sync / Jobs
+    triggerConnectionSync,
+    fetchJob,
+    fetchJobs,
+    getLatestSyncJob,
 
     // Export ApiError for error type checking
     ApiError,

@@ -54,8 +54,8 @@ setup:
 	@echo "=== Fetching GoCardless data ==="
 	@cd backend && poetry run seed-gocardless
 	@echo ""
-	@echo "=== Creating dev user ==="
-	@cd backend && poetry run seed-dev
+	@echo "=== Creating user ==="
+	@cd backend && poetry run seed-user
 	@echo ""
 	@echo "=== Bootstrapping DuckDB ==="
 	@cd backend && poetry run bootstrap-duckdb

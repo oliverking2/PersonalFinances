@@ -63,9 +63,19 @@ def upsert_bank_accounts(session: Session, req_id: str, accounts: list[dict[str,
     )
 
 
-def get_active_accounts(session: Session) -> list[BankAccount]:
-    """Get a list of active bank accounts."""
-    return session.query(BankAccount).filter(BankAccount.status == "READY").all()
+def get_active_accounts(session: Session, requisition_id: str | None = None) -> list[BankAccount]:
+    """Get a list of active bank accounts.
+
+    :param session: SQLAlchemy session.
+    :param requisition_id: Optional requisition ID to filter accounts.
+    :returns: List of active bank accounts.
+    """
+    query = session.query(BankAccount).filter(BankAccount.status == "READY")
+
+    if requisition_id is not None:
+        query = query.filter(BankAccount.requisition_id == requisition_id)
+
+    return query.all()
 
 
 def upsert_bank_account_details(

@@ -6,6 +6,7 @@ Includes actions: edit name, reauthorise (if expired or pending), delete
 
 <script setup lang="ts">
 import type { Connection, Account } from '~/types/accounts'
+import type { Job } from '~/types/jobs'
 
 // ---------------------------------------------------------------------------
 // Props & Emits
@@ -13,6 +14,8 @@ import type { Connection, Account } from '~/types/accounts'
 const props = defineProps<{
   connection: Connection
   accounts: Account[]
+  syncJob?: Job | null // Most recent sync job for this connection
+  syncing?: boolean // Whether a sync is currently in progress
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +23,7 @@ const emit = defineEmits<{
   editAccount: [account: Account]
   reauthorise: [connection: Connection]
   delete: [connection: Connection]
+  sync: [connection: Connection]
 }>()
 
 // ---------------------------------------------------------------------------
@@ -39,6 +43,13 @@ const needsReauth = computed(() =>
 )
 const isExpired = computed(() => props.connection.status === 'expired')
 const isPending = computed(() => props.connection.status === 'pending')
+const isActive = computed(() => props.connection.status === 'active')
+
+// Sync status
+const isSyncing = computed(() => props.syncing === true)
+const lastSyncFailed = computed(
+  () => props.syncJob?.status === 'failed' && !isSyncing.value,
+)
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -55,6 +66,11 @@ function handleEditAccount(account: Account) {
 
 function handleReauthorise() {
   emit('reauthorise', props.connection)
+}
+
+function handleSync() {
+  showMenu.value = false
+  emit('sync', props.connection)
 }
 
 function handleDelete() {
@@ -107,9 +123,50 @@ function closeMenu() {
         </div>
       </div>
 
-      <!-- Right: status badge and actions -->
+      <!-- Right: status badge, sync status, and actions -->
       <div class="flex items-center gap-3">
         <AccountsStatusIndicator :status="connection.status" />
+
+        <!-- Sync status indicator (shown when syncing or last sync failed) -->
+        <span
+          v-if="isSyncing"
+          class="flex items-center gap-1.5 text-sm text-muted"
+        >
+          <!-- Spinning refresh icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-4 w-4 animate-spin"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Syncing...
+        </span>
+        <span
+          v-else-if="lastSyncFailed"
+          class="flex items-center gap-1.5 text-sm text-negative"
+          title="Last sync failed"
+        >
+          <!-- Warning icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-4 w-4"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Sync failed
+        </span>
 
         <!-- Reauthorise button (shown when expired or pending) -->
         <button
@@ -119,6 +176,29 @@ function closeMenu() {
           @click="handleReauthorise"
         >
           {{ isPending ? 'Authorise' : 'Reauthorise' }}
+        </button>
+
+        <!-- Sync button (shown for active connections) -->
+        <button
+          v-if="isActive && !isSyncing"
+          type="button"
+          class="rounded p-1.5 text-muted transition-colors hover:bg-border hover:text-foreground"
+          title="Sync now"
+          @click="handleSync"
+        >
+          <!-- Refresh icon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-5 w-5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
+              clip-rule="evenodd"
+            />
+          </svg>
         </button>
 
         <!-- Overflow menu -->

@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,7 +17,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # the Connection.user_id foreign key. Without this, operations that use Connection
 # without importing auth.models will fail with NoReferencedTableError.
 from src.postgres.auth.models import User  # noqa: F401
-from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
+from src.postgres.common.enums import (
+    AccountStatus,
+    AccountType,
+    ConnectionStatus,
+    JobStatus,
+    JobType,
+    Provider,
+)
 from src.postgres.core import Base
 
 # Use JSON type that falls back gracefully to SQLite JSON while using JSONB on PostgreSQL
@@ -300,3 +307,54 @@ class Transaction(Base):
             unique=True,
         ),
     )
+
+
+class Job(Base):
+    """Database model for background jobs.
+
+    Tracks the status of asynchronous jobs such as data sync operations,
+    exports, and other long-running tasks. Jobs can be associated with
+    a specific entity (e.g., a connection) or be global.
+    """
+
+    __tablename__ = "jobs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    dagster_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    __table_args__ = (
+        Index("idx_jobs_user_status", "user_id", "status"),
+        Index("idx_jobs_entity", "entity_type", "entity_id"),
+    )
+
+    @property
+    def job_type_enum(self) -> JobType:
+        """Get job_type as JobType enum."""
+        return JobType(self.job_type)
+
+    @property
+    def status_enum(self) -> JobStatus:
+        """Get status as JobStatus enum."""
+        return JobStatus(self.status)
