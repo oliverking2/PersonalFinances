@@ -7,6 +7,7 @@ from src.api.accounts.endpoints import router as accounts_router
 from src.api.auth.endpoints import router as auth_router
 from src.api.connections.endpoints import router as connections_router
 from src.api.institutions.endpoints import router as institutions_router
+from src.api.middleware import RequestTimingMiddleware
 from src.api.transactions.endpoints import router as transactions_router
 from src.utils.logging import configure_logging
 
@@ -36,6 +37,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Request timing middleware (logs at DEBUG level)
+    app.add_middleware(RequestTimingMiddleware)
 
     # Include routers
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
