@@ -1,6 +1,7 @@
 """Tests for connection API endpoints."""
 
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from src.postgres.auth.models import User
 from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution
+from src.postgres.gocardless.models import RequisitionLink
 from src.utils.security import create_access_token, hash_password
 
 
@@ -48,6 +50,25 @@ def test_connection_in_db(
 
 
 @pytest.fixture
+def test_expired_connection_in_db(
+    api_db_session: Session, test_user_in_db: User, test_institution_in_db: Institution
+) -> Connection:
+    """Create an expired connection in the database."""
+    connection = Connection(
+        user_id=test_user_in_db.id,
+        provider=Provider.GOCARDLESS.value,
+        provider_id="test-expired-req-id",
+        institution_id=test_institution_in_db.id,
+        friendly_name="Expired Connection",
+        status=ConnectionStatus.EXPIRED.value,
+        created_at=datetime.now(),
+    )
+    api_db_session.add(connection)
+    api_db_session.commit()
+    return connection
+
+
+@pytest.fixture
 def test_account_in_db(api_db_session: Session, test_connection_in_db: Connection) -> Account:
     """Create an account in the database."""
     account = Account(
@@ -62,6 +83,12 @@ def test_account_in_db(api_db_session: Session, test_connection_in_db: Connectio
     api_db_session.add(account)
     api_db_session.commit()
     return account
+
+
+@pytest.fixture
+def mock_gocardless_api() -> MagicMock:
+    """Create a mock for GoCardless API responses."""
+    return MagicMock()
 
 
 class TestListConnections:
@@ -259,38 +286,270 @@ class TestDeleteConnection:
 class TestCreateConnection:
     """Tests for POST /api/connections endpoint."""
 
-    def test_returns_501_not_implemented(
+    @patch("src.api.connections.endpoints.create_link")
+    def test_creates_connection_success(
         self,
+        mock_create_link: MagicMock,
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_institution_in_db: Institution,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Should return 501 (not implemented yet)."""
+        """Should create connection and return OAuth link."""
+        # Set environment variable
+        monkeypatch.setenv("GC_CALLBACK_URL", "http://localhost:8000/api/connections/callback")
+
+        # Mock GoCardless API response
+        mock_create_link.return_value = {
+            "id": "new-req-id-123",
+            "created": "2026-01-24T12:00:00Z",
+            "redirect": "http://localhost:8000/api/connections/callback",
+            "status": "CR",
+            "institution_id": "CHASE_CHASGB2L",
+            "agreement": "agreement-id",
+            "reference": "ref-123",
+            "link": "https://ob.gocardless.com/psd2/start/new-req-id-123",
+            "ssn": None,
+            "account_selection": False,
+            "redirect_immediate": False,
+        }
+
         response = client.post(
             "/api/connections",
             headers=api_auth_headers,
+            json={
+                "institution_id": "CHASE_CHASGB2L",
+                "friendly_name": "My Chase Account",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "id" in data
+        assert data["link"] == "https://ob.gocardless.com/psd2/start/new-req-id-123"
+
+    def test_returns_404_for_invalid_institution(
+        self,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should return 404 for non-existent institution."""
+        response = client.post(
+            "/api/connections",
+            headers=api_auth_headers,
+            json={
+                "institution_id": "NONEXISTENT_BANK",
+                "friendly_name": "My Bank",
+            },
+        )
+
+        assert response.status_code == 404
+        assert "Institution not found" in response.json()["detail"]
+
+    def test_returns_401_without_auth(
+        self,
+        client: TestClient,
+        test_institution_in_db: Institution,
+    ) -> None:
+        """Should return 401 without authentication."""
+        response = client.post(
+            "/api/connections",
             json={
                 "institution_id": "CHASE_CHASGB2L",
                 "friendly_name": "My Chase",
             },
         )
 
-        assert response.status_code == 501
+        assert response.status_code == 401
 
 
 class TestReauthoriseConnection:
     """Tests for POST /api/connections/{id}/reauthorise endpoint."""
 
-    def test_returns_501_not_implemented(
+    @patch("src.api.connections.endpoints.create_link")
+    def test_reauthorises_expired_connection(
+        self,
+        mock_create_link: MagicMock,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_expired_connection_in_db: Connection,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should generate new auth link for expired connection."""
+        # Set environment variable
+        monkeypatch.setenv("GC_CALLBACK_URL", "http://localhost:8000/api/connections/callback")
+
+        # Mock GoCardless API response
+        mock_create_link.return_value = {
+            "id": "reauth-req-id-456",
+            "created": "2026-01-24T12:00:00Z",
+            "redirect": "http://localhost:8000/api/connections/callback",
+            "status": "CR",
+            "institution_id": "CHASE_CHASGB2L",
+            "agreement": "agreement-id",
+            "reference": "ref-456",
+            "link": "https://ob.gocardless.com/psd2/start/reauth-req-id-456",
+            "ssn": None,
+            "account_selection": False,
+            "redirect_immediate": False,
+        }
+
+        response = client.post(
+            f"/api/connections/{test_expired_connection_in_db.id}/reauthorise",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == str(test_expired_connection_in_db.id)
+        assert data["link"] == "https://ob.gocardless.com/psd2/start/reauth-req-id-456"
+
+    def test_returns_400_for_non_expired_connection(
         self,
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_connection_in_db: Connection,
     ) -> None:
-        """Should return 501 (not implemented yet)."""
+        """Should return 400 if connection is not expired."""
         response = client.post(
             f"/api/connections/{test_connection_in_db.id}/reauthorise",
             headers=api_auth_headers,
         )
 
-        assert response.status_code == 501
+        assert response.status_code == 400
+        assert "not expired" in response.json()["detail"]
+
+    def test_returns_404_for_nonexistent_connection(
+        self,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_institution_in_db: Institution,
+    ) -> None:
+        """Should return 404 for nonexistent connection."""
+        response = client.post(
+            f"/api/connections/{uuid4()}/reauthorise",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 404
+
+    def test_returns_404_for_other_users_connection(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_institution_in_db: Institution,
+    ) -> None:
+        """Should return 404 for connection owned by another user."""
+        # Create another user and their expired connection
+        other_user = User(
+            username="otheruser2",
+            password_hash=hash_password("password"),
+            first_name="Other",
+            last_name="User",
+        )
+        api_db_session.add(other_user)
+        api_db_session.commit()
+
+        other_conn = Connection(
+            user_id=other_user.id,
+            provider=Provider.GOCARDLESS.value,
+            provider_id="other-expired-req-id",
+            institution_id=test_institution_in_db.id,
+            friendly_name="Other Expired Connection",
+            status=ConnectionStatus.EXPIRED.value,
+            created_at=datetime.now(),
+        )
+        api_db_session.add(other_conn)
+        api_db_session.commit()
+
+        # Create another user who tries to reauthorise it
+        requesting_user = User(
+            username="requestuser2",
+            password_hash=hash_password("password"),
+            first_name="Request",
+            last_name="User",
+        )
+        api_db_session.add(requesting_user)
+        api_db_session.commit()
+
+        token = create_access_token(requesting_user.id)
+        response = client.post(
+            f"/api/connections/{other_conn.id}/reauthorise",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 404
+
+
+class TestOAuthCallback:
+    """Tests for GET /api/connections/callback endpoint."""
+
+    @patch("src.api.connections.endpoints.get_requisition_data_by_id")
+    def test_callback_success_linked(
+        self,
+        mock_get_requisition: MagicMock,
+        client: TestClient,
+        api_db_session: Session,
+        test_connection_in_db: Connection,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should process callback and redirect to frontend on success."""
+        monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+
+        # Create a requisition for the existing connection
+        requisition = RequisitionLink(
+            id=test_connection_in_db.provider_id,
+            created=datetime.now(),
+            updated=datetime.now(),
+            redirect="http://localhost:8000/api/connections/callback",
+            status="CR",
+            institution_id=test_connection_in_db.institution_id,
+            agreement="agreement-id",
+            reference="ref-123",
+            link="https://ob.gocardless.com/psd2/start/test-req-id",
+            ssn=None,
+            account_selection=False,
+            redirect_immediate=False,
+            friendly_name="Test Connection",
+        )
+        api_db_session.add(requisition)
+
+        # Update connection to PENDING status
+        test_connection_in_db.status = ConnectionStatus.PENDING.value
+        api_db_session.commit()
+
+        # Mock GoCardless returning linked status
+        mock_get_requisition.return_value = {"status": "LN"}
+
+        response = client.get(
+            "/api/connections/callback",
+            params={"ref": test_connection_in_db.provider_id},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 307
+        assert "callback=success" in response.headers["location"]
+
+        # Verify connection status was updated
+        api_db_session.expire_all()
+        updated_conn = api_db_session.get(Connection, test_connection_in_db.id)
+        assert updated_conn is not None
+        assert updated_conn.status == ConnectionStatus.ACTIVE.value
+
+    def test_callback_unknown_requisition(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should redirect with error for unknown requisition."""
+        monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+
+        response = client.get(
+            "/api/connections/callback",
+            params={"ref": "nonexistent-req-id"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 307
+        assert "callback=error" in response.headers["location"]
+        assert "unknown_requisition" in response.headers["location"]

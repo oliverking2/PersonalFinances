@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -32,7 +33,7 @@ class TransactionListResponse(BaseModel):
 class TransactionQueryParams(BaseModel):
     """Query parameters for filtering transactions."""
 
-    account_id: str | None = Field(None, description="Filter by account ID")
+    account_id: UUID | None = Field(None, description="Filter by account ID")
     start_date: date | None = Field(None, description="Filter from date")
     end_date: date | None = Field(None, description="Filter to date")
     min_amount: Decimal | None = Field(None, description="Minimum amount")

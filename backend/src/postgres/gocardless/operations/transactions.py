@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.postgres.gocardless.models import Transaction
+from src.postgres.gocardless.models import GoCardlessTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +90,10 @@ def _upsert_single_transaction(
 
     # Find existing transaction
     existing = (
-        session.query(Transaction)
+        session.query(GoCardlessTransaction)
         .filter(
-            Transaction.account_id == account_id,
-            Transaction.transaction_id == transaction_id,
+            GoCardlessTransaction.account_id == account_id,
+            GoCardlessTransaction.transaction_id == transaction_id,
         )
         .first()
     )
@@ -131,7 +131,7 @@ def _upsert_single_transaction(
         existing.extracted_at = extracted_at
     else:
         # Create new transaction
-        transaction = Transaction(
+        transaction = GoCardlessTransaction(
             account_id=account_id,
             transaction_id=transaction_id,
             booking_date=_parse_date(txn.get("bookingDate")),

@@ -1,4 +1,9 @@
-"""Bootstraps DuckDB with the required extensions."""
+"""Bootstraps DuckDB with the required extensions.
+
+Usage:
+    cd backend
+    poetry run bootstrap-duckdb
+"""
 
 import duckdb
 
@@ -13,8 +18,8 @@ def bootstrap() -> None:
     con.execute("INSTALL postgres;")
     con.execute("LOAD postgres;")
     con.close()
+    print("DuckDB bootstrap complete.")
 
 
 if __name__ == "__main__":
     bootstrap()
-    print("DuckDB bootstrap complete.")

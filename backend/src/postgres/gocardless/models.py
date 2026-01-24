@@ -15,6 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.postgres.common.models import _JSONType
 from src.postgres.core import Base
 
 
@@ -114,7 +115,7 @@ class Balance(Base):
     account: Mapped[BankAccount] = relationship("BankAccount", back_populates="balances")
 
 
-class Transaction(Base):
+class GoCardlessTransaction(Base):
     """Database model for bank transactions.
 
     Stores transaction data from GoCardless API.
@@ -177,3 +178,19 @@ class EndUserAgreement(Base):
     access_scope: Mapped[str] = mapped_column(String(200), nullable=False)
     accepted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     reconfirmation: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
+class GoCardlessInstitution(Base):
+    """Raw GoCardless institution metadata.
+
+    Store as much as practical in this provider-specific table.
+    Unified Institution mapping should stay minimal.
+    """
+
+    __tablename__ = "gc_institutions"
+
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    bic: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    logo: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    countries: Mapped[list[str] | None] = mapped_column(_JSONType, nullable=True)

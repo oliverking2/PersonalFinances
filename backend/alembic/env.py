@@ -26,6 +26,7 @@ if config.config_file_name is not None:
 
 from src.postgres.gocardless.models import *  # noqa: F403, E402
 from src.postgres.auth.models import *  # noqa: F403, E402
+from src.postgres.common.models import *  # noqa: F403, E402
 
 target_metadata = Base.metadata
 

@@ -193,6 +193,45 @@ def upsert_requisition_status(session: Session, req_id: str, new_status: str) ->
         raise
 
 
+def upsert_requisitions(session: Session, requisitions: list[dict[str, Any]]) -> int:
+    """Upsert requisition data from GoCardless API into gc_requisition_links.
+
+    Updates existing requisitions with latest status and metadata.
+    Does not create new requisitions (those are created via OAuth flow).
+
+    :param session: SQLAlchemy session.
+    :param requisitions: List of requisition payloads from GoCardless API.
+    :returns: Number of requisitions updated.
+    """
+    if not requisitions:
+        logger.info("No requisitions provided; skipping upsert")
+        return 0
+
+    count = 0
+    for req in requisitions:
+        req_id = req["id"]
+
+        existing = session.get(RequisitionLink, req_id)
+        if not existing:
+            # Skip requisitions not in our database (created elsewhere)
+            logger.debug(f"Requisition {req_id} not found in database; skipping")
+            continue
+
+        # Update status and other fields
+        old_status = existing.status
+        existing.status = req.get("status", existing.status)
+        existing.updated = datetime.now()
+
+        if old_status != existing.status:
+            logger.info(f"Requisition {req_id} status changed: {old_status} -> {existing.status}")
+
+        count += 1
+
+    session.flush()
+    logger.info(f"Updated {count} requisitions in gc_requisition_links")
+    return count
+
+
 def create_new_requisition_link(
     session: Session, creds: GoCardlessCredentials, institution_id: str, friendly_name: str
 ) -> RequisitionLink:

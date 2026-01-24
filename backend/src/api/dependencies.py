@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.postgres.auth.models import User
 from src.postgres.auth.operations.users import get_user_by_id
 from src.postgres.core import create_session
+from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.utils.definitions import gocardless_database_url
 from src.utils.security import decode_access_token
 
@@ -53,3 +54,14 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+
+def get_gocardless_credentials() -> GoCardlessCredentials:
+    """Get GoCardless API credentials.
+
+    Creates a new GoCardlessCredentials instance that handles
+    token management and API authentication.
+
+    :returns: GoCardless credentials with active access token.
+    """
+    return GoCardlessCredentials()

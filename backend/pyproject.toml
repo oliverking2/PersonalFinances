@@ -3,7 +3,16 @@ name = "personal_finances"
 version = "0.1.0"
 
 [tool.poetry]
-package-mode = false
+packages = [
+    { include = "src" },
+    { include = "scripts" },
+]
+
+[tool.poetry.scripts]
+seed-gocardless = "scripts.seed_gocardless:main"
+seed-dev = "scripts.seed_dev:main"
+seed-demo = "scripts.seed_demo:main"
+bootstrap-duckdb = "scripts.bootstrap_duckdb:bootstrap"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.14"

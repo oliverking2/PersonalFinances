@@ -54,6 +54,8 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [ ] Transaction endpoints (list, search, filter)
 - [ ] Analytics endpoints (aggregations from dbt marts)
 - [ ] Seed data for a specific user for demo purposes.
+- [ ] Review backend auth, look into _bearer_auth scheme
+- [ ] Logging for the amount of time to make a request
 
 ### Frontend (Vue + Nuxt + Tailwind)
 

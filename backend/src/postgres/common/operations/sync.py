@@ -18,8 +18,14 @@ from src.postgres.common.enums import (
     map_gc_account_status,
     map_gc_requisition_status,
 )
-from src.postgres.common.models import Account, Connection
-from src.postgres.gocardless.models import Balance, BankAccount, RequisitionLink
+from src.postgres.common.models import Account, Connection, Institution, Transaction
+from src.postgres.gocardless.models import (
+    Balance,
+    BankAccount,
+    GoCardlessInstitution,
+    GoCardlessTransaction,
+    RequisitionLink,
+)
 
 logger = get_dagster_logger()
 
@@ -293,3 +299,171 @@ def mark_missing_accounts_inactive(
 
     session.flush()
     return count
+
+
+def sync_gocardless_institution(
+    session: Session,
+    gc_institution: GoCardlessInstitution,
+) -> Institution:
+    """Sync a unified Institution from a GoCardless institution row.
+
+    :param session: SQLAlchemy session.
+    :param gc_institution: GoCardless institution record from gc_institutions.
+    :returns: The created or updated Institution.
+    """
+    existing = session.get(Institution, gc_institution.id)
+
+    if existing:
+        existing.provider = Provider.GOCARDLESS.value
+        existing.name = gc_institution.name
+        existing.logo_url = gc_institution.logo
+        existing.countries = gc_institution.countries
+        session.flush()
+        logger.info(f"Updated institution: id={existing.id}, provider=gocardless")
+        return existing
+
+    institution = Institution(
+        id=gc_institution.id,
+        provider=Provider.GOCARDLESS.value,
+        name=gc_institution.name,
+        logo_url=gc_institution.logo,
+        countries=gc_institution.countries,
+    )
+    session.add(institution)
+    session.flush()
+    logger.info(f"Created institution: id={institution.id}, provider=gocardless")
+    return institution
+
+
+def sync_all_gocardless_institutions(session: Session) -> list[Institution]:
+    """Sync all GoCardless institutions from gc_institutions into unified institutions.
+
+    :param session: SQLAlchemy session.
+    :returns: List of synced Institution objects.
+    """
+    gc_institutions = session.query(GoCardlessInstitution).all()
+    logger.info(f"Found {len(gc_institutions)} GoCardless institutions in gc_institutions")
+
+    if not gc_institutions:
+        logger.warning(
+            "No GoCardless institutions found in gc_institutions. "
+            "Run the extraction step first to populate gc_institutions."
+        )
+        return []
+
+    synced: list[Institution] = []
+    for gc_inst in gc_institutions:
+        inst = sync_gocardless_institution(session, gc_inst)
+        synced.append(inst)
+
+    logger.info(f"Synced {len(synced)} GoCardless institutions")
+    return synced
+
+
+def sync_gocardless_transaction(
+    session: Session,
+    gc_transaction: GoCardlessTransaction,
+    account: Account,
+) -> Transaction:
+    """Sync a unified Transaction from a GoCardless transaction row.
+
+    :param session: SQLAlchemy session.
+    :param gc_transaction: GoCardless transaction record from gc_transactions.
+    :param account: The unified Account this transaction belongs to.
+    :returns: The created or updated Transaction.
+    """
+    # Find existing transaction by account_id and provider_id
+    existing = (
+        session.query(Transaction)
+        .filter(
+            Transaction.account_id == account.id,
+            Transaction.provider_id == gc_transaction.transaction_id,
+        )
+        .first()
+    )
+
+    # Determine counterparty (creditor for outgoing, debtor for incoming)
+    if gc_transaction.transaction_amount < 0:
+        counterparty_name = gc_transaction.creditor_name
+        counterparty_account = gc_transaction.creditor_account
+    else:
+        counterparty_name = gc_transaction.debtor_name
+        counterparty_account = gc_transaction.debtor_account
+
+    # Convert date to datetime if present
+    booking_datetime = None
+    if gc_transaction.booking_datetime:
+        booking_datetime = gc_transaction.booking_datetime
+    elif gc_transaction.booking_date:
+        booking_datetime = datetime.combine(
+            gc_transaction.booking_date, datetime.min.time(), tzinfo=UTC
+        )
+
+    value_datetime = None
+    if gc_transaction.value_date:
+        value_datetime = datetime.combine(
+            gc_transaction.value_date, datetime.min.time(), tzinfo=UTC
+        )
+
+    now = datetime.now(UTC)
+
+    if existing:
+        existing.booking_date = booking_datetime
+        existing.value_date = value_datetime
+        existing.amount = gc_transaction.transaction_amount
+        existing.currency = gc_transaction.currency
+        existing.counterparty_name = counterparty_name
+        existing.counterparty_account = counterparty_account
+        existing.description = gc_transaction.remittance_information
+        existing.synced_at = now
+        session.flush()
+        return existing
+
+    transaction = Transaction(
+        account_id=account.id,
+        provider_id=gc_transaction.transaction_id,
+        booking_date=booking_datetime,
+        value_date=value_datetime,
+        amount=gc_transaction.transaction_amount,
+        currency=gc_transaction.currency,
+        counterparty_name=counterparty_name,
+        counterparty_account=counterparty_account,
+        description=gc_transaction.remittance_information,
+        synced_at=now,
+    )
+    session.add(transaction)
+    session.flush()
+    return transaction
+
+
+def sync_all_gocardless_transactions(
+    session: Session,
+    account: Account,
+) -> list[Transaction]:
+    """Sync all GoCardless transactions for an account.
+
+    :param session: SQLAlchemy session.
+    :param account: The unified Account to sync transactions for.
+    :returns: List of synced Transaction objects.
+    """
+    # Get the GoCardless account ID from the unified account's provider_id
+    gc_account_id = account.provider_id
+
+    gc_transactions = (
+        session.query(GoCardlessTransaction)
+        .filter(GoCardlessTransaction.account_id == gc_account_id)
+        .all()
+    )
+
+    logger.info(f"Found {len(gc_transactions)} GoCardless transactions for account {account.id}")
+
+    if not gc_transactions:
+        return []
+
+    synced: list[Transaction] = []
+    for gc_txn in gc_transactions:
+        txn = sync_gocardless_transaction(session, gc_txn, account)
+        synced.append(txn)
+
+    logger.info(f"Synced {len(synced)} transactions for account {account.id}")
+    return synced

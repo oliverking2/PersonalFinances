@@ -1,102 +1,144 @@
-.PHONY: help setup up down reset check logs
+.PHONY: help setup setup-demo up up-backend up-frontend up-dagster down reset check logs
 
 # Default target
 help:
 	@echo "Usage:"
-	@echo "  make setup   First-time setup (create .env files, install dependencies)"
-	@echo "  make up      Start everything (postgres, migrations, backend, frontend)"
-	@echo "  make down    Stop everything"
-	@echo "  make reset   Stop and destroy all data, then start fresh"
-	@echo "  make check   Run all validation checks"
-	@echo "  make logs    Tail all container logs"
+	@echo ""
+	@echo "Local dev:"
+	@echo "  make setup        First-time setup with real bank data (requires GoCardless)"
+	@echo "  make setup-demo   First-time setup with fake demo data (no API needed)"
+	@echo "  make up-backend   Start API server (hot reload)"
+	@echo "  make up-frontend  Start frontend (hot reload)"
+	@echo "  make up-dagster   Start Dagster UI"
+	@echo ""
+	@echo "Server:"
+	@echo "  make up           Start all services (docker-compose)"
+	@echo "  make down         Stop all services"
+	@echo "  make reset        Destroy all data and run setup again"
+	@echo ""
+	@echo "  make check        Run all validation checks"
 
 # =============================================================================
-# First-time setup
+# Setup
 # =============================================================================
 setup:
-	@echo "Creating .env files..."
+	@echo "=== Creating .env files ==="
 	@if [ ! -f .env.compose ]; then \
 		cp .env.compose.example .env.compose; \
-		echo "  Created .env.compose"; \
+		echo "Created .env.compose"; \
 	else \
-		echo "  .env.compose already exists"; \
+		echo ".env.compose already exists"; \
 	fi
 	@if [ ! -f backend/.env ]; then \
 		cp backend/.env_example backend/.env; \
-		echo "  Created backend/.env"; \
+		echo "Created backend/.env"; \
 	else \
-		echo "  backend/.env already exists"; \
+		echo "backend/.env already exists"; \
 	fi
 	@echo ""
-	@echo "Installing backend dependencies..."
+	@echo "=== Installing dependencies ==="
 	@cd backend && poetry install --with dev
-	@echo ""
-	@echo "Installing frontend dependencies..."
 	@cd frontend && npm install
 	@echo ""
-	@echo "Setup complete!"
-	@echo "Edit .env.compose and backend/.env with your credentials, then run: make up"
+	@echo "=== Starting database ==="
+	@$(COMPOSE) up -d postgres
+	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
+		sleep 1; \
+	done
+	@echo "Postgres ready."
+	@echo ""
+	@echo "=== Running migrations ==="
+	@cd backend && poetry run alembic upgrade head
+	@echo ""
+	@echo "=== Fetching GoCardless data ==="
+	@cd backend && poetry run seed-gocardless
+	@echo ""
+	@echo "=== Creating dev user ==="
+	@cd backend && poetry run seed-dev
+	@echo ""
+	@echo "=== Bootstrapping DuckDB ==="
+	@cd backend && poetry run bootstrap-duckdb
+	@echo ""
+	@echo "=== Running dbt models ==="
+	@set -a && . backend/.env && set +a && cd backend/dbt && poetry run dbt run --profiles-dir . --profile duckdb_local
+	@echo ""
+	@echo "=== Setup complete! ==="
+	@echo ""
+	@echo "Start dev servers in separate terminals:"
+	@echo "  make up-backend    http://localhost:8000"
+	@echo "  make up-frontend   http://localhost:3000"
+	@echo "  make up-dagster    http://localhost:3001"
+	@echo ""
+	@echo "Login: dev / devpassword123"
+
+setup-demo:
+	@echo "=== Creating .env files ==="
+	@if [ ! -f .env.compose ]; then \
+		cp .env.compose.example .env.compose; \
+		echo "Created .env.compose"; \
+	else \
+		echo ".env.compose already exists"; \
+	fi
+	@if [ ! -f backend/.env ]; then \
+		cp backend/.env_example backend/.env; \
+		echo "Created backend/.env"; \
+	else \
+		echo "backend/.env already exists"; \
+	fi
+	@echo ""
+	@echo "=== Installing dependencies ==="
+	@cd backend && poetry install --with dev
+	@cd frontend && npm install
+	@echo ""
+	@echo "=== Starting database ==="
+	@$(COMPOSE) up -d postgres
+	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
+		sleep 1; \
+	done
+	@echo "Postgres ready."
+	@echo ""
+	@echo "=== Running migrations ==="
+	@cd backend && poetry run alembic upgrade head
+	@echo ""
+	@echo "=== Creating demo user with fake data ==="
+	@cd backend && poetry run seed-demo
+	@echo ""
+	@echo "=== Bootstrapping DuckDB ==="
+	@cd backend && poetry run bootstrap-duckdb
+	@echo ""
+	@echo "=== Running dbt models ==="
+	@set -a && . backend/.env && set +a && cd backend/dbt && poetry run dbt run --profiles-dir . --profile duckdb_local
+	@echo ""
+	@echo "=== Setup complete! ==="
+	@echo ""
+	@echo "Start dev servers in separate terminals:"
+	@echo "  make up-backend    http://localhost:8000"
+	@echo "  make up-frontend   http://localhost:3000"
+	@echo "  make up-dagster    http://localhost:3001"
+	@echo ""
+	@echo "Login: demo / demopassword123"
 
 # =============================================================================
-# Up / Down
+# Server (docker-compose)
 # =============================================================================
 COMPOSE := docker compose --env-file .env.compose
 
 up:
-	@echo "Starting postgres..."
 	@$(COMPOSE) up -d postgres
-	@echo "Waiting for postgres to be ready..."
 	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
 		sleep 1; \
 	done
-	@echo "Postgres ready."
-	@echo ""
-	@echo "Running database migrations..."
 	@cd backend && poetry run alembic upgrade head
-	@echo ""
-	@echo "Starting all services..."
 	@$(COMPOSE) up -d --build
 	@echo ""
-	@echo "All services started:"
-	@echo "  Frontend:    http://localhost:3000"
-	@echo "  Backend API: http://localhost:8000"
-	@echo "  API Docs:    http://localhost:8000/docs"
-	@echo "  Dagster:     http://localhost:3001"
-
-down:
-	@echo "Stopping all services..."
-	@$(COMPOSE) down
-	@echo "Done."
-
-reset:
-	@echo "Stopping and removing all data..."
-	@$(COMPOSE) down -v
-	@echo "Starting fresh..."
-	@$(MAKE) up
+	@echo "Services running:"
+	@echo "  Frontend:  http://localhost:3000"
+	@echo "  Backend:   http://localhost:8000"
+	@echo "  Dagster:   http://localhost:3001"
 
 # =============================================================================
-# Development
+# Local dev servers
 # =============================================================================
-check:
-	@cd backend && make check
-	@cd frontend && make check
-
-logs:
-	@$(COMPOSE) logs -f
-
-# =============================================================================
-# Individual services (for development)
-# =============================================================================
-.PHONY: up-db up-backend up-frontend up-dagster
-
-up-db:
-	@$(COMPOSE) up -d postgres
-	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
-		sleep 1; \
-	done
-	@echo "Postgres ready."
-	@cd backend && poetry run alembic upgrade head
-
 up-backend:
 	@cd backend && poetry run uvicorn src.api.app:app --reload --port 8000
 
@@ -105,3 +147,22 @@ up-frontend:
 
 up-dagster:
 	@cd backend && poetry run dagster dev --port 3001
+
+# =============================================================================
+# Other
+# =============================================================================
+down:
+	@$(COMPOSE) down
+
+reset:
+	@echo "Destroying all data..."
+	@$(COMPOSE) down -v
+	@echo ""
+	@$(MAKE) setup
+
+check:
+	@cd backend && make check
+	@cd frontend && make check
+
+logs:
+	@$(COMPOSE) logs -f

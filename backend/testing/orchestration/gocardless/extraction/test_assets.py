@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.postgres.gocardless.models import Balance, BankAccount, Transaction
+from src.postgres.gocardless.models import Balance, BankAccount, GoCardlessTransaction
 from src.postgres.gocardless.operations.balances import upsert_balances
 from src.postgres.gocardless.operations.transactions import upsert_transactions
 
@@ -42,8 +42,8 @@ class TestExtractionIntegration:
         assert count == 1
 
         txn = (
-            db_session.query(Transaction)
-            .filter(Transaction.account_id == test_bank_account.id)
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.account_id == test_bank_account.id)
             .first()
         )
         assert txn is not None

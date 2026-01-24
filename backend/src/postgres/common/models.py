@@ -13,6 +13,10 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+# Import User to ensure SQLAlchemy knows about the users table when resolving
+# the Connection.user_id foreign key. Without this, operations that use Connection
+# without importing auth.models will fail with NoReferencedTableError.
+from src.postgres.auth.models import User  # noqa: F401
 from src.postgres.common.enums import AccountStatus, AccountType, ConnectionStatus, Provider
 from src.postgres.core import Base
 
@@ -237,4 +241,62 @@ class Holding(Base):
     __table_args__ = (
         Index("idx_holdings_account_id", "account_id"),
         Index("idx_holdings_account_ticker", "account_id", "ticker", unique=True),
+    )
+
+
+class Transaction(Base):
+    """Database model for standardised transactions.
+
+    Represents a financial transaction within an account, abstracting over
+    provider-specific concepts (e.g., GoCardless transactions).
+    """
+
+    __tablename__ = "transactions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    booking_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    value_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+
+    # Counterparty info
+    counterparty_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    counterparty_account: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Description
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    # Classification
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Metadata
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+
+    # Relationships
+    account: Mapped[Account] = relationship("Account")
+
+    __table_args__ = (
+        Index("idx_transactions_account_id", "account_id"),
+        Index("idx_transactions_booking_date", "booking_date"),
+        Index(
+            "idx_transactions_account_provider_id",
+            "account_id",
+            "provider_id",
+            unique=True,
+        ),
     )

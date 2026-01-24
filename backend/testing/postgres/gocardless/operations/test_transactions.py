@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.postgres.gocardless.models import BankAccount, Transaction
+from src.postgres.gocardless.models import BankAccount, GoCardlessTransaction
 from src.postgres.gocardless.operations.transactions import upsert_transactions
 
 
@@ -49,8 +49,8 @@ class TestUpsertTransactions:
 
         # Verify transactions were created
         txns = (
-            db_session.query(Transaction)
-            .filter(Transaction.account_id == test_bank_account.id)
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.account_id == test_bank_account.id)
             .all()
         )
         assert len(txns) == 2
@@ -92,8 +92,8 @@ class TestUpsertTransactions:
         assert result == 1
 
         txn = (
-            db_session.query(Transaction)
-            .filter(Transaction.transaction_id == "pending-001")
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.transaction_id == "pending-001")
             .first()
         )
         assert txn is not None
@@ -107,7 +107,7 @@ class TestUpsertTransactions:
     ) -> None:
         """Should update existing transaction when same account_id + transaction_id exists."""
         # Create initial transaction
-        initial_txn = Transaction(
+        initial_txn = GoCardlessTransaction(
             account_id=test_bank_account.id,
             transaction_id="txn-001",
             booking_date=date(2026, 1, 15),
@@ -144,8 +144,8 @@ class TestUpsertTransactions:
 
         # Verify only one transaction exists
         txns = (
-            db_session.query(Transaction)
-            .filter(Transaction.account_id == test_bank_account.id)
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.account_id == test_bank_account.id)
             .all()
         )
         assert len(txns) == 1
@@ -219,8 +219,8 @@ class TestUpsertTransactions:
         assert result == 1
 
         txn = (
-            db_session.query(Transaction)
-            .filter(Transaction.transaction_id == "internal-001")
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.transaction_id == "internal-001")
             .first()
         )
         assert txn is not None
@@ -254,7 +254,11 @@ class TestUpsertTransactions:
 
         assert result == 1
 
-        txn = db_session.query(Transaction).filter(Transaction.transaction_id == "txn-001").first()
+        txn = (
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.transaction_id == "txn-001")
+            .first()
+        )
         assert txn is not None
         assert txn.remittance_information == "Line 1 Line 2 Line 3"
 
@@ -282,6 +286,10 @@ class TestUpsertTransactions:
 
         assert result == 1
 
-        txn = db_session.query(Transaction).filter(Transaction.transaction_id == "txn-001").first()
+        txn = (
+            db_session.query(GoCardlessTransaction)
+            .filter(GoCardlessTransaction.transaction_id == "txn-001")
+            .first()
+        )
         assert txn is not None
         assert txn.remittance_information == "Part A Part B"
