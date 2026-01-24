@@ -8,7 +8,7 @@ A self-hosted personal finance platform that aggregates all financial data in on
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: Foundation ✅
 
 Stabilise the existing data pipeline and improve core functionality.
 
@@ -22,17 +22,13 @@ Stabilise the existing data pipeline and improve core functionality.
 - [x] dbt + DuckDB for transformations
 - [x] Basic Streamlit UI for account management
 - [x] Scheduled GoCardless job (daily at 4 AM)
-
-### In Progress
-
 - [x] Link expiry handling and re-authentication flow
+- [x] Improve error handling in GoCardless API client
+- [x] Add retry logic for failed extractions
 
 ### Backlog
 
-- [ ] Improve error handling in GoCardless API client
-- [ ] Add retry logic for failed extractions
 - [ ] Historical data backfill tooling
-- [ ] Data quality checks in dbt (see `prds/20260123-data-dbt-improvements.md`)
 
 ---
 
@@ -53,9 +49,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Reauthorise connection endpoint
 - [x] Transaction endpoints (list, search, filter)
 - [x] Seed scripts for development (`seed_dev.py`, `seed_demo.py`, `seed_gocardless.py`)
-- [ ] Analytics endpoints (aggregations from dbt marts)
-- [ ] Review backend auth, look into _bearer_auth scheme
-- [ ] Logging for the amount of time to make a request
+- [x] Request timing logging
 
 ### Frontend (Vue + Nuxt + Tailwind)
 
@@ -68,9 +62,6 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Account display name editing (modal)
 - [x] Connection management UI (add, rename, reauthorise, delete)
 - [x] Transaction list with day grouping, infinite scroll, and filters
-- [ ] Charts and visualisations (spending by category, trends)
-
-> **Note**: Frontend uses real backend API for all data (connections, accounts, transactions). GoCardless OAuth flow is fully implemented.
 
 ### Infrastructure
 
@@ -80,11 +71,112 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 
 ---
 
-## Phase 3: Additional Data Sources
+## Phase 2.5: Consolidation & Quality
 
-Expand beyond GoCardless to include investment and trading platforms.
+Address tech debt and improve code quality before adding new data sources.
 
-### Unified Provider Architecture
+### Test Coverage
+
+- [ ] Add missing test files (transactions API, dependencies, orchestration definitions)
+- [ ] Improve coverage of `postgres/core.py` (currently 48%)
+- [ ] Improve coverage of other low-coverage files
+
+### Code Quality
+
+- [ ] Replace broad exception handlers with specific exceptions in requisitions.py
+
+### Completed Tech Debt (January 2026)
+
+- [x] Remove debug token printing from `providers/gocardless/api/core.py`
+- [x] Simplify GoCardless credentials to env vars (removed SSM dependency)
+- [x] Fix meaningless test assertions in orchestration tests
+- [x] Remove orphaned S3 code from `aws/s3.py` (~250 lines)
+- [x] Remove unused SSM module
+- [x] Consolidate enum definitions to single source (`postgres/common/enums.py`)
+- [x] De-duplicate API test fixtures to `conftest.py`
+- [x] Consolidate `load_dotenv()` calls to single location
+- [x] Update outdated S3/DuckDB comments in transactions endpoint
+- [x] **Remove all AWS/S3 dependencies** - dbt now reads from PostgreSQL via DuckDB's postgres extension
+- [x] Delete `src/aws/` directory entirely
+
+---
+
+## Phase 2.6: Transaction Tagging
+
+Categorise transactions for analytics and budgeting.
+
+### Manual Tagging
+
+- [ ] Tag/category data model
+- [ ] API endpoints for tagging transactions
+- [ ] UI for manual tag assignment
+- [ ] Bulk tagging support
+
+### Automatic Tagging
+
+- [ ] Rule-based auto-tagging (merchant name patterns, amount ranges)
+- [ ] Apply rules to new transactions on sync
+- [ ] Backfill existing transactions with rules
+
+---
+
+## Phase 2.7: Analytics & Visualisation
+
+Charts and dashboards to understand spending patterns. Requires tagging (Phase 2.6).
+
+### Backend
+
+- [ ] Analytics endpoints (aggregations from dbt marts)
+- [ ] Spending by category endpoint
+- [ ] Monthly/weekly trends endpoint
+- [ ] Account balance history endpoint
+- [ ] Data quality checks in dbt (see `prds/20260123-data-dbt-improvements.md`)
+
+### Frontend
+
+- [ ] Charts and visualisations (spending by category, trends)
+- [ ] Dashboard with key metrics
+- [ ] Balance over time graphs
+- [ ] Spending breakdown charts
+
+---
+
+## Phase 2.8: Misc UI Improvements
+
+Improve the user experience and visual design of the app.
+
+### Accounts
+
+- [ ] Account config popup on the accounts page
+  - [ ] Min balance alerts etc.
+- [ ] Account favourites/reordering (pin important accounts to top)
+
+### Transactions
+
+- [ ] Transaction detail view (click to expand/modal)
+- [ ] Add notes to transactions
+- [ ] Split transactions (one payment → multiple categories)
+- [ ] Recurring transaction indicators (visual badge for subscriptions)
+- [ ] Export transactions (CSV for tax/records)
+- [ ] Date range presets ("This month", "Last 30 days", "This year")
+
+### Dashboard
+
+- [ ] Net worth summary (total across all accounts)
+- [ ] Recent activity feed
+- [ ] Upcoming bills/subscriptions
+
+### General
+
+- [ ] Mobile responsive improvements
+
+---
+
+## Phase 3: Complete Financial Picture
+
+Expand beyond GoCardless to capture full net worth across all assets and liabilities.
+
+### Unified Provider Architecture ✅
 
 - [x] Provider-agnostic connections table (supports gocardless, trading212, vanguard)
 - [x] Provider-agnostic accounts table
@@ -96,45 +188,105 @@ Expand beyond GoCardless to include investment and trading platforms.
 - [x] Holdings table for investment positions
 - [x] Transaction storage in PostgreSQL (gc_transactions)
 
-### Vanguard Integration
+### Manual Assets & Liabilities
+
+Track items not available via APIs for complete net worth visibility.
+
+#### Liabilities
+
+- [ ] Student loan balance tracking
+- [ ] Mortgage balance tracking
+- [ ] Other loans and credit facilities
+
+#### Assets
+
+- [ ] Property valuations (manual entry with date)
+- [ ] Vehicle values
+- [ ] Other assets (collectibles, crypto held elsewhere, etc.)
+
+### Investment Platforms
+
+#### Vanguard Integration
 
 - [ ] Research API/scraping options
-- [ ] Handle MFA (potentially via Telegram for code input)
+- [ ] Handle MFA (via Telegram - see Phase 5)
 - [ ] Extract portfolio holdings
 - [ ] Extract transaction history
 - [ ] dbt models for investment data
 
-### Trading212 Integration
+#### Trading212 Integration
 
 - [ ] Research API availability
 - [ ] Extract holdings and positions
 - [ ] Extract transaction/trade history
 - [ ] dbt models for trading data
 
-### Manual Import
+---
 
-- [ ] CSV import functionality
-- [ ] Template for common bank statement formats
-- [ ] Deduplication logic
-- [ ] Historical data upload UI
-- [ ] Trigger refresh from the UI
+## Phase 4: Budgeting & Goals
 
-### Manual Costs
+Financial planning features for tracking progress and controlling spending.
 
-- [ ] Student loans
-- [ ] Mortgage payments
+### Budget Tracking
 
-### Financial Planning
+- [ ] Monthly budget by category
+- [ ] Spending vs budget dashboard
+- [ ] Rollover/flexible budgets
+- [ ] Income tracking and forecasting
 
-- [ ] Budget tracking
-- [ ] Planned income
-- [ ] Forecasting
+### Savings Goals
+
+- [ ] Target amount + deadline
+- [ ] Progress tracking with projections
+- [ ] Link goals to specific accounts
+- [ ] Milestone celebrations
+
+### Spending Limits & Alerts
+
+- [ ] Category-based limits (e.g., dining £200/month)
+- [ ] Warning thresholds (80%, 100%)
+- [ ] Notification when approaching/exceeding
+
+### Net Worth Tracking
+
+- [ ] Track total net worth over time
+- [ ] Set milestone targets
+- [ ] Visualise progress across all accounts
+
+### Forecasting
+
+- [ ] Project future balances based on recurring income/expenses
+- [ ] "What if" scenarios
+- [ ] Runway calculations
 
 ---
 
-## Phase 4: Intelligence Layer
+## Phase 5: Telegram Integration
 
-Add AI-powered features for insights and automation.
+Proactive alerts and two-way communication. Required for Vanguard MFA.
+
+### Bot Setup
+
+- [ ] Bot configuration (leverage existing personal assistant project)
+- [ ] MFA code relay for Vanguard/other integrations
+
+### Notifications
+
+- [ ] Balance alerts (low balance, large deposits)
+- [ ] Transaction alerts (configurable thresholds)
+- [ ] Weekly summary reports
+- [ ] Budget/spending limit warnings
+
+### Interactive Features
+
+- [ ] Quick actions (categorise transaction, add note)
+- [ ] Reminder acknowledgement
+
+---
+
+## Phase 6: Intelligence Layer
+
+AI-powered features for insights and automation. Lower priority.
 
 ### Analytics & Insights
 
@@ -142,7 +294,6 @@ Add AI-powered features for insights and automation.
 - [ ] Weekly/monthly trend analysis
 - [ ] Anomaly detection (unusual transactions)
 - [ ] Subscription detection and review
-- [ ] Net worth tracking over time
 
 ### AI Features (AWS Bedrock)
 
@@ -159,51 +310,6 @@ Add AI-powered features for insights and automation.
 
 ---
 
-## Phase 5: Notifications & Interaction
-
-Proactive alerts and two-way communication via Telegram.
-
-### Telegram Integration
-
-- [ ] Bot setup and configuration
-- [ ] Balance alerts (low balance, large deposits)
-- [ ] Transaction alerts (configurable thresholds)
-- [ ] Weekly summary reports
-- [ ] MFA code relay for external integrations
-- [ ] Integration via the current AI Personal Assistant managed in a different project.
-
-### Interactive Features
-
-- [ ] Query finances via chat
-- [ ] Quick actions (categorise transaction, add note)
-- [ ] Reminder acknowledgement
-
----
-
-## Tech Debt
-
-### Completed (January 2026)
-
-- [x] Remove debug token printing from `providers/gocardless/api/core.py`
-- [x] Simplify GoCardless credentials to env vars (removed SSM dependency)
-- [x] Fix meaningless test assertions in orchestration tests
-- [x] Remove orphaned S3 code from `aws/s3.py` (~250 lines)
-- [x] Remove unused SSM module
-- [x] Consolidate enum definitions to single source (`postgres/common/enums.py`)
-- [x] De-duplicate API test fixtures to `conftest.py`
-- [x] Consolidate `load_dotenv()` calls to single location
-- [x] Update outdated S3/DuckDB comments in transactions endpoint
-- [x] **Remove all AWS/S3 dependencies** - dbt now reads from PostgreSQL via DuckDB's postgres extension
-- [x] Delete `src/aws/` directory entirely
-
-### Backlog
-
-- [ ] Add missing test files (transactions API, dependencies, orchestration definitions)
-- [ ] Improve coverage of `postgres/core.py` (currently 48%)
-- [ ] Replace broad exception handlers with specific exceptions in requisitions.py
-
----
-
 ## Out of Scope
 
 Items explicitly not needed for this project:
@@ -211,15 +317,6 @@ Items explicitly not needed for this project:
 - **CI/CD Pipeline**: This is a personal app; local `make check` is sufficient
 - **Multi-user Support**: Single-user application
 - **High Availability**: Runs locally or on personal server
-
----
-
-## Ideas & Future Considerations
-
-Items not yet scheduled but worth exploring:
-
-- **Data Lake Architecture**: Iceberg tables for better versioning and time travel
-- **Goal Tracking**: Savings goals with progress tracking
 
 ---
 
@@ -244,6 +341,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260124-backend-unified-connections.md` - Provider-agnostic data layer
 - `20260124-backend-gocardless-oauth.md` - GoCardless OAuth flow (create, callback, reauthorise endpoints)
 - `20260124-frontend-gocardless-callback.md` - OAuth callback handling and toast notifications
+- `20260124-fullstack-background-jobs-dagster.md` - Background jobs table, Dagster sync triggers, connection-scoped sync
 
 ### Implemented Without PRD
 
