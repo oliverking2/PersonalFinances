@@ -41,9 +41,12 @@ PersonalFinances/
 ## Shared Commands
 
 ```bash
-# Docker
-docker-compose up -d postgres  # Start database only
-docker-compose up -d           # Start all services
+# Development (from project root)
+make up-db        # Start Postgres and run migrations
+make up-backend   # Start API server (hot reload)
+make up-frontend  # Start frontend (hot reload)
+make up-dagster   # Start Dagster UI
+make check        # Run all validation (backend + frontend)
 
 # Pre-commit (from project root)
 pre-commit install             # Install git hooks (one-time)

@@ -79,24 +79,24 @@ Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.confi
 - **Client-only auth**: Auth middleware runs only on the client for simplicity. SSR would require cookie forwarding which adds complexity.
 - **Simple refresh flow**: Check token expiry before API calls. If expired, refresh. If refresh fails, redirect to login.
 - **Component-based styling**: Reusable components (AppButton, AppInput) encapsulate Tailwind classes to reduce duplication.
-- **Mock-first development**: Frontend uses mock API composables until backend endpoints are ready. This allows parallel development.
+- **Toast notifications**: Pinia store (`stores/toast.ts`) for user feedback on OAuth callbacks and other actions.
 
 ## Patterns
 
 ### API Composables (`composables/use*Api.ts`)
 
-Each domain has a composable that exports API functions. Currently using mock data with simulated delays.
+Each domain has a composable that exports API functions using `useAuthenticatedFetch` for token management.
 
 ```typescript
 // Pattern: composables/useExampleApi.ts
 export function useExampleApi() {
+  const { authenticatedFetch, ApiError } = useAuthenticatedFetch()
+
   async function fetchItems(): Promise<ItemListResponse> {
-    console.log('[MOCK] GET /api/items')
-    await randomDelay() // 200-500ms
-    return { items: MOCK_ITEMS, total: MOCK_ITEMS.length }
+    return authenticatedFetch<ItemListResponse>('/api/items')
   }
 
-  return { fetchItems }
+  return { fetchItems, ApiError }
 }
 ```
 

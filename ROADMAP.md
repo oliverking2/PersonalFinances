@@ -25,7 +25,7 @@ Stabilise the existing data pipeline and improve core functionality.
 
 ### In Progress
 
-- [ ] Link expiry handling and re-authentication flow
+- [x] Link expiry handling and re-authentication flow
 
 ### Backlog
 
@@ -49,11 +49,11 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Connection endpoints (list, get, update friendly name, delete)
 - [x] Account endpoints (list, get, update display name, filter by connection)
 - [x] Balance lookup (included in account responses from gc_balances)
-- [ ] Create connection endpoint (GoCardless OAuth flow)
-- [ ] Reauthorise connection endpoint
-- [ ] Transaction endpoints (list, search, filter)
+- [x] Create connection endpoint (GoCardless OAuth flow)
+- [x] Reauthorise connection endpoint
+- [x] Transaction endpoints (list, search, filter)
+- [x] Seed scripts for development (`seed_dev.py`, `seed_demo.py`, `seed_gocardless.py`)
 - [ ] Analytics endpoints (aggregations from dbt marts)
-- [ ] Seed data for a specific user for demo purposes.
 - [ ] Review backend auth, look into _bearer_auth scheme
 - [ ] Logging for the amount of time to make a request
 
@@ -70,7 +70,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Transaction list with day grouping, infinite scroll, and filters
 - [ ] Charts and visualisations (spending by category, trends)
 
-> **Note**: Frontend uses real backend API for connections and accounts. Create/reauthorise endpoints return 501 (pending GoCardless OAuth implementation). Transactions still use mock data.
+> **Note**: Frontend uses real backend API for all data (connections, accounts, transactions). GoCardless OAuth flow is fully implemented.
 
 ### Infrastructure
 
@@ -241,10 +241,9 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260124-frontend-accounts-view.md` - Accounts list page
 - `20260124-fullstack-accounts-api-integration.md` - Connect frontend to real API
 - `20260124-backend-provider-sync.md` - Dagster sync pipeline, Postgres extraction, investment account fields
-
-### In Progress PRDs
-
 - `20260124-backend-unified-connections.md` - Provider-agnostic data layer
+- `20260124-backend-gocardless-oauth.md` - GoCardless OAuth flow (create, callback, reauthorise endpoints)
+- `20260124-frontend-gocardless-callback.md` - OAuth callback handling and toast notifications
 
 ### Implemented Without PRD
 

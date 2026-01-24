@@ -1,4 +1,4 @@
-.PHONY: help setup setup-demo up up-backend up-frontend up-dagster down reset check logs
+.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster down reset check logs
 
 # Default target
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "Local dev:"
 	@echo "  make setup        First-time setup with real bank data (requires GoCardless)"
 	@echo "  make setup-demo   First-time setup with fake demo data (no API needed)"
+	@echo "  make up-db        Start Postgres and run migrations"
 	@echo "  make up-backend   Start API server (hot reload)"
 	@echo "  make up-frontend  Start frontend (hot reload)"
 	@echo "  make up-dagster   Start Dagster UI"
@@ -139,6 +140,14 @@ up:
 # =============================================================================
 # Local dev servers
 # =============================================================================
+up-db:
+	@$(COMPOSE) up -d postgres
+	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
+		sleep 1; \
+	done
+	@echo "Postgres ready."
+	@cd backend && poetry run alembic upgrade head
+
 up-backend:
 	@cd backend && poetry run uvicorn src.api.app:app --reload --port 8000
 

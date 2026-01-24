@@ -469,10 +469,10 @@ Existing PRDs are in `prds/` and follow a consistent structure.
 | `make reset`       | Destroy all data and start fresh                   |
 | `make logs`        | Tail all container logs                            |
 | `make check`       | Run all validation (backend + frontend)            |
-| `make up-db`       | Start database only                                |
-| `make migrate`     | Run database migrations                            |
+| `make up-db`       | Start Postgres and run migrations                  |
 | `make up-backend`  | Start backend with hot-reload (local development)  |
 | `make up-frontend` | Start frontend with hot-reload (local development) |
+| `make up-dagster`  | Start Dagster UI (local development)               |
 
 ### Validation
 
