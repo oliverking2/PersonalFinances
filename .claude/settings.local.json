@@ -31,7 +31,8 @@
       "Bash(xargs:*)",
       "Bash(detect-secrets scan:*)",
       "Bash(find:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(make:*)"
     ]
   }
 }

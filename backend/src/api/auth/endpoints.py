@@ -101,10 +101,15 @@ def login(
     :return: Access token response.
     :raises HTTPException: 401 if credentials are invalid.
     """
+    logger.debug(f"Login attempt: username={login_request.username}")
     user = get_user_by_username(db, login_request.username)
 
-    if not user or not verify_password(login_request.password, user.password_hash):
-        logger.warning(f"Login failed: username={login_request.username}")
+    if not user:
+        logger.warning(f"Login failed: username={login_request.username}, reason=user_not_found")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(login_request.password, user.password_hash):
+        logger.warning(f"Login failed: username={login_request.username}, reason=invalid_password")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user_agent, ip_address = _get_client_info(request)
@@ -142,9 +147,11 @@ def register(
     :return: Created user information.
     :raises HTTPException: 409 if username already exists.
     """
+    logger.debug(f"Registration attempt: username={register_request.username}")
     # Check if username already exists
     existing = get_user_by_username(db, register_request.username)
     if existing:
+        logger.debug(f"Registration failed: username={register_request.username} already exists")
         raise HTTPException(status_code=409, detail="Username already exists")
 
     user = create_user(db, register_request.username, register_request.password)
@@ -174,12 +181,15 @@ def refresh(
     :return: New access token response.
     :raises HTTPException: 401 if token is invalid, expired, or revoked.
     """
+    logger.debug("Token refresh attempt")
     if not refresh_token:
+        logger.debug("Token refresh failed: no cookie present")
         raise HTTPException(status_code=401, detail="Refresh token required")
 
     token = find_token_by_raw_value(db, refresh_token)
 
     if not token:
+        logger.debug("Token refresh failed: token not found in database")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     # Check for replay attack (token already revoked but hash matches)
@@ -196,6 +206,7 @@ def refresh(
         raise HTTPException(status_code=401, detail="Token has been revoked")
 
     if not is_token_valid(token):
+        logger.debug(f"Token refresh failed: token expired, user_id={token.user_id}")
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
     user_agent, ip_address = _get_client_info(request)
@@ -238,12 +249,19 @@ def logout(
     :param refresh_token: Refresh token from cookie.
     :return: Logout confirmation.
     """
+    logger.debug("Logout request received")
     if refresh_token:
         token = find_token_by_raw_value(db, refresh_token)
         if token and token.revoked_at is None:
             revoke_token(db, token)
             db.commit()
             logger.info(f"Logout: user_id={token.user_id}")
+        elif token:
+            logger.debug(f"Logout: token already revoked, user_id={token.user_id}")
+        else:
+            logger.debug("Logout: token not found in database")
+    else:
+        logger.debug("Logout: no refresh token cookie present")
 
     _clear_refresh_cookie(response)
     return LogoutResponse(ok=True)
