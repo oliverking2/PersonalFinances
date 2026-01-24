@@ -51,17 +51,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const response = await $fetch<MeResponse>(
-        `${config.public.apiUrl}/auth/me`,
-        {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${accessToken.value}`,
-          },
+      user.value = await $fetch<MeResponse>(`${config.public.apiUrl}/auth/me`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${accessToken.value}`,
         },
-      )
-      user.value = response
+      })
     } catch (error) {
       console.log('Login failed')
       throw error
