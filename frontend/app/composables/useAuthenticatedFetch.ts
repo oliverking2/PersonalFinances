@@ -31,11 +31,14 @@ export function useAuthenticatedFetch() {
   /**
    * Make an authenticated API request.
    * - Refreshes token if expired before making request
+   * - Retries once on 401 after refreshing token
+   * - Redirects to login if auth completely fails
    * - Sets Authorization header with Bearer token
    * - Sets credentials: 'include' for cookie handling
    *
    * @param path - API path (e.g. '/api/accounts')
    * @param options - Optional fetch options (method, body, etc.)
+   * @param isRetry - Whether it is a retry request
    * @returns Promise with typed response
    * @throws ApiError for HTTP errors, includes status code
    */
@@ -46,10 +49,17 @@ export function useAuthenticatedFetch() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body?: Record<string, any>
     } = {},
+    isRetry = false,
   ): Promise<T> {
     // Refresh token if expired (has 30 second buffer built in)
     if (authStore.isTokenExpired) {
-      await authStore.refreshToken()
+      try {
+        await authStore.refreshToken()
+      } catch {
+        // Refresh failed - redirect to login
+        await navigateTo('/login')
+        throw new ApiError('Session expired', 401)
+      }
     }
 
     const url = `${config.public.apiUrl}${path}`
@@ -65,8 +75,7 @@ export function useAuthenticatedFetch() {
         body: options.body,
       })
     } catch (error: unknown) {
-      // Extract status code and message from fetch error
-      // $fetch throws FetchError which has response property
+      // Extract status code from fetch error
       if (
         error &&
         typeof error === 'object' &&
@@ -80,6 +89,19 @@ export function useAuthenticatedFetch() {
           _data?: { detail?: string }
         }
         const status = response.status
+
+        // On 401, try refreshing token once and retry the request
+        if (status === 401 && !isRetry) {
+          try {
+            await authStore.refreshToken()
+            return authFetch<T>(path, options, true)
+          } catch {
+            // Refresh failed - redirect to login
+            await navigateTo('/login')
+            throw new ApiError('Session expired', 401)
+          }
+        }
+
         const message =
           response._data?.detail || `Request failed with status ${status}`
         throw new ApiError(message, status)
