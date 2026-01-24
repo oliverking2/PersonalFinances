@@ -1,3 +1,8 @@
+<!-- ==========================================================================
+AppButton
+Reusable button component with consistent styling
+============================================================================ -->
+
 <script setup lang="ts">
 defineProps<{
   type?: 'submit' | 'button' | 'reset'
@@ -5,27 +10,32 @@ defineProps<{
 </script>
 
 <template>
-  <button :type="type"><slot /></button>
+  <button :type="type">
+    <slot />
+  </button>
 </template>
 
 <style scoped>
 button {
-  /* Layout & sizing */
-  @apply mt-2 w-fit self-center rounded-full px-12 py-2;
+  /* Layout: centered pill shape */
+  @apply w-fit self-center rounded-full px-8 py-2 sm:px-12;
 
-  /* Colors & reset browser defaults */
+  /* Typography */
+  @apply font-sans text-sm font-semibold sm:text-base;
+
+  /* Colours: emerald primary with white text */
   @apply border-none bg-primary text-white outline-none;
 
-  /* Smooth transitions for hover/active states */
+  /* Smooth transitions for interactive states */
   @apply transition-all duration-200;
 
-  /* Hover: grow slightly, lighten, add shadow */
-  @apply hover:scale-105 hover:bg-primary/80 hover:shadow-lg;
+  /* Hover: darken and lift slightly */
+  @apply hover:scale-105 hover:bg-primary-hover hover:shadow-lg;
 
-  /* Focus: visible ring for keyboard navigation */
-  @apply focus:ring-2 focus:ring-primary;
+  /* Focus: visible ring for keyboard navigation (accessibility) */
+  @apply focus:ring-2 focus:ring-sage focus:ring-offset-2 focus:ring-offset-surface;
 
-  /* Active/click: shrink slightly for "press" feedback */
+  /* Active/click: press down effect */
   @apply active:scale-95;
 }
 </style>

@@ -3,6 +3,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  app: {
+    head: {
+      link: [
+        { rel: 'stylesheet', href: 'https://use.typekit.net/ogm4kgd.css' },
+      ],
+    },
+  },
+
   modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint', '@pinia/nuxt'],
   css: ['~/assets/css/main.css'],
 

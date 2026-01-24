@@ -1,133 +1,93 @@
-# Frontend Learning Guide
-
-This is a learning project. Claude should act as a **teacher and guide**, not write code for you.
+# Frontend Guide
 
 ## Claude's Role
 
-**DO:**
-
-- Explain concepts when asked
-- Point to official documentation
-- Ask questions to guide your thinking
-- Review code you've written and explain issues
-- Suggest what to learn next based on your goals
-- When explicitly asked for code: provide small, focused examples
-
-**DO NOT:**
-
-- Write complete features or components
-- Provide copy-paste solutions
-- Write code without being explicitly asked
-- Give large code blocks - keep examples minimal
-
-## When You Ask for Code
-
-If you explicitly request code, Claude should:
-
-1. Ask what you've already tried
-2. Provide the smallest useful snippet
-3. Explain what each part does
-4. Suggest you try modifying it yourself
+Claude writes code directly with clear comments explaining the how and why. Changes are small and incremental. Simplicity is preferred over complexity - slightly slower load times are acceptable.
 
 ## Code Style
 
-**Comments:** More comments are better than less in the frontend. This is a learning project, so comments help explain what's happening and why. Add comments to explain:
+**Comments:** Add comments liberally to explain:
 
 - What groups of Tailwind classes do
 - Why certain patterns are used
 - What each section of a component does
 
-## Your Stack
+**Reducing Tailwind duplication:** Extract repeated styles into components:
 
-| Technology   | What It Is                        | Learn More                             |
+- `AppButton` - Styled button with hover/focus states
+- `AppInput` - Styled text input with focus states
+- Use `@apply` in component `<style scoped>` blocks for base styles
+
+## Stack
+
+| Technology   | What It Is                        | Docs                                   |
 | ------------ | --------------------------------- | -------------------------------------- |
 | Vue 3        | Reactive UI framework             | <https://vuejs.org/guide/>             |
 | Nuxt 4       | Vue meta-framework (routing, SSR) | <https://nuxt.com/docs>                |
 | Tailwind CSS | Utility-first CSS                 | <https://tailwindcss.com/docs>         |
 | TypeScript   | Typed JavaScript                  | <https://www.typescriptlang.org/docs/> |
+| Pinia        | State management                  | <https://pinia.vuejs.org/>             |
 
 ## Project Structure
 
 ```
 frontend/
 ├── app/
-│   └── app.vue          # Your starting point
-├── nuxt.config.ts       # Nuxt configuration
-└── package.json         # Dependencies
+│   ├── app.vue              # Root component
+│   ├── components/          # Reusable UI components (AppButton, AppInput, etc.)
+│   ├── layouts/             # Page layouts (default, etc.)
+│   ├── middleware/          # Route middleware (auth, etc.)
+│   ├── pages/               # File-based routing
+│   └── stores/              # Pinia stores
+├── nuxt.config.ts           # Nuxt configuration (includes Typekit fonts)
+├── tailwind.config.ts       # Tailwind theme and colours
+└── package.json
 ```
 
 ## Commands
 
 ```bash
 cd frontend
-npm install              # Install dependencies (first time)
-npm run dev              # Start dev server at http://localhost:3000
-npm run build            # Production build
-npm run lint             # Check for issues
+make install     # Install dependencies
+make dev         # Dev server at http://localhost:3000
+make check       # Run lint + typecheck (run before committing)
+make build       # Production build
 ```
 
-## Learning Path Suggestions
+## Colour Scheme
 
-1. **Start with Vue basics** - reactivity, templates, components
-2. **Understand Nuxt** - file-based routing, layouts, pages
-3. **Add Tailwind styling** - utility classes, responsive design
-4. **TypeScript** - add types gradually as you learn
+Dark Slate + Green - calm, trustworthy, money/growth association.
 
-## Asking Good Questions
+| Name     | Hex       | Usage                    |
+| -------- | --------- | ------------------------ |
+| onyx     | `#121212` | Primary background       |
+| graphite | `#1e1e1e` | Surface (cards, modals)  |
+| emerald  | `#10b981` | Primary actions, buttons |
+| sage     | `#6ee7b7` | Accents, highlights      |
 
-Instead of: "Write me a login page"
-Try: "I want to build a login form. What Vue concepts do I need to understand first?"
+## Typography
 
-Instead of: "Fix this error"
-Try: "I'm getting this error [paste error]. I think it's related to [your theory]. What should I look at?"
+Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.config.ts`).
 
-## Key Documentation
+## Design Decisions
 
-- Vue 3 Tutorial: <https://vuejs.org/tutorial/>
-- Nuxt Getting Started: <https://nuxt.com/docs/getting-started>
-- Tailwind Docs: <https://tailwindcss.com/docs>
-- Vue DevTools: <https://devtools.vuejs.org/>
+- **Client-only auth**: Auth middleware runs only on the client for simplicity. SSR would require cookie forwarding which adds complexity.
+- **Simple refresh flow**: Check token expiry before API calls. If expired, refresh. If refresh fails, redirect to login.
+- **Component-based styling**: Reusable components (AppButton, AppInput) encapsulate Tailwind classes to reduce duplication.
 
-## Your Goal
+## Backend API
 
-Build the frontend for your personal finances app. The backend API is at `http://localhost:8000`.
+The backend API is at `http://localhost:8000`. Full API contracts are in `/docs/api/`.
 
-Start small. Build one thing at a time. Ask questions when stuck.
+**Authentication:**
 
-## Backend API Documentation
-
-Full API contracts are in `/docs/api/`. These contain everything needed to implement frontend features without looking at backend code.
-
-| Document                     | Description                                   |
-| ---------------------------- | --------------------------------------------- |
-| [auth.md](/docs/api/auth.md) | Authentication (login, logout, token refresh) |
-
-### API Overview
-
-**Authentication endpoints:**
-
-- `POST /auth/login` - Login with email/password, returns JWT
+- `POST /auth/login` - Returns access token + sets refresh cookie
 - `POST /auth/refresh` - Refresh access token (uses HttpOnly cookie)
 - `POST /auth/logout` - Revoke tokens and clear cookie
 - `GET /auth/me` - Get current user (requires Bearer token)
 
-**Protected endpoints** (require `Authorization: Bearer <token>` header):
+**Protected endpoints** (require `Authorization: Bearer <token>`):
 
 - `GET /accounts` - List bank accounts
 - `GET /connections` - List bank connections
 - `GET /transactions` - List transactions
-
-### Quick Reference
-
-```typescript
-// All requests to protected endpoints need:
-{
-  credentials: 'include',  // For refresh token cookie
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  }
-}
-```
-
-See `/docs/api/auth.md` for complete authentication flow, error handling, and implementation patterns.
