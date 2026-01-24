@@ -123,10 +123,10 @@ Content-Type: application/json
 }
 ```
 
-| Field    | Type   | Required | Validation                      |
-|----------|--------|----------|---------------------------------|
+| Field    | Type   | Required | Validation                        |
+|----------|--------|----------|-----------------------------------|
 | username | string | Yes      | 3-50 characters, case-insensitive |
-| password | string | Yes      | Minimum 8 characters            |
+| password | string | Yes      | Minimum 8 characters              |
 
 **Success Response (200):**
 
@@ -139,10 +139,10 @@ Content-Type: application/json
 
 **Error Responses:**
 
-| Status | Detail                 | Cause                    |
-|--------|------------------------|--------------------------|
-| 409    | Username already exists | Duplicate username       |
-| 422    | Validation error       | Username/password invalid |
+| Status | Detail                  | Cause                     |
+|--------|-------------------------|---------------------------|
+| 409    | Username already exists | Duplicate username        |
+| 422    | Validation error        | Username/password invalid |
 
 ---
 
@@ -175,7 +175,7 @@ Set-Cookie: refresh_token=<new_token>; HttpOnly; Secure; SameSite=Lax; Path=/aut
 **Error Responses:**
 
 | Status | Detail                   | Cause                              |
-|--------|--------------------------|-----------------------------------|
+|--------|--------------------------|------------------------------------|
 | 401    | Refresh token required   | No cookie present                  |
 | 401    | Invalid refresh token    | Token not found in database        |
 | 401    | Refresh token expired    | Token past expiry date             |
