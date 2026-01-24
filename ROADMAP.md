@@ -78,7 +78,7 @@ Address tech debt and improve code quality before adding new data sources.
   - `testing/postgres/common/operations/test_transactions.py` - Transactions query tests
   - `testing/postgres/test_core.py` - Database core utilities tests
 - [x] Fixed failing balance test assertion (float vs string comparison)
-- [ ] Improve coverage of other low-coverage files
+- [x] Improve coverage of other low-coverage files
 
 ### Code Quality
 
