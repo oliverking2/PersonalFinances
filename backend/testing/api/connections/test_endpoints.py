@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -266,26 +267,122 @@ class TestUpdateConnection:
 class TestDeleteConnection:
     """Tests for DELETE /api/connections/{id} endpoint."""
 
-    def test_deletes_connection(
+    @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
+    def test_deletes_connection_and_revokes_on_gocardless(
         self,
+        mock_delete_requisition: MagicMock,
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_connection_in_db: Connection,
         api_db_session: Session,
     ) -> None:
-        """Should delete connection."""
+        """Should delete connection locally and revoke on GoCardless."""
+        mock_delete_requisition.return_value = {"summary": "deleted"}
+
+        conn_id = str(test_connection_in_db.id)
+        provider_id = test_connection_in_db.provider_id
+
+        response = client.delete(
+            f"/api/connections/{conn_id}",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 204
+        assert response.content == b""
+
+        # Verify GoCardless API was called with correct requisition ID
+        mock_delete_requisition.assert_called_once()
+        call_args = mock_delete_requisition.call_args
+        assert call_args[0][1] == provider_id
+
+        # Verify connection deleted locally
+        api_db_session.expire_all()
+        assert api_db_session.get(Connection, test_connection_in_db.id) is None
+
+    @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
+    def test_delete_succeeds_when_gocardless_returns_404(
+        self,
+        mock_delete_requisition: MagicMock,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_connection_in_db: Connection,
+        api_db_session: Session,
+    ) -> None:
+        """Should succeed when GoCardless requisition already deleted."""
+        # Simulate GoCardless 404 response
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_delete_requisition.side_effect = requests.HTTPError(response=mock_response)
+
         conn_id = str(test_connection_in_db.id)
         response = client.delete(
             f"/api/connections/{conn_id}",
             headers=api_auth_headers,
         )
 
-        assert response.status_code == 200
-        assert "deleted" in response.json()["message"]
+        # Should still return 204 (goal achieved - requisition gone)
+        assert response.status_code == 204
 
-        # Verify deleted
+        # Verify connection deleted locally
         api_db_session.expire_all()
         assert api_db_session.get(Connection, test_connection_in_db.id) is None
+
+    @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
+    def test_delete_returns_502_when_gocardless_fails(
+        self,
+        mock_delete_requisition: MagicMock,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_connection_in_db: Connection,
+        api_db_session: Session,
+    ) -> None:
+        """Should return 502 when GoCardless deletion fails, but still delete locally."""
+        # Simulate GoCardless 500 error
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_delete_requisition.side_effect = requests.HTTPError(response=mock_response)
+
+        conn_id = str(test_connection_in_db.id)
+        response = client.delete(
+            f"/api/connections/{conn_id}",
+            headers=api_auth_headers,
+        )
+
+        # Should return 502 to inform user
+        assert response.status_code == 502
+        assert "failed to revoke bank access" in response.json()["detail"]
+
+        # But connection should still be deleted locally
+        api_db_session.expire_all()
+        assert api_db_session.get(Connection, test_connection_in_db.id) is None
+
+    @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
+    def test_delete_cascades_to_accounts(  # noqa: PLR0913
+        self,
+        mock_delete_requisition: MagicMock,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_connection_in_db: Connection,
+        test_account_in_db: Account,
+        api_db_session: Session,
+    ) -> None:
+        """Should cascade delete to accounts."""
+        mock_delete_requisition.return_value = {"summary": "deleted"}
+
+        conn_id = str(test_connection_in_db.id)
+        account_id = test_account_in_db.id
+
+        response = client.delete(
+            f"/api/connections/{conn_id}",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 204
+
+        # Verify both connection and account deleted
+        api_db_session.expire_all()
+        assert api_db_session.get(Connection, test_connection_in_db.id) is None
+        assert api_db_session.get(Account, account_id) is None
 
     def test_returns_404_for_nonexistent(
         self,
@@ -300,6 +397,57 @@ class TestDeleteConnection:
         )
 
         assert response.status_code == 404
+
+    @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
+    def test_returns_404_for_other_users_connection(
+        self,
+        mock_delete_requisition: MagicMock,
+        client: TestClient,
+        api_db_session: Session,
+        test_institution_in_db: Institution,
+    ) -> None:
+        """Should return 404 for connection owned by another user."""
+        # Create another user and their connection
+        other_user = User(
+            username="deleteotheruser",
+            password_hash=hash_password("password"),
+            first_name="Other",
+            last_name="User",
+        )
+        api_db_session.add(other_user)
+        api_db_session.commit()
+
+        other_conn = Connection(
+            user_id=other_user.id,
+            provider=Provider.GOCARDLESS.value,
+            provider_id="other-delete-req-id",
+            institution_id=test_institution_in_db.id,
+            friendly_name="Other Connection",
+            status=ConnectionStatus.ACTIVE.value,
+            created_at=datetime.now(),
+        )
+        api_db_session.add(other_conn)
+        api_db_session.commit()
+
+        # Create another user who tries to delete it
+        requesting_user = User(
+            username="deleterequestuser",
+            password_hash=hash_password("password"),
+            first_name="Request",
+            last_name="User",
+        )
+        api_db_session.add(requesting_user)
+        api_db_session.commit()
+
+        token = create_access_token(requesting_user.id)
+        response = client.delete(
+            f"/api/connections/{other_conn.id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 404
+        # GoCardless should not have been called
+        mock_delete_requisition.assert_not_called()
 
 
 class TestCreateConnection:

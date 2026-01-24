@@ -3,9 +3,11 @@
 import logging
 import os
 from datetime import UTC, datetime
+from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -42,6 +44,7 @@ from src.postgres.gocardless.operations.requisitions import (
 from src.providers.gocardless.api.core import GoCardlessCredentials
 from src.providers.gocardless.api.requisition import (
     create_link,
+    delete_requisition_data_by_id,
     get_requisition_data_by_id,
 )
 
@@ -268,19 +271,24 @@ def update_connection(
     return _to_response(updated)
 
 
-@router.delete("/{connection_id}", summary="Delete connection")
+@router.delete("/{connection_id}", status_code=204, summary="Delete connection")
 def delete_connection_endpoint(
     connection_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> dict[str, str]:
+    creds: GoCardlessCredentials = Depends(get_gocardless_credentials),
+) -> Response:
     """Delete a bank connection.
+
+    Removes the connection from the local database and revokes access on GoCardless.
+    The local deletion always proceeds even if GoCardless deletion fails.
 
     :param connection_id: Connection UUID to delete.
     :param db: Database session.
     :param current_user: Authenticated user.
-    :returns: Confirmation message.
-    :raises HTTPException: If connection not found or not owned by user.
+    :param creds: GoCardless credentials.
+    :returns: 204 No Content on success.
+    :raises HTTPException: 404 if not found, 502 if GoCardless deletion failed.
     """
     connection = get_connection_by_id(db, connection_id)
     if not connection:
@@ -288,10 +296,46 @@ def delete_connection_endpoint(
     if connection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
 
+    gocardless_error: Exception | None = None
+
+    # Delete on GoCardless if this is a GoCardless connection
+    if connection.provider == Provider.GOCARDLESS.value and connection.provider_id:
+        try:
+            delete_requisition_data_by_id(creds, connection.provider_id)
+            logger.info(f"Deleted GoCardless requisition: id={connection.provider_id}")
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == HTTPStatus.NOT_FOUND:
+                # Already deleted on GoCardless - treat as success
+                logger.info(f"GoCardless requisition already deleted: id={connection.provider_id}")
+            else:
+                # Other error - log but continue with local deletion
+                logger.exception(
+                    f"Failed to delete GoCardless requisition: id={connection.provider_id}"
+                )
+                gocardless_error = e
+        except Exception as e:
+            # Unexpected error - log but continue with local deletion
+            logger.exception(
+                f"Failed to delete GoCardless requisition: id={connection.provider_id}"
+            )
+            gocardless_error = e
+    elif not connection.provider_id:
+        logger.warning(f"Connection has no provider_id: id={connection_id}")
+
+    # Always delete locally
     delete_connection(db, connection_id)
     db.commit()
     logger.info(f"Deleted connection: id={connection_id}")
-    return {"message": f"Connection {connection_id} deleted"}
+
+    # If GoCardless deletion failed, return 502 to inform the user
+    if gocardless_error:
+        raise HTTPException(
+            status_code=502,
+            detail="Connection deleted locally, but failed to revoke bank access. "
+            "The bank connection will expire automatically.",
+        )
+
+    return Response(status_code=204)
 
 
 @router.post(
