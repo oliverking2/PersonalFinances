@@ -73,7 +73,7 @@ setup:
 	@echo "  make up-frontend   http://localhost:3000"
 	@echo "  make up-dagster    http://localhost:3001"
 	@echo ""
-	@echo "Login: dev / devpassword123"
+	@echo "Login: <username> / <password>"
 
 setup-demo:
 	@echo "=== Creating .env files ==="
