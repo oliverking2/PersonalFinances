@@ -201,7 +201,6 @@ Financial planning features for tracking progress and controlling spending.
 - [ ] Target amount + deadline
 - [ ] Progress tracking with projections
 - [ ] Link goals to specific accounts
-- [ ] Milestone celebrations
 
 ### Spending Limits & Alerts
 

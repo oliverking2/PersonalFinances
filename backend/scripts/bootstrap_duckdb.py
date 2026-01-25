@@ -6,14 +6,14 @@ Usage:
 """
 
 import duckdb
-from src.filepaths import BACKEND_DIR
-
-DB_PATH = BACKEND_DIR / "analytics.duckdb"
+from src.filepaths import DUCKDB_PATH
 
 
 def bootstrap() -> None:
     """Bootstrap DuckDB with the required extensions."""
-    con = duckdb.connect(DB_PATH)
+    # Ensure the parent directory exists
+    DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(DUCKDB_PATH)
     con.execute("INSTALL postgres;")
     con.execute("LOAD postgres;")
     con.close()
