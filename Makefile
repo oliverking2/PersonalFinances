@@ -36,6 +36,12 @@ setup:
 	else \
 		echo "backend/.env already exists"; \
 	fi
+	@if [ ! -f frontend/.env ]; then \
+		cp frontend/.env.example frontend/.env; \
+		echo "Created frontend/.env"; \
+	else \
+		echo "frontend/.env already exists"; \
+	fi
 	@echo ""
 	@echo "=== Installing dependencies ==="
 	@cd backend && poetry install --with dev
@@ -82,6 +88,12 @@ setup-demo:
 		echo "Created backend/.env"; \
 	else \
 		echo "backend/.env already exists"; \
+	fi
+	@if [ ! -f frontend/.env ]; then \
+		cp frontend/.env.example frontend/.env; \
+		echo "Created frontend/.env"; \
+	else \
+		echo "frontend/.env already exists"; \
 	fi
 	@echo ""
 	@echo "=== Installing dependencies ==="

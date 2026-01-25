@@ -93,7 +93,8 @@ desktop.ini
 # Backend secrets
 backend/.env
 
-# Frontend secrets (local overrides only - frontend/.env is safe defaults)
+# Frontend config (copy from frontend/.env.example)
+frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
