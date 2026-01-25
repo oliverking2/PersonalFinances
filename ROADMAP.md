@@ -169,12 +169,16 @@ Charts and dashboards to understand spending patterns. Requires tagging (Phase 2
 
 ### Backend ✅
 
-- [x] dbt mart models with filter metadata (dim_accounts, dim_tags, fct_transactions, fct_daily_spending_by_tag, fct_daily_balance_history, fct_monthly_trends)
+- [x] dbt mart models with filter metadata (dim_accounts, dim_tags, fct_transactions, fct_daily_spending_by_tag, fct_monthly_trends)
 - [x] DuckDB client for read-only analytics queries
 - [x] Dataset discovery endpoints (list datasets, get schema from dbt metadata)
 - [x] Generic dataset query endpoint (`/api/analytics/datasets/{id}/query`) - reads filter columns from dbt meta
 - [x] Analytics refresh endpoint (trigger dbt via Dagster)
-- [ ] Data quality checks in dbt (see `prds/20260123-data-dbt-improvements.md`)
+
+### Future Work
+
+- [ ] `fct_daily_balance_history` mart model - requires unified balance table first (currently only raw gc_balances available)
+- [ ] Export engine (Dagster job) - CSV/Parquet exports with parameterised filters, see plan file for design
 
 ### Frontend
 
