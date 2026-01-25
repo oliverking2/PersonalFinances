@@ -78,13 +78,22 @@ const accountOptions = computed((): FilterOption[] => {
 // Currently selected account IDs (defaulting to empty array)
 const selectedAccountIds = computed(() => props.modelValue.account_ids || [])
 
+// Special ID for "Untagged" filter option
+const UNTAGGED_FILTER_ID = '__untagged__'
+
 // Convert tags to FilterOption format for the dropdown
+// Adds "Untagged" option at the top to filter for transactions without tags
 const tagOptions = computed((): FilterOption[] => {
-  return props.tags.map((tag) => ({
+  const untaggedOption: FilterOption = {
+    id: UNTAGGED_FILTER_ID,
+    label: 'Untagged',
+  }
+  const tagsList = props.tags.map((tag) => ({
     id: tag.id,
     label: tag.name,
     colour: tag.colour,
   }))
+  return [untaggedOption, ...tagsList]
 })
 
 // Currently selected tag IDs (defaulting to empty array)
@@ -113,28 +122,30 @@ function handleTagsChange(ids: string[]) {
   updateFilters({ tag_ids: ids.length > 0 ? ids : undefined })
 }
 
-// Handle date range changes
-function handleStartDateChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  updateFilters({ start_date: input.value || undefined })
+// Handle date range changes (from DateFilterDropdown)
+function handleDateRangeChange(
+  startDate: string | undefined,
+  endDate: string | undefined,
+) {
+  updateFilters({ start_date: startDate, end_date: endDate })
 }
 
-function handleEndDateChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  updateFilters({ end_date: input.value || undefined })
+// Individual date changes (for custom mode inputs)
+function handleStartDateChange(date: string | undefined) {
+  updateFilters({ start_date: date })
 }
 
-// Handle amount range changes
-function handleMinAmountChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = input.value ? parseFloat(input.value) : undefined
-  updateFilters({ min_amount: value })
+function handleEndDateChange(date: string | undefined) {
+  updateFilters({ end_date: date })
 }
 
-function handleMaxAmountChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = input.value ? parseFloat(input.value) : undefined
-  updateFilters({ max_amount: value })
+// Handle amount range changes (from ValueFilterDropdown)
+function handleMinAmountChange(amount: number | undefined) {
+  updateFilters({ min_amount: amount })
+}
+
+function handleMaxAmountChange(amount: number | undefined) {
+  updateFilters({ max_amount: amount })
 }
 
 // Clear all filters
@@ -212,49 +223,24 @@ function getAccountDisplayName(account: Account): string {
         />
       </div>
 
-      <!-- Date range -->
-      <div class="min-w-[130px]">
-        <label class="mb-1 block text-sm text-muted">From</label>
-        <input
-          type="date"
-          :value="modelValue.start_date || ''"
-          class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          @change="handleStartDateChange"
+      <!-- Date filter dropdown (presets + custom) -->
+      <div class="min-w-[160px]">
+        <TransactionsDateFilterDropdown
+          :start-date="modelValue.start_date"
+          :end-date="modelValue.end_date"
+          @update:date-range="handleDateRangeChange"
+          @update:start-date="handleStartDateChange"
+          @update:end-date="handleEndDateChange"
         />
       </div>
 
-      <div class="min-w-[130px]">
-        <label class="mb-1 block text-sm text-muted">To</label>
-        <input
-          type="date"
-          :value="modelValue.end_date || ''"
-          class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          @change="handleEndDateChange"
-        />
-      </div>
-
-      <!-- Amount range -->
-      <div class="min-w-[100px]">
-        <label class="mb-1 block text-sm text-muted">Min amount</label>
-        <input
-          type="number"
-          step="0.01"
-          placeholder="0.00"
-          :value="modelValue.min_amount ?? ''"
-          class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          @change="handleMinAmountChange"
-        />
-      </div>
-
-      <div class="min-w-[100px]">
-        <label class="mb-1 block text-sm text-muted">Max amount</label>
-        <input
-          type="number"
-          step="0.01"
-          placeholder="0.00"
-          :value="modelValue.max_amount ?? ''"
-          class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          @change="handleMaxAmountChange"
+      <!-- Value filter dropdown (min/max amount) -->
+      <div class="min-w-[140px]">
+        <TransactionsValueFilterDropdown
+          :min-amount="modelValue.min_amount"
+          :max-amount="modelValue.max_amount"
+          @update:min-amount="handleMinAmountChange"
+          @update:max-amount="handleMaxAmountChange"
         />
       </div>
 

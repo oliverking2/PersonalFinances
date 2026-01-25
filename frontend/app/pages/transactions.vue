@@ -57,6 +57,10 @@ const sentinelRef = ref<HTMLDivElement | null>(null)
 const selectedTransactionIds = ref<Set<string>>(new Set())
 const showBulkTagSelector = ref(false)
 
+// Detail modal state
+const showDetailModal = ref(false)
+const selectedDetailTransaction = ref<Transaction | null>(null)
+
 // ---------------------------------------------------------------------------
 // Computed - Client-side filtering
 // ---------------------------------------------------------------------------
@@ -72,9 +76,19 @@ const filteredTransactions = computed((): Transaction[] => {
   }
 
   // Filter by tags (OR logic - transaction has ANY of the selected tags)
+  // Special handling for "__untagged__" to filter for transactions without tags
   if (filters.value.tag_ids && filters.value.tag_ids.length > 0) {
     const tagIdSet = new Set(filters.value.tag_ids)
-    result = result.filter((t) => t.tags.some((tag) => tagIdSet.has(tag.id)))
+    const includeUntagged = tagIdSet.has('__untagged__')
+
+    result = result.filter((t) => {
+      // Check if transaction has no tags and we want untagged
+      if (includeUntagged && (!t.tags || t.tags.length === 0)) {
+        return true
+      }
+      // Check if transaction has any of the selected tags
+      return t.tags.some((tag) => tagIdSet.has(tag.id))
+    })
   }
 
   // Filter by date range
@@ -389,6 +403,12 @@ function clearSelection() {
   showBulkTagSelector.value = false
 }
 
+function selectAll() {
+  // Select all currently filtered transactions
+  const allIds = filteredTransactions.value.map((t) => t.id)
+  selectedTransactionIds.value = new Set(allIds)
+}
+
 function toggleBulkTagSelector() {
   showBulkTagSelector.value = !showBulkTagSelector.value
 }
@@ -514,6 +534,43 @@ function handleBulkTagClickOutside(event: MouseEvent) {
   if (!target.closest('.bulk-tag-container')) {
     showBulkTagSelector.value = false
   }
+}
+
+// ---------------------------------------------------------------------------
+// Detail Modal Operations
+// ---------------------------------------------------------------------------
+
+function handleOpenDetail(transactionId: string) {
+  const txn = findTransaction(transactionId)
+  if (txn) {
+    selectedDetailTransaction.value = txn
+    showDetailModal.value = true
+  }
+}
+
+function handleCloseDetail() {
+  showDetailModal.value = false
+  selectedDetailTransaction.value = null
+}
+
+// Tag operations from within the detail modal
+// These reuse the existing handlers but need to handle the modal-specific flow
+async function handleDetailAddTag(transactionId: string, tagId: string) {
+  await handleAddTag(transactionId, tagId)
+  // Update the selected transaction ref to reflect the change
+  selectedDetailTransaction.value = findTransaction(transactionId) || null
+}
+
+async function handleDetailRemoveTag(transactionId: string, tagId: string) {
+  await handleRemoveTag(transactionId, tagId)
+  // Update the selected transaction ref to reflect the change
+  selectedDetailTransaction.value = findTransaction(transactionId) || null
+}
+
+async function handleDetailCreateTag(transactionId: string, name: string) {
+  await handleCreateTag(transactionId, name)
+  // Update the selected transaction ref to reflect the change
+  selectedDetailTransaction.value = findTransaction(transactionId) || null
 }
 
 // ---------------------------------------------------------------------------
@@ -644,6 +701,20 @@ onMounted(() => {
 
     <!-- Transaction list grouped by day -->
     <div v-else>
+      <!-- Selection actions bar -->
+      <div class="mb-3 flex items-center justify-between">
+        <span class="text-sm text-muted">
+          {{ filteredTransactions.length }} transactions
+        </span>
+        <button
+          type="button"
+          class="text-sm text-primary hover:underline"
+          @click="selectAll"
+        >
+          Select all
+        </button>
+      </div>
+
       <TransactionsTransactionDayGroup
         v-for="group in dayGroups"
         :key="group.date"
@@ -655,6 +726,7 @@ onMounted(() => {
         @add-tag="handleAddTag"
         @remove-tag="handleRemoveTag"
         @create-tag="handleCreateTag"
+        @open-detail="handleOpenDetail"
       />
 
       <!-- Infinite scroll sentinel -->
@@ -724,6 +796,22 @@ onMounted(() => {
         </button>
       </div>
     </Transition>
+
+    <!-- Transaction detail modal -->
+    <TransactionsTransactionDetailModal
+      :show="showDetailModal"
+      :transaction="selectedDetailTransaction"
+      :account-name="
+        selectedDetailTransaction
+          ? accountNames[selectedDetailTransaction.account_id] || 'Unknown'
+          : ''
+      "
+      :available-tags="tags"
+      @close="handleCloseDetail"
+      @add-tag="handleDetailAddTag"
+      @remove-tag="handleDetailRemoveTag"
+      @create-tag="handleDetailCreateTag"
+    />
   </div>
 </template>
 

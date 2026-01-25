@@ -22,6 +22,7 @@ const emit = defineEmits<{
   'add-tag': [transactionId: string, tagId: string]
   'remove-tag': [transactionId: string, tagId: string]
   'create-tag': [transactionId: string, name: string]
+  'open-detail': [transactionId: string]
 }>()
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,7 @@ function isSelected(transactionId: string): boolean {
         @add-tag="emit('add-tag', transaction.id, $event)"
         @remove-tag="emit('remove-tag', transaction.id, $event)"
         @create-tag="emit('create-tag', transaction.id, $event)"
+        @open-detail="emit('open-detail', transaction.id)"
       />
     </div>
   </div>
