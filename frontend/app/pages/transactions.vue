@@ -20,6 +20,8 @@ useHead({ title: 'Transactions | Finances' })
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------
+const route = useRoute()
+const router = useRouter()
 const { fetchTransactions } = useTransactionsApi()
 const { fetchAccounts, fetchConnections } = useAccountsApi()
 const { fetchTags, createTag, addTagsToTransaction, removeTagFromTransaction } =
@@ -312,12 +314,72 @@ async function loadMore() {
   }
 }
 
-// Handle filter changes - just update local state (no API call)
+// Flag to prevent infinite loops when syncing URL ↔ filters
+const isUpdatingFromUrl = ref(false)
+
+// Handle filter changes - update local state and sync to URL
 function handleFiltersChange(newFilters: TransactionQueryParams) {
   filters.value = { ...newFilters }
   // Clear selection when filters change
   selectedTransactionIds.value.clear()
   selectedTransactionIds.value = new Set(selectedTransactionIds.value)
+
+  // Sync filters to URL (unless we're updating from URL change)
+  if (!isUpdatingFromUrl.value) {
+    syncFiltersToUrl()
+  }
+}
+
+// Build URL query params from current filters
+function syncFiltersToUrl() {
+  const query: Record<string, string | string[]> = {}
+
+  // Date range
+  if (filters.value.start_date) {
+    query.start_date = filters.value.start_date
+  }
+  if (filters.value.end_date) {
+    query.end_date = filters.value.end_date
+  }
+
+  // Tags - convert IDs back to names for readable URLs
+  if (filters.value.tag_ids && filters.value.tag_ids.length > 0) {
+    const tagNames: string[] = []
+    for (const tagId of filters.value.tag_ids) {
+      if (tagId === '__untagged__') {
+        query.untagged = 'true'
+      } else {
+        const tag = tags.value.find((t) => t.id === tagId)
+        if (tag) {
+          tagNames.push(tag.name)
+        }
+      }
+    }
+    if (tagNames.length > 0) {
+      query.tags = tagNames
+    }
+  }
+
+  // Accounts
+  if (filters.value.account_ids && filters.value.account_ids.length > 0) {
+    query.accounts = filters.value.account_ids
+  }
+
+  // Value range
+  if (filters.value.min_amount !== undefined) {
+    query.min = String(filters.value.min_amount)
+  }
+  if (filters.value.max_amount !== undefined) {
+    query.max = String(filters.value.max_amount)
+  }
+
+  // Search
+  if (filters.value.search) {
+    query.search = filters.value.search
+  }
+
+  // Replace URL without adding to history for minor filter tweaks
+  router.replace({ query })
 }
 
 // ---------------------------------------------------------------------------
@@ -617,9 +679,118 @@ onUnmounted(() => {
   document.removeEventListener('click', handleBulkTagClickOutside)
 })
 
+// Apply filters from URL query parameters
+function applyQueryParams() {
+  isUpdatingFromUrl.value = true
+
+  const query = route.query
+
+  // Reset filters to defaults first
+  const newFilters: TransactionQueryParams = {
+    page: 1,
+    page_size: pageSize,
+  }
+
+  // Date range filters
+  if (query.start_date && typeof query.start_date === 'string') {
+    newFilters.start_date = query.start_date
+  }
+  if (query.end_date && typeof query.end_date === 'string') {
+    newFilters.end_date = query.end_date
+  }
+
+  // Tag filters - support both single 'tag' param and multiple 'tags' param
+  const tagIds: string[] = []
+
+  // Single tag param (legacy/simple)
+  if (query.tag && typeof query.tag === 'string') {
+    const tagName = query.tag
+    const matchingTag = tags.value.find(
+      (t) => t.name.toLowerCase() === tagName.toLowerCase(),
+    )
+    if (matchingTag) {
+      tagIds.push(matchingTag.id)
+    }
+  }
+
+  // Multiple tags param
+  if (query.tags) {
+    const tagNames = Array.isArray(query.tags) ? query.tags : [query.tags]
+    for (const tagName of tagNames) {
+      if (typeof tagName === 'string') {
+        const matchingTag = tags.value.find(
+          (t) => t.name.toLowerCase() === tagName.toLowerCase(),
+        )
+        if (matchingTag) {
+          tagIds.push(matchingTag.id)
+        }
+      }
+    }
+  }
+
+  // Untagged filter
+  if (query.untagged === 'true') {
+    tagIds.push('__untagged__')
+  }
+
+  if (tagIds.length > 0) {
+    newFilters.tag_ids = tagIds
+  }
+
+  // Account filters
+  if (query.accounts) {
+    const accountIds = Array.isArray(query.accounts)
+      ? query.accounts
+      : [query.accounts]
+    newFilters.account_ids = accountIds.filter(
+      (id): id is string => typeof id === 'string',
+    )
+  }
+
+  // Value range
+  if (query.min && typeof query.min === 'string') {
+    const minVal = parseFloat(query.min)
+    if (!isNaN(minVal)) {
+      newFilters.min_amount = minVal
+    }
+  }
+  if (query.max && typeof query.max === 'string') {
+    const maxVal = parseFloat(query.max)
+    if (!isNaN(maxVal)) {
+      newFilters.max_amount = maxVal
+    }
+  }
+
+  // Search
+  if (query.search && typeof query.search === 'string') {
+    newFilters.search = query.search
+  }
+
+  filters.value = newFilters
+
+  // Clear selection when filters change from URL
+  selectedTransactionIds.value.clear()
+  selectedTransactionIds.value = new Set(selectedTransactionIds.value)
+
+  isUpdatingFromUrl.value = false
+}
+
+// Watch for route query changes (back/forward navigation)
+watch(
+  () => route.query,
+  () => {
+    // Only apply if we have tags loaded (to match tag names to IDs)
+    if (tags.value.length > 0) {
+      applyQueryParams()
+    }
+  },
+)
+
 // Load data and set up listeners on mount
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
+  // Apply query params after data is loaded (so we have tags to match against)
+  applyQueryParams()
   document.addEventListener('click', handleBulkTagClickOutside)
 })
 </script>
