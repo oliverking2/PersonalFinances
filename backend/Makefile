@@ -1,4 +1,4 @@
-.PHONY: check test lint format types coverage clean dbt dbt-docs sql
+.PHONY: check test lint format types coverage clean dbt dbt-docs sql sql-lint
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "SQL commands:"
 	@echo ""
 	@echo "  make sql      Lint and auto-fix SQL files with sqlfluff"
+	@echo "  make sql-lint Lint SQL files without auto-fix (check only)"
 	@echo ""
 	@echo "dbt commands:"
 	@echo ""
@@ -43,6 +44,10 @@ clean:
 # Source .env for PostgreSQL connection vars needed by dbt templater
 sql:
 	@set -a && . ./.env && set +a && poetry run sqlfluff fix dbt/models/ --config pyproject.toml
+
+# SQL lint only (no auto-fix) - useful for checking what violations exist
+sql-lint:
+	@set -a && . ./.env && set +a && poetry run sqlfluff lint dbt/models/ --config pyproject.toml
 
 # dbt commands (run from backend directory)
 # Source .env for PostgreSQL connection vars needed by DuckDB postgres extension

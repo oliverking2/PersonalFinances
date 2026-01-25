@@ -33,13 +33,10 @@
       "Bash(find:*)",
       "Bash(git log:*)",
       "Bash(make:*)",
-      "Bash(npx nuxi typecheck:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run check:*)",
       "Bash(echo:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npx vue-tsc:*)",
-      "Bash(dbt compile:*)"
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

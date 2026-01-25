@@ -5,6 +5,8 @@ Used on the home page for net worth, spending totals, etc.
 ============================================================================ -->
 
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -13,9 +15,11 @@ defineProps<{
   value: string // Main display value (e.g., "£12,345.67")
   subtitle?: string // Optional subtitle (e.g., "spent" or "this month")
   trend?: number | null // Optional percentage change (positive = up, negative = down)
+  trendInverted?: boolean // If true, positive trend is good (green), e.g., for net worth growth
   valueColor?: 'positive' | 'negative' | 'default' // Colour the value (green/red/default)
   loading?: boolean // Show skeleton loading state
   muted?: boolean // Grey out the card (e.g., analytics unavailable)
+  to?: RouteLocationRaw // Optional navigation destination (renders as NuxtLink)
 }>()
 </script>
 
@@ -23,9 +27,16 @@ defineProps<{
   <!-- Card container -->
   <!-- rounded-lg border: consistent card styling -->
   <!-- p-4 sm:p-5: responsive padding -->
-  <div
-    class="rounded-lg border border-border bg-surface p-4 sm:p-5"
-    :class="{ 'opacity-50': muted }"
+  <!-- Renders as NuxtLink when `to` prop is provided, otherwise as div -->
+  <component
+    :is="to && !loading && !muted ? resolveComponent('NuxtLink') : 'div'"
+    :to="to && !loading && !muted ? to : undefined"
+    class="block rounded-lg border border-border bg-surface p-4 sm:p-5"
+    :class="{
+      'opacity-50': muted,
+      'cursor-pointer transition-colors hover:border-primary/50':
+        to && !loading && !muted,
+    }"
   >
     <!-- Loading skeleton -->
     <template v-if="loading">
@@ -58,13 +69,21 @@ defineProps<{
       <!-- Subtitle and/or trend -->
       <div class="mt-1 flex items-center gap-2 text-sm">
         <!-- Trend indicator (if provided) -->
+        <!-- trendInverted: if true, positive is good (green); default: positive is bad (red, for spending) -->
         <span
           v-if="trend !== undefined && trend !== null"
           class="font-medium"
-          :class="trend >= 0 ? 'text-negative' : 'text-positive'"
+          :class="
+            trendInverted
+              ? trend >= 0
+                ? 'text-positive'
+                : 'text-negative'
+              : trend >= 0
+                ? 'text-negative'
+                : 'text-positive'
+          "
         >
           <!-- Up arrow for increase, down for decrease -->
-          <!-- Note: for spending, increase is bad (negative color) -->
           {{ trend >= 0 ? '↑' : '↓' }}
           {{ Math.abs(trend).toFixed(1) }}%
         </span>
@@ -73,5 +92,5 @@ defineProps<{
         <span v-if="subtitle" class="text-muted">{{ subtitle }}</span>
       </div>
     </template>
-  </div>
+  </component>
 </template>

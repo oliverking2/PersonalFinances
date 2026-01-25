@@ -150,6 +150,32 @@ const thisMonthTransactionCount = computed(() => {
   return total
 })
 
+// Net change this month from monthly trends data
+const thisMonthNetChange = computed(() => {
+  if (!monthlyTrends.value?.rows?.length) return null
+  return monthlyTrends.value.rows.reduce(
+    (sum, row) => sum + ((row.net_change as number) || 0),
+    0,
+  )
+})
+
+// Previous month's net worth (approximated: current net worth minus this month's net change)
+const previousNetWorth = computed(() => {
+  if (thisMonthNetChange.value === null) return null
+  return netWorth.value - thisMonthNetChange.value
+})
+
+// Net worth percentage change from last month
+const netWorthChangePercent = computed(() => {
+  if (previousNetWorth.value === null || previousNetWorth.value === 0)
+    return null
+  return (
+    ((netWorth.value - previousNetWorth.value) /
+      Math.abs(previousNetWorth.value)) *
+    100
+  )
+})
+
 // Top spending category this month (includes "Untagged" for transactions without tags)
 const topCategory = computed(() => {
   if (!dailySpendingByTag.value?.rows?.length) return null
@@ -187,6 +213,33 @@ const topCategory = computed(() => {
   }
 
   return top
+})
+
+// ---------------------------------------------------------------------------
+// Computed: Navigation links for metric cards
+// ---------------------------------------------------------------------------
+
+// Top category link - navigates to transactions filtered by this tag
+const topCategoryLink = computed(() => {
+  if (!topCategory.value || !analyticsAvailable.value) return undefined
+  const params = new URLSearchParams()
+  params.set('start_date', currentMonthStart.value)
+  params.set('end_date', today.value)
+  if (topCategory.value.name === 'Untagged') {
+    params.set('untagged', 'true')
+  } else {
+    params.set('tag', topCategory.value.name)
+  }
+  return `/transactions?${params.toString()}`
+})
+
+// Transactions link - navigates to transactions for this month
+const transactionsLink = computed(() => {
+  if (!analyticsAvailable.value) return undefined
+  const params = new URLSearchParams()
+  params.set('start_date', currentMonthStart.value)
+  params.set('end_date', today.value)
+  return `/transactions?${params.toString()}`
 })
 
 // ---------------------------------------------------------------------------
@@ -687,14 +740,18 @@ onMounted(() => {
       v-if="hasAccounts || loadingAccounts"
       class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
     >
-      <!-- Net Worth -->
+      <!-- Net Worth - links to accounts page -->
       <HomeMetricCard
         label="Net Worth"
         :value="formatCurrency(netWorth)"
+        :trend="netWorthChangePercent"
+        :trend-inverted="true"
+        :subtitle="netWorthChangePercent !== null ? 'vs last month' : undefined"
         :loading="loadingAccounts"
+        to="/accounts"
       />
 
-      <!-- This Month Spending -->
+      <!-- This Month Spending - links to analytics page -->
       <HomeMetricCard
         label="Spent This Month"
         :value="
@@ -702,9 +759,10 @@ onMounted(() => {
         "
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
+        :to="analyticsAvailable ? '/analytics' : undefined"
       />
 
-      <!-- vs Last Month (positive = spending more = bad = red) -->
+      <!-- vs Last Month (positive = spending more = bad = red) - links to analytics page -->
       <HomeMetricCard
         label="vs Last Month"
         :value="
@@ -728,9 +786,10 @@ onMounted(() => {
         "
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
+        :to="analyticsAvailable ? '/analytics' : undefined"
       />
 
-      <!-- Top Category (this month) -->
+      <!-- Top Category (this month) - links to transactions filtered by tag -->
       <HomeMetricCard
         label="Top Category"
         :value="topCategory?.name || '—'"
@@ -741,9 +800,10 @@ onMounted(() => {
         "
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
+        :to="topCategoryLink"
       />
 
-      <!-- Transaction Count -->
+      <!-- Transaction Count - links to transactions for this month -->
       <HomeMetricCard
         label="Transactions"
         :value="
@@ -754,6 +814,7 @@ onMounted(() => {
         subtitle="this month"
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
+        :to="transactionsLink"
       />
     </div>
 

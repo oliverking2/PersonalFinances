@@ -1,7 +1,8 @@
 -- Monthly income, spending, and net trends per user
 -- Aggregates transaction data by month for high-level financial overview
+-- Excludes internal transfers (matched pairs: same user, different accounts, same date, opposite amounts)
 
-WITH TRANSACTIONS AS (
+WITH ALL_TRANSACTIONS AS (
     SELECT
         ID AS TRANSACTION_ID,
         ACCOUNT_ID,
@@ -19,10 +20,67 @@ ACCOUNTS AS (
     FROM {{ ref('dim_accounts') }}
 ),
 
+-- Tag all transactions with user_id for internal transfer matching
+TRANSACTIONS_WITH_USER AS (
+    SELECT
+        TXN.*,
+        ACC.USER_ID
+    FROM ALL_TRANSACTIONS AS TXN
+    INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
+),
+
+-- Identify internal transfer pairs (both sides):
+-- An outgoing transfer has a matching incoming on same day, same absolute amount, same user, different account
+INTERNAL_TRANSFER_SPENDING_IDS AS (
+    SELECT DISTINCT OUTGOING.TRANSACTION_ID
+    FROM TRANSACTIONS_WITH_USER AS OUTGOING
+    WHERE
+        OUTGOING.AMOUNT < 0  -- Outgoing
+        AND EXISTS (
+            SELECT 1
+            FROM TRANSACTIONS_WITH_USER AS INCOMING
+            WHERE
+                INCOMING.USER_ID = OUTGOING.USER_ID
+                AND INCOMING.ACCOUNT_ID != OUTGOING.ACCOUNT_ID
+                AND INCOMING.BOOKING_DATE = OUTGOING.BOOKING_DATE
+                AND INCOMING.AMOUNT = -OUTGOING.AMOUNT  -- Opposite amount
+        )
+),
+
+-- Also identify the income side of internal transfers
+INTERNAL_TRANSFER_INCOME_IDS AS (
+    SELECT DISTINCT INCOMING.TRANSACTION_ID
+    FROM TRANSACTIONS_WITH_USER AS INCOMING
+    WHERE
+        INCOMING.AMOUNT > 0  -- Incoming
+        AND EXISTS (
+            SELECT 1
+            FROM TRANSACTIONS_WITH_USER AS OUTGOING
+            WHERE
+                OUTGOING.USER_ID = INCOMING.USER_ID
+                AND OUTGOING.ACCOUNT_ID != INCOMING.ACCOUNT_ID
+                AND OUTGOING.BOOKING_DATE = INCOMING.BOOKING_DATE
+                AND OUTGOING.AMOUNT = -INCOMING.AMOUNT  -- Opposite amount
+        )
+),
+
+-- Filter out both sides of internal transfers
+FILTERED_TRANSACTIONS AS (
+    SELECT *
+    FROM TRANSACTIONS_WITH_USER
+    WHERE
+        TRANSACTION_ID NOT IN (
+            SELECT SPEND.TRANSACTION_ID FROM INTERNAL_TRANSFER_SPENDING_IDS AS SPEND
+        )
+        AND TRANSACTION_ID NOT IN (
+            SELECT INC.TRANSACTION_ID FROM INTERNAL_TRANSFER_INCOME_IDS AS INC
+        )
+),
+
 MONTHLY_DATA AS (
     SELECT
         DATE_TRUNC('month', TXN.BOOKING_DATE)::DATE                   AS MONTH_START,
-        ACC.USER_ID,
+        TXN.USER_ID,
         TXN.CURRENCY,
         -- Income: positive amounts
         SUM(CASE WHEN TXN.AMOUNT > 0 THEN TXN.AMOUNT ELSE 0 END)      AS TOTAL_INCOME,
@@ -30,15 +88,14 @@ MONTHLY_DATA AS (
         SUM(CASE WHEN TXN.AMOUNT < 0 THEN ABS(TXN.AMOUNT) ELSE 0 END) AS TOTAL_SPENDING,
         -- Net: sum of all amounts
         SUM(TXN.AMOUNT)                                               AS NET_CHANGE,
-        -- Transaction counts
+        -- Transaction counts (excluding internal transfers)
         COUNT(*)                                                      AS TOTAL_TRANSACTIONS,
         COUNT(CASE WHEN TXN.AMOUNT > 0 THEN 1 END)                    AS INCOME_TRANSACTIONS,
         COUNT(CASE WHEN TXN.AMOUNT < 0 THEN 1 END)                    AS SPENDING_TRANSACTIONS
-    FROM TRANSACTIONS AS TXN
-    INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
+    FROM FILTERED_TRANSACTIONS AS TXN
     GROUP BY
         DATE_TRUNC('month', TXN.BOOKING_DATE)::DATE,
-        ACC.USER_ID,
+        TXN.USER_ID,
         TXN.CURRENCY
 )
 

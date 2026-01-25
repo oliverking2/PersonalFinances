@@ -37,6 +37,7 @@ make lint                     # Ruff linting
 make format                   # Ruff formatting
 make types                    # mypy type checking
 make sql                      # SQLFluff lint and auto-fix for dbt models
+make sql-lint                 # SQLFluff lint only (no auto-fix)
 make coverage                 # Tests with 80% threshold
 
 # dbt commands

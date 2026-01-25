@@ -1,7 +1,7 @@
 # Frontend Makefile
 SHELL := /bin/bash
 
-.PHONY: install dev build preview lint typecheck check clean
+.PHONY: install dev build preview lint lint-check typecheck check clean
 
 # Install dependencies
 install:
@@ -22,6 +22,10 @@ preview:
 # Format and lint (auto-fix)
 lint:
 	npm run lint
+
+# Lint check only (no auto-fix)
+lint-check:
+	npx eslint . --max-warnings 0
 
 # Type check
 typecheck:
@@ -45,11 +49,12 @@ update:
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  install   - Install dependencies"
-	@echo "  dev       - Run development server"
-	@echo "  build     - Build for production"
-	@echo "  preview   - Preview production build"
-	@echo "  lint      - Format and lint (auto-fix)"
-	@echo "  typecheck - Run type checking"
-	@echo "  check     - Run fix + typecheck"
-	@echo "  clean     - Remove build artifacts"
+	@echo "  install    - Install dependencies"
+	@echo "  dev        - Run development server"
+	@echo "  build      - Build for production"
+	@echo "  preview    - Preview production build"
+	@echo "  lint       - Format and lint (auto-fix)"
+	@echo "  lint-check - Lint check only (no auto-fix)"
+	@echo "  typecheck  - Run type checking"
+	@echo "  check      - Run fix + typecheck"
+	@echo "  clean      - Remove build artifacts"

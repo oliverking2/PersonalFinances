@@ -34,33 +34,33 @@ TRANSACTIONS_WITH_USER AS (
 -- A negative transaction is an internal transfer if there exists a positive transaction
 -- on the same day, same absolute amount, same user, different account
 INTERNAL_TRANSFER_IDS AS (
-    SELECT DISTINCT T1.TRANSACTION_ID
-    FROM TRANSACTIONS_WITH_USER AS T1
+    SELECT DISTINCT OUTGOING.TRANSACTION_ID
+    FROM TRANSACTIONS_WITH_USER AS OUTGOING
     WHERE
-        T1.AMOUNT < 0  -- Outgoing (spending side)
+        OUTGOING.AMOUNT < 0  -- Outgoing (spending side)
         AND EXISTS (
             SELECT 1
-            FROM TRANSACTIONS_WITH_USER AS T2
+            FROM TRANSACTIONS_WITH_USER AS INCOMING
             WHERE
-                T2.USER_ID = T1.USER_ID
-                AND T2.ACCOUNT_ID != T1.ACCOUNT_ID  -- Different account
-                AND T2.BOOKING_DATE = T1.BOOKING_DATE  -- Same day
-                AND T2.AMOUNT = -T1.AMOUNT  -- Opposite amount (positive = incoming)
+                INCOMING.USER_ID = OUTGOING.USER_ID
+                AND INCOMING.ACCOUNT_ID != OUTGOING.ACCOUNT_ID  -- Different account
+                AND INCOMING.BOOKING_DATE = OUTGOING.BOOKING_DATE  -- Same day
+                AND INCOMING.AMOUNT = -OUTGOING.AMOUNT  -- Opposite amount (positive = incoming)
         )
 ),
 
 -- Filter to spending transactions, excluding internal transfers
 SPENDING_TRANSACTIONS AS (
     SELECT
-        TRANSACTION_ID,
-        ACCOUNT_ID,
-        BOOKING_DATE,
-        AMOUNT,
-        CURRENCY
-    FROM TRANSACTIONS_WITH_USER
+        SPENDING.TRANSACTION_ID,
+        SPENDING.ACCOUNT_ID,
+        SPENDING.BOOKING_DATE,
+        SPENDING.AMOUNT,
+        SPENDING.CURRENCY
+    FROM TRANSACTIONS_WITH_USER AS SPENDING
     WHERE
-        AMOUNT < 0  -- Only spending
-        AND TRANSACTION_ID NOT IN (SELECT TRANSACTION_ID FROM INTERNAL_TRANSFER_IDS)
+        SPENDING.AMOUNT < 0  -- Only spending
+        AND SPENDING.TRANSACTION_ID NOT IN (SELECT ITR.TRANSACTION_ID FROM INTERNAL_TRANSFER_IDS AS ITR)
 ),
 
 TRANSACTION_TAGS AS (

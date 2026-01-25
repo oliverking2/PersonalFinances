@@ -64,6 +64,9 @@ cd frontend
 make install     # Install dependencies
 make dev         # Dev server at http://localhost:3000
 make check       # Run lint + typecheck (run before committing)
+make lint        # Format and lint (auto-fix)
+make lint-check  # Lint check only (no auto-fix)
+make typecheck   # Run type checking only
 make build       # Production build
 ```
 
