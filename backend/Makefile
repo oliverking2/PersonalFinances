@@ -22,7 +22,7 @@ help:
 check: lint format types sql coverage
 
 test:
-	poetry run pytest testing/ -v
+	poetry run pytest testing/ -v -n auto
 
 lint:
 	poetry run ruff check --fix
@@ -34,7 +34,7 @@ types:
 	poetry run mypy .
 
 coverage:
-	poetry run pytest testing/ --cov=src --cov-report=term-missing --cov-fail-under=80
+	poetry run pytest testing/ -n auto --cov=src --cov-report=term-missing --cov-fail-under=80
 
 clean:
 	rm -rf .mypy_cache .ruff_cache .coverage htmlcov dist build .pytest_cache

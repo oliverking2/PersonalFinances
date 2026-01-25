@@ -36,7 +36,10 @@
       "Bash(npx nuxi typecheck:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run check:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(dbt compile:*)"
     ]
   }
 }

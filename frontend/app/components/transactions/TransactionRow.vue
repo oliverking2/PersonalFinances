@@ -20,6 +20,9 @@ const props = withDefaults(
     selectable?: boolean // Show selection checkbox (default true, set false on home page)
   }>(),
   {
+    accountName: '',
+    availableTags: () => [],
+    selected: false,
     selectable: true,
   },
 )

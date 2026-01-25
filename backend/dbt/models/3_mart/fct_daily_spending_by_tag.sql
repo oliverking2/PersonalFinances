@@ -1,7 +1,9 @@
 -- Pre-aggregated daily spending by tag (including untagged transactions)
 -- Aggregates transaction amounts by date and tag for efficient trend analysis
+-- Fills in missing dates with zero-value rows to ensure continuous time series
+-- Excludes internal transfers (matched pairs: same user, different accounts, same date, opposite amounts)
 
-WITH TRANSACTIONS AS (
+WITH ALL_TRANSACTIONS AS (
     SELECT
         ID AS TRANSACTION_ID,
         ACCOUNT_ID,
@@ -9,9 +11,56 @@ WITH TRANSACTIONS AS (
         AMOUNT,
         CURRENCY
     FROM {{ ref("src_unified_transactions") }}
+    WHERE BOOKING_DATE IS NOT NULL
+),
+
+ACCOUNTS AS (
+    SELECT
+        ACCOUNT_ID,
+        USER_ID
+    FROM {{ ref('dim_accounts') }}
+),
+
+-- Tag all transactions with user_id for internal transfer matching
+TRANSACTIONS_WITH_USER AS (
+    SELECT
+        TXN.*,
+        ACC.USER_ID
+    FROM ALL_TRANSACTIONS AS TXN
+    INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
+),
+
+-- Identify internal transfer pairs:
+-- A negative transaction is an internal transfer if there exists a positive transaction
+-- on the same day, same absolute amount, same user, different account
+INTERNAL_TRANSFER_IDS AS (
+    SELECT DISTINCT T1.TRANSACTION_ID
+    FROM TRANSACTIONS_WITH_USER AS T1
     WHERE
-        BOOKING_DATE IS NOT NULL
-        AND AMOUNT < 0  -- Only spending (negative amounts)
+        T1.AMOUNT < 0  -- Outgoing (spending side)
+        AND EXISTS (
+            SELECT 1
+            FROM TRANSACTIONS_WITH_USER AS T2
+            WHERE
+                T2.USER_ID = T1.USER_ID
+                AND T2.ACCOUNT_ID != T1.ACCOUNT_ID  -- Different account
+                AND T2.BOOKING_DATE = T1.BOOKING_DATE  -- Same day
+                AND T2.AMOUNT = -T1.AMOUNT  -- Opposite amount (positive = incoming)
+        )
+),
+
+-- Filter to spending transactions, excluding internal transfers
+SPENDING_TRANSACTIONS AS (
+    SELECT
+        TRANSACTION_ID,
+        ACCOUNT_ID,
+        BOOKING_DATE,
+        AMOUNT,
+        CURRENCY
+    FROM TRANSACTIONS_WITH_USER
+    WHERE
+        AMOUNT < 0  -- Only spending
+        AND TRANSACTION_ID NOT IN (SELECT TRANSACTION_ID FROM INTERNAL_TRANSFER_IDS)
 ),
 
 TRANSACTION_TAGS AS (
@@ -30,13 +79,6 @@ TAGS AS (
     FROM {{ ref("src_unified_tags") }}
 ),
 
-ACCOUNTS AS (
-    SELECT
-        ACCOUNT_ID,
-        USER_ID
-    FROM {{ ref('dim_accounts') }}
-),
-
 -- Join transactions with their tags (LEFT JOIN to include untagged)
 TAGGED_TRANSACTIONS AS (
     SELECT
@@ -46,27 +88,79 @@ TAGGED_TRANSACTIONS AS (
         TXN.CURRENCY,
         ACC.USER_ID,
         TXN_TAGS.TAG_ID
-    FROM TRANSACTIONS AS TXN
+    FROM SPENDING_TRANSACTIONS AS TXN
     INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
     LEFT JOIN TRANSACTION_TAGS AS TXN_TAGS ON TXN.TRANSACTION_ID = TXN_TAGS.TRANSACTION_ID
+),
+
+-- Aggregate actual spending by date, user, tag
+ACTUAL_SPENDING AS (
+    SELECT
+        TAGGED.SPENDING_DATE,
+        TAGGED.USER_ID,
+        TAGGED.TAG_ID,
+        COALESCE(TAG.TAG_NAME, 'Untagged')  AS TAG_NAME,
+        COALESCE(TAG.TAG_COLOUR, '#6b7280') AS TAG_COLOUR,
+        TAGGED.CURRENCY,
+        SUM(TAGGED.SPENDING_AMOUNT)         AS TOTAL_SPENDING,
+        COUNT(*)                            AS TRANSACTION_COUNT
+    FROM TAGGED_TRANSACTIONS AS TAGGED
+    LEFT JOIN TAGS AS TAG ON TAGGED.TAG_ID = TAG.TAG_ID
+    GROUP BY
+        TAGGED.SPENDING_DATE,
+        TAGGED.USER_ID,
+        TAGGED.TAG_ID,
+        COALESCE(TAG.TAG_NAME, 'Untagged'),
+        COALESCE(TAG.TAG_COLOUR, '#6b7280'),
+        TAGGED.CURRENCY
+),
+
+-- Get date range per user (first and last transaction date)
+USER_DATE_RANGE AS (
+    SELECT
+        USER_ID,
+        MIN(SPENDING_DATE) AS MIN_DATE,
+        MAX(SPENDING_DATE) AS MAX_DATE
+    FROM ACTUAL_SPENDING
+    GROUP BY USER_ID
+),
+
+-- Generate all dates in each user's range using DuckDB's generate_series
+DATE_SPINE AS (
+    SELECT
+        UDR.USER_ID,
+        UNNEST(GENERATE_SERIES(UDR.MIN_DATE, UDR.MAX_DATE, INTERVAL 1 DAY))::DATE AS SPENDING_DATE
+    FROM USER_DATE_RANGE AS UDR
+),
+
+-- Left join date spine with actual spending to fill gaps
+-- For dates with no spending, we create a single row with zeros
+FILLED_SPENDING AS (
+    SELECT
+        DTS.SPENDING_DATE,
+        DTS.USER_ID,
+        ACTUAL.TAG_ID,
+        ACTUAL.TAG_NAME,
+        ACTUAL.TAG_COLOUR,
+        ACTUAL.CURRENCY,
+        ACTUAL.TOTAL_SPENDING,
+        ACTUAL.TRANSACTION_COUNT
+    FROM DATE_SPINE AS DTS
+    LEFT JOIN ACTUAL_SPENDING AS ACTUAL
+        ON
+            DTS.USER_ID = ACTUAL.USER_ID
+            AND DTS.SPENDING_DATE = ACTUAL.SPENDING_DATE
 )
 
--- Aggregate by date, user, tag (NULL tag_id represents untagged transactions)
+-- Return all rows: actual spending OR zero-fill rows for missing dates
+-- Zero-fill rows have NULL for tag columns, 0 for spending, 'GBP' for currency
 SELECT
-    TAGGED.SPENDING_DATE,
-    TAGGED.USER_ID,
-    TAGGED.TAG_ID,
-    COALESCE(TAG.TAG_NAME, 'Untagged')  AS TAG_NAME,
-    COALESCE(TAG.TAG_COLOUR, '#6b7280') AS TAG_COLOUR,
-    TAGGED.CURRENCY,
-    SUM(TAGGED.SPENDING_AMOUNT)         AS TOTAL_SPENDING,
-    COUNT(*)                            AS TRANSACTION_COUNT
-FROM TAGGED_TRANSACTIONS AS TAGGED
-LEFT JOIN TAGS AS TAG ON TAGGED.TAG_ID = TAG.TAG_ID
-GROUP BY
-    TAGGED.SPENDING_DATE,
-    TAGGED.USER_ID,
-    TAGGED.TAG_ID,
-    COALESCE(TAG.TAG_NAME, 'Untagged'),
-    COALESCE(TAG.TAG_COLOUR, '#6b7280'),
-    TAGGED.CURRENCY
+    SPENDING_DATE,
+    USER_ID,
+    TAG_ID,
+    COALESCE(TAG_NAME, 'No Spending') AS TAG_NAME,
+    COALESCE(TAG_COLOUR, '#6b7280')   AS TAG_COLOUR,
+    COALESCE(CURRENCY, 'GBP')         AS CURRENCY,
+    COALESCE(TOTAL_SPENDING, 0)       AS TOTAL_SPENDING,
+    COALESCE(TRANSACTION_COUNT, 0)    AS TRANSACTION_COUNT
+FROM FILLED_SPENDING

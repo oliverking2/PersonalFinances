@@ -3,7 +3,7 @@ duckdb_local:
   outputs:
     dev:
       type: duckdb
-      path: "../data/analytics.duckdb"
+      path: "{{ env_var('DUCKDB_PATH', '../data/analytics.duckdb') }}"
       schema: main
       threads: 4
       extensions:

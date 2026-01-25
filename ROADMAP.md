@@ -8,11 +8,11 @@ A self-hosted personal finance platform that aggregates all financial data in on
 
 ---
 
-## Phase 1: Foundation ✅
+## Completed Phases
+
+### Phase 1: Foundation ✅
 
 Stabilise the existing data pipeline and improve core functionality.
-
-### Completed
 
 - [x] GoCardless open banking integration
 - [x] PostgreSQL for metadata storage
@@ -26,17 +26,11 @@ Stabilise the existing data pipeline and improve core functionality.
 - [x] Improve error handling in GoCardless API client
 - [x] Add retry logic for failed extractions
 
-### Backlog
-
-- [ ] Historical data backfill tooling
-
----
-
-## Phase 2: Frontend Overhaul
+### Phase 2: Frontend Overhaul ✅
 
 Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI.
 
-### Backend (FastAPI)
+#### Backend (FastAPI)
 
 - [x] Project structure setup (`src/api/`)
 - [x] Authentication (JWT access tokens + refresh token cookies)
@@ -51,7 +45,7 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Seed scripts for development (`seed_dev.py`, `seed_demo.py`, `seed_gocardless.py`)
 - [x] Request timing logging
 
-### Frontend (Vue + Nuxt + Tailwind)
+#### Frontend (Vue + Nuxt + Tailwind)
 
 - [x] Project setup in `frontend/` directory
 - [x] Tailwind theme and reusable components (AppButton, AppInput)
@@ -63,198 +57,67 @@ Replace Streamlit with a modern Vue + Nuxt + Tailwind frontend backed by FastAPI
 - [x] Connection management UI (add, rename, reauthorise, delete)
 - [x] Transaction list with day grouping, infinite scroll, and filters
 
----
-
-## Phase 2.5: Consolidation & Quality
+### Phase 2.5: Consolidation & Quality ✅
 
 Address tech debt and improve code quality before adding new data sources.
 
-### Test Coverage
+- [x] Add missing test files (dependencies, jobs, transactions, core)
+- [x] Fixed failing balance test assertion
+- [x] Improve coverage of low-coverage files
+- [x] Replace broad exception handlers with specific exceptions
+- [x] Fix alembic autogenerate migration issues
+- [x] Remove all AWS/S3 dependencies - dbt reads from PostgreSQL via DuckDB
+- [x] Consolidate enum definitions, fixtures, and dotenv loading
 
-- [x] Add missing test files:
-  - `testing/api/test_dependencies.py` - API dependency injection tests
-  - `testing/api/jobs/test_endpoints.py` - Jobs API endpoint tests
-  - `testing/postgres/common/operations/test_jobs.py` - Jobs CRUD operations tests
-  - `testing/postgres/common/operations/test_transactions.py` - Transactions query tests
-  - `testing/postgres/test_core.py` - Database core utilities tests
-- [x] Fixed failing balance test assertion (float vs string comparison)
-- [x] Improve coverage of other low-coverage files
+### Phase 2.6: Transaction Tagging ✅
 
-### Code Quality
-
-- [x] Replace broad exception handlers with specific exceptions in requisitions.py
-- [x] Fix the alembic failing autogenerating migration files
-
-### Completed Tech Debt (January 2026)
-
-- [x] Remove debug token printing from `providers/gocardless/api/core.py`
-- [x] Simplify GoCardless credentials to env vars (removed SSM dependency)
-- [x] Fix meaningless test assertions in orchestration tests
-- [x] Remove orphaned S3 code from `aws/s3.py` (~250 lines)
-- [x] Remove unused SSM module
-- [x] Consolidate enum definitions to single source (`postgres/common/enums.py`)
-- [x] De-duplicate API test fixtures to `conftest.py`
-- [x] Consolidate `load_dotenv()` calls to single location
-- [x] Update outdated S3/DuckDB comments in transactions endpoint
-- [x] **Remove all AWS/S3 dependencies** - dbt now reads from PostgreSQL via DuckDB's postgres extension
-- [x] Delete `src/aws/` directory entirely
-
----
-
-## Phase 2.6: Transaction Tagging ✅
-
-User-defined tags for categorising transactions. See PRD: `prds/complete/20260124-fullstack-transaction-tagging.md`
-
-### Backend
+User-defined tags for categorising transactions.
 
 - [x] `Tag` and `TransactionTag` models + migration
 - [x] Tags CRUD API (`/api/tags`)
 - [x] Transaction tagging endpoints (add/remove/bulk)
 - [x] Tag filter on transaction list
-
-### Frontend
-
 - [x] Tags management page (`/settings/tags`)
 - [x] Tag components (`TagChip`, `TagSelector`)
 - [x] Transaction row tagging UI (inline add/remove tags)
 - [x] Selection mode infrastructure for bulk operations
-- [x] Filter transactions by tag dropdown
 
-### Future
+### Phase 2.7: Analytics Backend ✅
 
-- [ ] Multi-tag support with cost splitting (e.g., split £100 grocery shop: £80 Food, £20 Household)
-- [ ] Smart tag suggestions (ML-based)
-
-#### Auto-Tagging with Standard Tags
-
-When implementing auto-tagging, introduce a distinction between **standard tags** and **custom tags**:
-
-Standard Tags (system-provided)
-
-- Seeded on account creation via migration
-- Consistent set used by auto-tagging rules
-- Enable reliable analytics and reporting
-- Cannot be deleted (only hidden/disabled)
-- Suggested set: Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees
-
-Custom Tags (user-created)
-
-- Created by user for personal categorisation
-- Not used by auto-tagging rules (unless user creates a rule)
-- Can be deleted freely
-- Only possible through the settings page rather than easy add on the transaction list
-- Currently possible to create a tag with no colour
-
-Auto-Tagging Rules
-
-- Rule structure: condition(s) → standard tag
-- Conditions: merchant name pattern, merchant category code, amount range, account
-- Examples:
-  - Merchant contains "TESCO" or "SAINSBURY" → Groceries
-  - Merchant contains "UBER" or "TFL" → Transport
-  - MCC code 5411 (Grocery Stores) → Groceries
-- Rules have priority order (first match wins)
-- User can override auto-assigned tags manually
-- Consider a "learn from corrections" feature (user overrides train the model)
-
-Schema Changes
-
-- Add `is_standard` boolean to Tag model
-- Add `TagRule` model: id, user_id, name, conditions (JSON), tag_id, priority, enabled
-- Add `auto_tagged` boolean to TransactionTag to track which were auto-assigned
-
----
-
-## Phase 2.7: Analytics & Visualisation
-
-Charts and dashboards to understand spending patterns. Requires tagging (Phase 2.6).
-
-### Backend ✅
+Charts and dashboards to understand spending patterns.
 
 - [x] dbt mart models with filter metadata (dim_accounts, dim_tags, fct_transactions, fct_daily_spending_by_tag, fct_monthly_trends)
 - [x] DuckDB client for read-only analytics queries
 - [x] Dataset discovery endpoints (list datasets, get schema from dbt metadata)
-- [x] Generic dataset query endpoint (`/api/analytics/datasets/{id}/query`) - reads filter columns from dbt meta
+- [x] Generic dataset query endpoint (`/api/analytics/datasets/{id}/query`)
 - [x] Analytics refresh endpoint (trigger dbt via Dagster)
 
-### Future Work
+### Phase 2.8: UI Improvements ✅
 
-- [ ] `fct_daily_balance_history` mart model - requires unified balance table first (currently only raw gc_balances available)
-- [ ] Export engine (Dagster job) - CSV/Parquet exports with parameterised filters, see PRD
+Improve the user experience and visual design.
 
----
+- [x] Account settings modal (display name, category, min balance threshold, last sync)
+- [x] Transaction detail view (modal showing all fields, tag management)
+- [x] Date range presets dropdown (This month, Last 30 days, This year, Custom)
+- [x] Value filter dropdown (min/max amount)
 
-## Phase 2.8: Misc UI Improvements
+### Phase 2.9: Dashboard & Analytics UI ✅
 
-Improve the user experience and visual design of the app.
+Home page overview and dedicated analytics section.
 
-### Accounts ✅
-
-- [x] Account settings modal - cog icon opens modal with:
-  - [x] Display name (editable)
-  - [x] Account category (Credit Card, Debit Card, Bank Account, Investment Account)
-  - [x] Min balance threshold (for future alerts)
-  - [x] Last sync date (read-only)
-
-### Transactions
-
-- [x] Transaction detail view (more details button, modal showing all fields, tag management)
-- [x] Date range presets dropdown (This month, Last 30 days, This year, Custom with date selectors)
-- [x] Value filter dropdown (min/max amount in single dropdown)
-- [ ] Split transactions to different tags (one payment → multiple categories - linked to tags)
-- [ ] Recurring transaction indicators (visual badge for subscriptions)
-
----
-
-## Phase 2.9: Dashboard & Analytics UI
-
-Home page overview and dedicated analytics section. Requires analytics backend (Phase 2.7).
-
-### Navigation & Structure ✅
-
-- [x] Rename "Dashboard" nav item to "Home" (becomes `/` index route)
-- [x] Add "Analytics" as top-level nav item (`/analytics`) - see analytics PRD
-
-### Credit Card Balance Fix ✅
-
-- [x] Investigate credit card balance data (credit limit showing as available funds)
-- [x] Fix net worth calculation to treat credit cards as liabilities (excluded for now - needs credit limit storage)
-
-### Home Page (`/`) ✅
-
-- [x] Net worth summary card (assets, credit cards excluded)
-- [x] Key metrics cards:
-  - [x] Total spending this month
-  - [x] Spending vs last month (% change)
-  - [x] Top spending category this month
-  - [x] Transaction count this month
-- [x] Recent transactions list (10 items, links to full transactions page)
-
-### Analytics Page (`/analytics`) ✅
-
-- [x] Time period filter (default: current month)
-- [x] Bar chart: spending by tag/category
-- [x] Line chart: daily/weekly spending trend
-- [x] Pie/donut chart: category breakdown
-- [x] Table view of underlying data
+- [x] Rename "Dashboard" nav item to "Home" (`/` index route)
+- [x] Add "Analytics" as top-level nav item (`/analytics`)
+- [x] Fix net worth calculation (credit cards excluded - needs credit limit storage)
+- [x] Net worth summary card
+- [x] Key metrics cards (spending, vs last month, top category, transaction count)
+- [x] Recent transactions list
+- [x] Analytics page with period filter, bar/line/donut charts, table view
 - [x] This month vs last month comparison view
 - [x] Manual refresh button (triggers dbt build via Dagster)
 
-### Future Work
-
-- [ ] Net worth trend indicator (sparkline or % change from previous month)
-- [ ] Metric cards click through to relevant analytics page sections
-- [ ] Exclude internal transfers from spending calculations (dbt model improvement)
-- [ ] Balance over time graphs (requires `fct_daily_balance_history` mart)
-- [ ] Upcoming bills/subscriptions widget (requires recurring transaction detection - see Phase 6)
-
----
-
-## Phase 3: Complete Financial Picture
-
-Expand beyond GoCardless to capture full net worth across all assets and liabilities.
-
 ### Unified Provider Architecture ✅
+
+Provider-agnostic foundation for multiple data sources.
 
 - [x] Provider-agnostic connections table (supports gocardless, trading212, vanguard)
 - [x] Provider-agnostic accounts table
@@ -266,51 +129,72 @@ Expand beyond GoCardless to capture full net worth across all assets and liabili
 - [x] Holdings table for investment positions
 - [x] Transaction storage in PostgreSQL (gc_transactions)
 
-### Manual Assets & Liabilities
+---
 
-Track items not available via APIs for complete net worth visibility.
+## Phase 3: Analytics Polish
 
-#### Liabilities
+Quick wins to improve analytics accuracy and home page usefulness.
 
-- [ ] Student loan balance tracking
-- [ ] Mortgage balance tracking
-- [ ] Other loans and credit facilities
-
-#### Assets
-
-- [ ] Property valuations (manual entry with date)
-- [ ] Vehicle values
-- [ ] Other assets (collectibles, crypto held elsewhere, etc.)
-
-### Investment Platforms
-
-#### Vanguard Integration
-
-- [ ] Research API/scraping options
-- [ ] Handle MFA (via Telegram - see Phase 5)
-- [ ] Extract portfolio holdings
-- [ ] Extract transaction history
-- [ ] dbt models for investment data
-
-#### Trading212 Integration
-
-- [ ] Research API availability
-- [ ] Extract holdings and positions
-- [ ] Extract transaction/trade history
-- [ ] dbt models for trading data
+- [ ] Exclude internal transfers from spending calculations (dbt model improvement)
+- [ ] Net worth trend indicator (sparkline or % change from previous month)
+- [ ] Metric cards click through to relevant analytics page sections
 
 ---
 
-## Phase 4: Budgeting & Goals
+## Phase 4: Smart Tagging
+
+Automated categorisation and transaction splitting. Foundation for accurate budgeting.
+
+### Standard Tags
+
+- [ ] Add `is_standard` boolean to Tag model
+- [ ] Seed standard tags on account creation (Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees)
+- [ ] Standard tags cannot be deleted (only hidden/disabled)
+- [ ] Distinguish custom tags (user-created, deletable)
+
+### Auto-Tagging Rules
+
+- [ ] `TagRule` model: id, user_id, name, conditions (JSON), tag_id, priority, enabled
+- [ ] Add `auto_tagged` boolean to TransactionTag
+- [ ] Rule conditions: merchant name pattern, MCC code, amount range, account
+- [ ] Priority ordering (first match wins)
+- [ ] User can override auto-assigned tags
+- [ ] Rules management UI
+
+### Split Transactions
+
+- [ ] Split one transaction across multiple tags with amounts (e.g., £100 grocery shop: £80 Food, £20 Household)
+- [ ] UI for managing splits on transaction detail modal
+- [ ] Analytics correctly handles split amounts per tag
+
+### Future
+
+- [ ] Smart tag suggestions (ML-based, learn from user corrections)
+
+---
+
+## Phase 5: Recurring Transactions
+
+Identify subscriptions and predict upcoming bills.
+
+- [ ] Recurring transaction detection algorithm
+- [ ] Visual indicators/badges for subscriptions on transaction list
+- [ ] Upcoming bills/subscriptions widget on home page
+- [ ] Subscription management view (list all detected subscriptions)
+- [ ] Mark false positives / confirm recurring status
+
+---
+
+## Phase 6: Budgeting & Goals
 
 Financial planning features for tracking progress and controlling spending.
 
 ### Budget Tracking
 
-- [ ] Monthly budget by category
+- [ ] Monthly budget by category (tag)
 - [ ] Spending vs budget dashboard
 - [ ] Rollover/flexible budgets
-- [ ] Income tracking and forecasting
+- [ ] Income tracking
 
 ### Savings Goals
 
@@ -323,23 +207,11 @@ Financial planning features for tracking progress and controlling spending.
 
 - [ ] Category-based limits (e.g., dining £200/month)
 - [ ] Warning thresholds (80%, 100%)
-- [ ] Notification when approaching/exceeding
-
-### Net Worth Tracking
-
-- [ ] Track total net worth over time
-- [ ] Set milestone targets
-- [ ] Visualise progress across all accounts
-
-### Forecasting
-
-- [ ] Project future balances based on recurring income/expenses
-- [ ] "What if" scenarios
-- [ ] Runway calculations
+- [ ] Notification when approaching/exceeding (via Telegram)
 
 ---
 
-## Phase 5: Telegram Integration
+## Phase 7: Telegram Integration
 
 Proactive alerts and two-way communication. Required for Vanguard MFA.
 
@@ -362,42 +234,79 @@ Proactive alerts and two-way communication. Required for Vanguard MFA.
 
 ---
 
-## Phase 6: Intelligence Layer
+## Phase 8: Investment Platforms
 
-AI-powered features for insights and automation. Lower priority.
+Expand beyond bank accounts to see full investment portfolio.
 
-### Analytics & Insights
+### Vanguard Integration
 
-- [ ] Spending categorisation (ML-based)
-- [ ] Weekly/monthly trend analysis
-- [ ] Anomaly detection (unusual transactions)
-- [ ] Subscription detection and review
+- [ ] Research API/scraping options
+- [ ] Handle MFA (via Telegram)
+- [ ] Extract portfolio holdings
+- [ ] Extract transaction history
+- [ ] dbt models for investment data
 
-### AI Features (AWS Bedrock)
+### Trading212 Integration
+
+- [ ] Research API availability
+- [ ] Extract holdings and positions
+- [ ] Extract transaction/trade history
+- [ ] dbt models for trading data
+
+---
+
+## Phase 9: Balance History & Net Worth
+
+Track financial progress over time. Requires unified balance table.
+
+- [ ] Unified balance table (consolidate provider-specific balance tables)
+- [ ] `fct_daily_balance_history` dbt mart model
+- [ ] Balance over time graphs
+- [ ] Net worth tracking over time
+- [ ] Set milestone targets
+- [ ] Forecasting (project future balances based on recurring income/expenses)
+- [ ] "What if" scenarios
+- [ ] Runway calculations
+
+---
+
+## Phase 10: Low Priority & Polish
+
+Items to tackle when core functionality is complete.
+
+### Mobile Responsiveness
+
+- [ ] Responsive navigation (hamburger menu)
+- [ ] Home page mobile layout
+- [ ] Analytics page mobile layout
+- [ ] Accounts page mobile layout
+- [ ] Transactions page mobile layout
+- [ ] Settings pages mobile layout
+
+### Export Engine
+
+- [ ] Dagster job for CSV/Parquet exports
+- [ ] Parameterised filters (date range, accounts, tags)
+
+### Manual Assets & Liabilities
+
+- [ ] Student loan balance tracking
+- [ ] Mortgage balance tracking
+- [ ] Property valuations (manual entry with date)
+- [ ] Vehicle values
+- [ ] Other assets/liabilities
+
+### AI Features
 
 - [ ] Natural language queries ("How much did I spend on groceries last month?")
 - [ ] Budget allocation suggestions
 - [ ] Spending pattern insights
+- [ ] Anomaly detection (unusual transactions)
 - [ ] Financial health score
 
-### Automation
+### Backlog
 
-- [ ] Rule-based transaction tagging
-- [ ] Recurring transaction detection
-- [ ] Bill prediction and reminders
-
----
-
-## Phase 7: Mobile Responsiveness
-
-Low priority polish pass to improve mobile experience across all pages.
-
-- [ ] Responsive navigation (hamburger menu, mobile-friendly nav)
-- [ ] Home page mobile layout
-- [ ] Analytics page mobile layout (charts that work on small screens)
-- [ ] Accounts page mobile layout
-- [ ] Transactions page mobile layout
-- [ ] Settings pages mobile layout
+- [ ] Historical data backfill tooling
 
 ---
 

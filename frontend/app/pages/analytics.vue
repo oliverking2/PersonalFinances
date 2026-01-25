@@ -172,6 +172,9 @@ const spendingByCategory = computed(() => {
 
   for (const row of dailySpendingByTag.value.rows) {
     const rawTagName = row.tag_name as string | null | undefined
+    // Skip "No Spending" rows (date spine gap-fill rows with zero spending)
+    if (rawTagName === 'No Spending') continue
+
     const tagName = rawTagName || 'Untagged'
     const spending = (row.total_spending as number) || 0
     const colour = rawTagName
@@ -201,6 +204,9 @@ const previousSpendingByCategory = computed(() => {
 
   for (const row of previousPeriodDailySpending.value.rows) {
     const rawTagName = row.tag_name as string | null | undefined
+    // Skip "No Spending" rows (date spine gap-fill rows with zero spending)
+    if (rawTagName === 'No Spending') continue
+
     const tagName = rawTagName || 'Untagged'
     const spending = (row.total_spending as number) || 0
     const colour = rawTagName

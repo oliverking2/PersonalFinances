@@ -22,70 +22,48 @@ const props = defineProps<{
 // Computed: Chart configuration
 // ---------------------------------------------------------------------------
 
-// Current period series (round to 2 decimal places to avoid floating point errors)
-const currentSeries = computed(() => {
-  return props.data.map((item) => ({
+const series = computed(() => {
+  const currentData = props.data.map((item) => ({
     x: new Date(item.date).getTime(),
     y: Math.round(item.total * 100) / 100,
   }))
-})
 
-// Previous period series (offset dates to align with current)
-const previousSeries = computed(() => {
-  if (!props.compareEnabled || !props.previousData.length) return []
+  const result = [{ name: 'Current Period', data: currentData }]
 
-  // Calculate offset: difference between first date of current and previous
-  const currentStart = props.data[0]?.date
-    ? new Date(props.data[0].date).getTime()
-    : 0
-  const previousStart = props.previousData[0]?.date
-    ? new Date(props.previousData[0].date).getTime()
-    : 0
-  const offset = currentStart - previousStart
+  if (props.compareEnabled && props.previousData.length) {
+    // Offset previous dates to align with current period
+    const currentStart = props.data[0]?.date
+      ? new Date(props.data[0].date).getTime()
+      : 0
+    const previousStart = props.previousData[0]?.date
+      ? new Date(props.previousData[0].date).getTime()
+      : 0
+    const offset = currentStart - previousStart
 
-  return props.previousData.map((item) => ({
-    x: new Date(item.date).getTime() + offset,
-    y: Math.round(item.total * 100) / 100,
-  }))
-})
-
-const series = computed(() => {
-  const result = [
-    {
-      name: 'Current Period',
-      data: currentSeries.value,
-    },
-  ]
-
-  if (props.compareEnabled && previousSeries.value.length) {
-    result.push({
-      name: 'Previous Period',
-      data: previousSeries.value,
-    })
+    const previousData = props.previousData.map((item) => ({
+      x: new Date(item.date).getTime() + offset,
+      y: Math.round(item.total * 100) / 100,
+    }))
+    result.push({ name: 'Previous Period', data: previousData })
   }
 
   return result
 })
 
-// Chart options
 const chartOptions = computed<ApexOptions>(() => ({
   chart: {
     type: 'area',
     toolbar: { show: false },
     fontFamily: 'inherit',
     background: 'transparent',
-    animations: {
-      enabled: true,
-      speed: 600,
-      easing: 'easeinout',
-    },
+    animations: { enabled: true, speed: 600, easing: 'easeinout' },
     zoom: { enabled: false },
     selection: { enabled: false },
   },
   stroke: {
     curve: 'smooth',
     width: props.compareEnabled ? [2, 2] : [2],
-    dashArray: props.compareEnabled ? [0, 5] : [0], // Dashed line for previous
+    dashArray: props.compareEnabled ? [0, 5] : [0],
   },
   colors: props.compareEnabled ? ['#10b981', '#6b7280'] : ['#10b981'],
   fill: {
@@ -97,38 +75,18 @@ const chartOptions = computed<ApexOptions>(() => ({
       stops: [0, 100],
     },
   },
-  markers: {
-    size: 0,
-    hover: {
-      size: 6,
-    },
-  },
+  markers: { size: 0, hover: { size: 6 } },
   xaxis: {
     type: 'datetime',
     labels: {
-      style: {
-        colors: '#a3a3a3',
-        fontSize: '12px',
-      },
-      datetimeFormatter: {
-        day: 'dd MMM',
-        month: "MMM 'yy",
-      },
+      style: { colors: '#a3a3a3', fontSize: '12px' },
+      datetimeFormatter: { day: 'dd MMM', month: "MMM 'yy" },
     },
     axisBorder: { show: false },
     axisTicks: { show: false },
   },
   yaxis: {
-    labels: {
-      style: {
-        colors: '#a3a3a3',
-        fontSize: '12px',
-      },
-      formatter: function (val: number) {
-        if (val === undefined || val === null) return ''
-        return formatCurrency(val, false) // No decimals for axis labels
-      },
-    },
+    labels: { style: { colors: '#a3a3a3', fontSize: '12px' } },
   },
   grid: {
     borderColor: '#2e2e2e',
@@ -140,18 +98,12 @@ const chartOptions = computed<ApexOptions>(() => ({
     show: props.compareEnabled,
     position: 'top',
     horizontalAlign: 'right',
-    labels: {
-      colors: '#e5e5e5',
-    },
+    labels: { colors: '#e5e5e5' },
   },
   tooltip: {
     theme: 'dark',
-    x: {
-      format: 'dd MMM yyyy',
-    },
-    y: {
-      formatter: (val: number) => formatCurrency(val),
-    },
+    x: { format: 'dd MMM yyyy' },
+    y: { formatter: (val: number) => formatCurrency(val) },
   },
 }))
 
@@ -159,12 +111,12 @@ const chartOptions = computed<ApexOptions>(() => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatCurrency(amount: number, includeDecimals = true): string {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
-    minimumFractionDigits: includeDecimals ? 2 : 0,
-    maximumFractionDigits: includeDecimals ? 2 : 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount)
 }
 </script>
