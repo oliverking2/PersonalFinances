@@ -23,13 +23,16 @@ COPY backend/pyproject.toml backend/poetry.lock ./
 RUN poetry install --no-interaction --no-ansi --no-root
 
 # Copy Dagster config
-COPY backend/setup/dagster/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
-COPY backend/setup/dagster/workspace.yaml /opt/dagster/dagster_home/workspace.yaml
+COPY backend/setup/dagster/dagster.yaml ./dagster.yaml
+COPY backend/setup/dagster/workspace.yaml ./workspace.yaml
 
 # Copy your code
 COPY backend/src ./src
 COPY backend/scripts ./scripts
-COPY backend/dbt /opt/dagster/dbt
+COPY backend/dbt ./dbt
 
 # Install the project itself now that source exists
 RUN poetry install --no-interaction --no-ansi --only-root
+
+# Parse dbt project to generate manifest.json (required by dagster-dbt)
+RUN poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt

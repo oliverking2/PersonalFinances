@@ -5,10 +5,10 @@ A self-hosted personal finance aggregation and analytics platform. Connect bank 
 Key highlights:
 
 - **Open banking integration** - Connect UK bank accounts via GoCardless Bank Account Data API with OAuth flow and automatic token refresh
-- **Data pipeline architecture** - Dagster orchestration with incremental extraction, S3 storage (Parquet), and dbt transformations
+- **Analytics pipeline** - Dagster orchestration with dbt transformations (DuckDB reads from PostgreSQL)
 - **Layered backend** - FastAPI REST layer with thin endpoints, domain logic in dedicated modules, SQLAlchemy 2.0 for persistence
-- **Modern frontend** - Nuxt 4 with Vue 3 Composition API, Nuxt UI components, and TypeScript
-- **Self-hosted** - Full control over financial data with Docker Compose deployment
+- **Modern frontend** - Nuxt 4 with Vue 3 Composition API, Tailwind CSS, Pinia state management, and TypeScript
+- **Self-hosted** - Full control over financial data, deployed via Cloudflare Tunnel
 
 ## Project Goal
 
@@ -18,8 +18,8 @@ The primary use cases include:
 
 - Connecting multiple UK bank accounts via GoCardless open banking
 - Viewing consolidated account balances and transactions
+- Tagging and categorising transactions
 - Analysing spending patterns with dbt-powered transformations
-- Storing transaction history in S3 (Parquet) for long-term analytics
 
 The system maintains incremental extraction state, only fetching new transactions since the last sync.
 
@@ -34,11 +34,12 @@ This section provides a high-level overview of how the system works, intended as
 │                              FRONTEND LAYER                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Nuxt 4 Application                                                         │
-│  (Vue 3 + Nuxt UI + TypeScript)                                             │
+│  (Vue 3 + Tailwind CSS + Pinia + TypeScript)                                │
 │                                                                             │
-│  • Pages: Dashboard, Connections, Accounts, Transactions                    │
-│  • Composables: useApi (HTTP client wrapper)                                │
-│  • Layouts: Dashboard layout with navigation                                │
+│  • Pages: Dashboard, Accounts, Transactions, Analytics, Settings            │
+│  • Composables: useAuthenticatedFetch, use*Api (domain APIs)                │
+│  • Components: AppButton, AppInput, AppSelect (design system)               │
+│  • Auth: SSR validation with HttpOnly refresh token cookie                  │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -47,10 +48,10 @@ This section provides a high-level overview of how the system works, intended as
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  FastAPI REST API                                                           │
 │                                                                             │
-│  /connections      │  /accounts           │  /transactions                  │
-│  • List/create     │  • List by conn      │  • List with filters            │
-│  • OAuth callback  │  • Get balances      │  • Date range queries           │
-│  • Delete          │                      │                                 │
+│  /auth             │  /connections      │  /transactions   │  /analytics    │
+│  • Login/logout    │  • List/create     │  • List/filter   │  • Spending    │
+│  • Refresh token   │  • OAuth callback  │  • Tag/update    │  • Trends      │
+│  • User info       │  • Sync accounts   │  • Date range    │  • Categories  │
 │                                                                             │
 │  Thin layer: validation, error handling, delegates to domain modules        │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -59,14 +60,13 @@ This section provides a high-level overview of how the system works, intended as
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           DOMAIN SERVICES                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  postgres/gocardless/     │  providers/gocardless/   │  aws/                │
-│  (Database operations)    │  (API client)            │  (Cloud services)    │
-│                           │                          │                      │
-│  • Requisitions CRUD      │  • Institution lookup    │  • S3 read/write     │
-│  • Bank accounts CRUD     │  • Agreement creation    │  • SSM parameters    │
-│  • Agreements CRUD        │  • Requisition flow      │                      │
-│                           │  • Transaction fetch     │                      │
-│                           │  • Balance fetch         │                      │
+│  postgres/common/         │  postgres/gocardless/    │  providers/gocardless/│
+│  (Standardised models)    │  (Raw provider data)     │  (API client)         │
+│                           │                          │                       │
+│  • Connections            │  • Requisitions          │  • Institution lookup │
+│  • Accounts               │  • Bank accounts         │  • Agreement creation │
+│  • Transactions           │  • Balances              │  • Transaction fetch  │
+│  • Tags                   │                          │  • Balance fetch      │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -75,13 +75,12 @@ This section provides a high-level overview of how the system works, intended as
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Dagster                                                                    │
 │                                                                             │
-│  Assets:                         │  Schedules:                              │
-│  • extract_transactions          │  • Daily transaction extraction          │
-│  • extract_balances              │  • Daily balance snapshots               │
+│  Assets:                         │  Jobs:                                   │
+│  • sync_transactions             │  • Sync all accounts                     │
+│  • sync_balances                 │  • Backfill transactions                 │
 │                                  │                                          │
-│  Resources:                      │  Background Jobs:                        │
-│  • PostgresResource              │  • Agreement refresh (before expiry)     │
-│  • S3Resource                    │  • Token management                      │
+│  Resources:                      │  Schedules:                              │
+│  • PostgresResource              │  • Daily sync                            │
 │  • GoCardlessResource            │                                          │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -89,25 +88,25 @@ This section provides a high-level overview of how the system works, intended as
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          DATA TRANSFORMATION                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  dbt (DuckDB)                                                               │
+│  dbt (DuckDB reads from PostgreSQL)                                         │
 │                                                                             │
-│  1_source/           │  2_staging/           │  3_mart/                     │
-│  • Raw S3 sources    │  • Cleaned data       │  • Analytics aggregations    │
-│  • Schema definitions│  • Type casting       │  • Spending summaries        │
-│                      │  • Deduplication      │  • Category breakdowns       │
+│  source/             │  staging/             │  mart/                       │
+│  • PostgreSQL tables │  • Cleaned data       │  • fct_daily_spending        │
+│  • Schema definitions│  • Type casting       │  • fct_monthly_trends        │
+│                      │                       │  • fct_category_breakdown    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           EXTERNAL SERVICES                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  GoCardless API          │  AWS S3                │  PostgreSQL             │
-│  (Bank Account Data)     │  (Parquet storage)     │  (Metadata & state)     │
-│                          │                        │                         │
-│  • Institutions list     │  • Transaction files   │  • Requisitions         │
-│  • Account access        │  • Balance snapshots   │  • Bank accounts        │
-│  • Transactions          │  • Extraction logs     │  • Agreements           │
-│  • Balances              │                        │  • Extract dates        │
+│  GoCardless API               │  PostgreSQL                                 │
+│  (Bank Account Data)          │  (All application data)                     │
+│                               │                                             │
+│  • Institutions list          │  • Users, auth tokens                       │
+│  • Account access (OAuth)     │  • Connections, accounts                    │
+│  • Transactions               │  • Transactions, tags                       │
+│  • Balances                   │  • GoCardless raw data                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -116,87 +115,92 @@ This section provides a high-level overview of how the system works, intended as
 #### 1. Bank Connection Flow (User-initiated)
 
 ```
-Frontend (Connections page)
-    → POST /connections (institution_id)
+Frontend (Accounts page)
+    → POST /api/connections (institution_id)
     → GoCardless API (create agreement + requisition)
     → Redirect to bank OAuth
     → Bank authorises
-    → Callback to /connections/callback
-    → Store requisition + accounts in PostgreSQL
+    → Callback to /api/connections/callback
+    → Store connection + accounts in PostgreSQL
     → Redirect to frontend
 ```
 
-#### 2. Transaction Extraction (Scheduled)
+#### 2. Transaction Sync (Scheduled/Manual)
 
 ```
-Dagster Schedule (daily)
-    → For each active bank account:
-        → Get last extract_date from PostgreSQL
-        → Fetch transactions since extract_date from GoCardless
-        → Write to S3 as Parquet (partitioned by date)
-        → Update extract_date in PostgreSQL
+Dagster Job (daily or triggered via API)
+    → For each active account:
+        → Get last sync date from PostgreSQL
+        → Fetch transactions since last sync from GoCardless
+        → Upsert transactions to PostgreSQL
+        → Update sync timestamp
 ```
 
 #### 3. Analytics Query (User-initiated)
 
 ```
-Frontend (Transactions page)
-    → GET /transactions?date_from=...&date_to=...
-    → dbt query against DuckDB (reads from S3)
-    → Return aggregated/filtered results
+Frontend (Analytics page)
+    → GET /api/analytics/spending?start_date=...&end_date=...
+    → API queries dbt mart tables (DuckDB reads from PostgreSQL)
+    → Return pre-aggregated analytics data
 ```
 
 ### Key Design Decisions
 
-| Decision                | Rationale                                                             |
-|-------------------------|-----------------------------------------------------------------------|
-| Thin API layer          | Endpoints handle HTTP concerns only; business logic in domain modules |
-| Session-per-request     | Database operations receive Session, caller manages transactions      |
-| S3 for transactions     | Parquet enables efficient columnar queries, separates hot/cold data   |
-| PostgreSQL for metadata | Relational integrity for connections, accounts, extraction state      |
-| Incremental extraction  | extract_date watermark prevents re-fetching old transactions          |
-| dbt over raw SQL        | Version-controlled transformations, testable, self-documenting        |
-| Dagster over Celery     | Better observability, native scheduling, asset-based mental model     |
+| Decision                  | Rationale                                                             |
+|---------------------------|-----------------------------------------------------------------------|
+| Thin API layer            | Endpoints handle HTTP concerns only; business logic in domain modules |
+| Session-per-request       | Database operations receive Session, caller manages transactions      |
+| PostgreSQL for all data   | Single database simplifies deployment; DuckDB provides analytics perf |
+| SSR auth validation       | Server validates auth before rendering; no flash of protected content |
+| HttpOnly refresh token    | Secure cookie-based refresh; access token in memory only              |
+| Incremental sync          | Watermark prevents re-fetching old transactions                       |
+| dbt for analytics         | Version-controlled transformations, testable, self-documenting        |
+| Dagster for orchestration | Better observability, native scheduling, asset-based mental model     |
 
 ### Module Boundaries
 
 ```
 backend/src/
 ├── api/                 # FastAPI endpoints (thin HTTP layer)
+│   ├── auth/            # Login, logout, refresh, registration
 │   ├── accounts/        # Account listing, balances
-│   ├── connections/     # OAuth flow, requisition management
-│   └── transactions/    # Transaction queries
-├── aws/                 # AWS service clients
-│   ├── s3.py            # S3 read/write operations
-│   └── ssm_parameters.py # Parameter Store access
+│   ├── analytics/       # Spending analytics (queries dbt marts)
+│   ├── connections/     # OAuth flow, connection management
+│   ├── tags/            # Tag CRUD
+│   └── transactions/    # Transaction queries and tagging
 ├── orchestration/       # Dagster definitions
-│   ├── gocardless/      # Extraction assets & schedules
+│   ├── gocardless/      # Sync assets & jobs
 │   └── dbt/             # dbt asset definitions
 ├── postgres/            # Database layer
-│   └── gocardless/      # Models and CRUD operations
+│   ├── auth/            # Users, refresh tokens
+│   ├── common/          # Standardised models (connections, accounts, transactions)
+│   └── gocardless/      # Raw provider data (requisitions, bank accounts)
 ├── providers/           # External API clients
 │   └── gocardless/      # GoCardless API wrapper
-└── utils/               # Logging, shared utilities
+└── utils/               # Logging, security, shared utilities
 
 frontend/app/
-├── components/          # Reusable Vue components
-├── composables/         # useApi, shared logic
-├── layouts/             # Page layouts
-└── pages/               # File-based routes
+├── components/          # Reusable Vue components (App*, feature-grouped)
+├── composables/         # useAuthenticatedFetch, use*Api
+├── layouts/             # Page layouts (default with nav)
+├── middleware/          # Route guards (auth.global.ts)
+├── pages/               # File-based routes
+├── stores/              # Pinia stores (auth, toast)
+└── types/               # TypeScript interfaces
 ```
 
 ## Technology Stack
 
-| Layer            | Technology                                       |
-|------------------|--------------------------------------------------|
-| Frontend         | Vue 3, Nuxt 4, Nuxt UI, TypeScript, Tailwind CSS |
-| Backend          | Python 3.12+, FastAPI, SQLAlchemy 2.0            |
-| Database         | PostgreSQL (metadata), DuckDB (analytics)        |
-| Storage          | AWS S3 (Parquet files)                           |
-| Orchestration    | Dagster                                          |
-| Transforms       | dbt                                              |
-| Bank API         | GoCardless Bank Account Data                     |
-| Containerisation | Docker Compose                                   |
+| Layer         | Technology                                        |
+|---------------|---------------------------------------------------|
+| Frontend      | Vue 3, Nuxt 4, Tailwind CSS, Pinia, TypeScript    |
+| Backend       | Python 3.12+, FastAPI, SQLAlchemy 2.0             |
+| Database      | PostgreSQL (all data), DuckDB (analytics queries) |
+| Orchestration | Dagster                                           |
+| Transforms    | dbt                                               |
+| Bank API      | GoCardless Bank Account Data                      |
+| Deployment    | Docker Compose, Cloudflare Tunnel                 |
 
 ## Project Structure
 
@@ -226,7 +230,6 @@ PersonalFinances/
 - Poetry
 - Node.js 22+
 - Docker and Docker Compose
-- AWS account (S3 storage)
 - GoCardless account (bank connections)
 
 ### Installation
@@ -275,7 +278,7 @@ make up-backend
 make up-frontend
 ```
 
-### Access Points
+### Access Points (Local Development)
 
 | Service     | URL                          |
 |-------------|------------------------------|
@@ -290,11 +293,26 @@ The backend includes JWT-based authentication. To test locally with Postman:
 
 #### 1. Register a User
 
-**Request:**
+In local development (`ENVIRONMENT=local`), registration is open. In production, an admin token is required.
+
+**Request (local):**
 
 ```
 POST http://localhost:8000/auth/register
 Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpassword123"
+}
+```
+
+**Request (production):**
+
+```
+POST https://finances-api.oliverking.me.uk/auth/register
+Content-Type: application/json
+Authorization: Bearer <your-admin-token>
 
 {
   "username": "testuser",
@@ -417,8 +435,8 @@ The project uses separate `.env` files with distinct responsibilities:
 | File               | Purpose                                    | Committed |
 |--------------------|--------------------------------------------|-----------|
 | `.env.compose`     | Docker infrastructure (ports, credentials) | No        |
-| `backend/.env`     | Backend runtime (APIs, security)           | No        |
-| `frontend/.env`    | Frontend defaults (public config)          | Yes       |
+| `backend/.env`     | Backend runtime (APIs, security, CORS)     | No        |
+| `frontend/.env`    | Frontend config (API URL)                  | No        |
 
 ### Quick Setup
 
@@ -442,8 +460,41 @@ cp backend/.env_example backend/.env
 # Edit with your credentials (must match .env.compose for database)
 ```
 
+Key backend variables:
+
+| Variable       | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| `ENVIRONMENT`  | `local` or `prod` (affects logging, admin token requirement)                |
+| `CORS_ORIGINS` | Comma-separated allowed origins (e.g., `https://finances.oliverking.me.uk`) |
+| `ADMIN_TOKEN`  | Required in prod for `/auth/register` endpoint                              |
+| `JWT_SECRET`   | Secret for signing tokens (min 32 chars)                                    |
+
 **3. Frontend** (`frontend/.env`):
-Already committed with safe defaults. Create `frontend/.env.local` for secrets if needed.
+
+```bash
+cp frontend/.env.example frontend/.env
+# Set NUXT_PUBLIC_API_URL to your backend URL
+```
+
+| Variable              | Description                                    |
+|-----------------------|------------------------------------------------|
+| `NUXT_PUBLIC_API_URL` | Backend API URL (browser calls this directly)  |
+
+## Deployment
+
+The app runs on a home server exposed via **Cloudflare Tunnel** (cloudflared).
+
+| Service  | URL                                     |
+|----------|-----------------------------------------|
+| Frontend | <https://finances.oliverking.me.uk>     |
+| Backend  | <https://finances-api.oliverking.me.uk> |
+
+### Tunnel Setup
+
+1. Configure two tunnels in Cloudflare dashboard pointing to local services
+2. Set `CORS_ORIGINS=https://finances.oliverking.me.uk` in `backend/.env`
+3. Set `NUXT_PUBLIC_API_URL=https://finances-api.oliverking.me.uk` in `frontend/.env`
+4. Restart services after env changes
 
 ## PRD Context
 
