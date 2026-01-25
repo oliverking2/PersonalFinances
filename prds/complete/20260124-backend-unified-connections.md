@@ -81,6 +81,7 @@ CREATE TABLE accounts (
 ### Keep Existing Tables
 
 Raw GoCardless tables remain unchanged as the source of truth for provider data:
+
 - `gc_requisition_links`
 - `gc_bank_accounts`
 - `gc_balances`
@@ -92,19 +93,19 @@ Raw GoCardless tables remain unchanged as the source of truth for provider data:
 
 ### Connection Status (from GoCardless requisition)
 
-| GoCardless Code | Meaning | Maps To |
-|-----------------|---------|---------|
-| CR | Created | `pending` |
-| LN | Linked | `active` |
-| EX | Expired | `expired` |
-| RJ, UA, SU | Rejected/Abandoned/Suspended | `error` |
-| GA, SA | Granting Access/Selecting | `pending` |
+| GoCardless Code  | Meaning                      | Maps To   |
+|------------------|------------------------------|-----------|
+| CR               | Created                      | `pending` |
+| LN               | Linked                       | `active`  |
+| EX               | Expired                      | `expired` |
+| RJ, UA, SU       | Rejected/Abandoned/Suspended | `error`   |
+| GA, SA           | Granting Access/Selecting    | `pending` |
 
 ### Account Status (from GoCardless account)
 
-| GoCardless Status | Maps To |
-|-------------------|---------|
-| READY | `active` |
+| GoCardless Status        | Maps To    |
+|--------------------------|------------|
+| READY                    | `active`   |
 | EXPIRED, SUSPENDED, null | `inactive` |
 
 ---
@@ -114,6 +115,7 @@ Raw GoCardless tables remain unchanged as the source of truth for provider data:
 ### Response Models (align with frontend PRD)
 
 **ConnectionResponse** (changed fields marked with *)
+
 ```python
 class ConnectionResponse:
     id: str                          # * UUID instead of requisition ID
@@ -128,6 +130,7 @@ class ConnectionResponse:
 ```
 
 **AccountResponse** (changed fields marked with *)
+
 ```python
 class AccountResponse:
     id: str                          # * UUID instead of GC account ID
@@ -144,16 +147,16 @@ class AccountResponse:
 
 ### Endpoints
 
-| Endpoint | Change |
-|----------|--------|
-| `GET /api/connections` | Read from `connections` table, add auth |
-| `POST /api/connections` | Implement (currently 501), create in both tables |
-| `PATCH /api/connections/{id}` | NEW - update friendly_name |
-| `DELETE /api/connections/{id}` | Read from `connections`, cascade delete |
-| `POST /api/connections/{id}/reauthorise` | NEW - generate new auth URL |
-| `GET /api/accounts` | Read from `accounts` table, add balance lookup |
-| `PATCH /api/accounts/{id}` | Update in standardised table |
-| `GET /api/institutions` | NEW - list institutions for dropdown |
+| Endpoint                                 | Change                                           |
+|------------------------------------------|--------------------------------------------------|
+| `GET /api/connections`                   | Read from `connections` table, add auth          |
+| `POST /api/connections`                  | Implement (currently 501), create in both tables |
+| `PATCH /api/connections/{id}`            | NEW - update friendly_name                       |
+| `DELETE /api/connections/{id}`           | Read from `connections`, cascade delete          |
+| `POST /api/connections/{id}/reauthorise` | NEW - generate new auth URL                      |
+| `GET /api/accounts`                      | Read from `accounts` table, add balance lookup   |
+| `PATCH /api/accounts/{id}`               | Update in standardised table                     |
+| `GET /api/institutions`                  | NEW - list institutions for dropdown             |
 
 ---
 
@@ -202,6 +205,7 @@ backend/src/
 ## Implementation Sequence
 
 ### Phase 1: Database Layer
+
 1. Create `src/postgres/common/enums.py` with StrEnum definitions
 2. Create `src/postgres/common/models.py` with SQLAlchemy models
 3. Create Alembic migration for new tables
@@ -209,12 +213,14 @@ backend/src/
 5. Write tests for all operations
 
 ### Phase 2: Seed & Backfill (in migration)
+
 1. Seed institutions from GoCardless (hardcoded for existing connections)
 2. Backfill existing `gc_requisition_links` → `connections`
 3. Backfill existing `gc_bank_accounts` → `accounts`
 4. Associate with first user (single-user backfill)
 
 ### Phase 3: API Layer
+
 1. Update connection endpoints to use standardised tables
 2. Update account endpoints, add balance lookup
 3. Create institutions endpoints
@@ -224,6 +230,7 @@ backend/src/
 7. Write API tests
 
 **Out of Scope (future PRD):**
+
 - Dagster sync pipeline (GoCardless → standardised tables)
 - Automatic institution list refresh from GoCardless API
 

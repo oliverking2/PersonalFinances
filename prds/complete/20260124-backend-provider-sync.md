@@ -11,12 +11,14 @@ Build Dagster sync pipelines to keep unified tables (connections, accounts) in s
 ## Current State
 
 **Completed (previous PRD):**
+
 - Unified tables: `institutions`, `connections`, `accounts`
 - Balance fields on accounts table
 - API endpoints using unified tables
 - One-time migration backfill from GoCardless
 
 **Gap:**
+
 - No ongoing sync from raw tables to unified tables
 - New connections/status changes not propagated
 - No Trading212 or Vanguard provider modules
@@ -59,6 +61,7 @@ Analytics Pipeline (separate from sync):
 ```
 
 **Data Strategy:**
+
 - PostgreSQL is the source of truth for all operational data
 - Extraction assets write directly to PostgreSQL raw tables (`gc_*`)
 - Sync assets propagate changes to unified tables (`connections`, `accounts`)
@@ -72,6 +75,7 @@ Analytics Pipeline (separate from sync):
 **File:** `src/orchestration/gocardless/extraction/assets.py`
 
 Extraction assets write directly to PostgreSQL:
+
 - `gocardless_extract_transactions` - Writes to `gc_transactions`
 - `gocardless_extract_account_details` - Writes to `gc_bank_accounts`
 - `gocardless_extract_balances` - Writes to `gc_balances`
@@ -143,11 +147,11 @@ Includes all extraction assets, sync assets, job, and schedule.
 
 Add to `Account` model for investment accounts:
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `account_type` | String(20) | "bank" / "investment" / "trading" |
-| `total_value` | Numeric(18,2) | Portfolio total value |
-| `unrealised_pnl` | Numeric(18,2) | Unrealised profit/loss |
+| Field            | Type          | Purpose                           |
+|------------------|---------------|-----------------------------------|
+| `account_type`   | String(20)    | "bank" / "investment" / "trading" |
+| `total_value`    | Numeric(18,2) | Portfolio total value             |
+| `unrealised_pnl` | Numeric(18,2) | Unrealised profit/loss            |
 
 ### 2.2 New Enum
 
@@ -214,12 +218,14 @@ class Transaction(Base):
 ## Implementation Scope
 
 **Completed:**
+
 - Phase 1: GoCardless sync pipeline (extraction + sync assets)
 - Phase 2: Account model extensions (account_type, investment fields)
 - Holdings table schema (for future Trading212/Vanguard use)
 - Transaction table with PostgreSQL storage
 
 **Out of Scope (future PRDs):**
+
 - Trading212 integration
 - Vanguard integration
 - dbt transformations to DuckDB
@@ -270,17 +276,17 @@ backend/src/
 
 ## Key Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| PostgreSQL as source of truth | Supports writes (transaction tagging), simpler architecture |
-| No S3 for raw data | Eliminated complexity; PostgreSQL handles operational needs |
-| dbt reads from PostgreSQL | Clean separation of OLTP (Postgres) and OLAP (DuckDB) |
-| Pull-based sync (scheduled) | Simpler than event-driven; sufficient for daily financial data |
-| Single Account table with `account_type` | Avoids table explosion; single API response |
-| Transactions in raw tables | Provider-specific; unified via dbt if needed |
-| Unified Holdings table | Expose investment positions through API regardless of provider |
-| Scheduled job by group | All `gocardless` group assets run together; scalable to more assets |
-| No user assumption | Syncs all connections regardless of user |
+| Decision                                 | Rationale                                                           |
+|------------------------------------------|---------------------------------------------------------------------|
+| PostgreSQL as source of truth            | Supports writes (transaction tagging), simpler architecture         |
+| No S3 for raw data                       | Eliminated complexity; PostgreSQL handles operational needs         |
+| dbt reads from PostgreSQL                | Clean separation of OLTP (Postgres) and OLAP (DuckDB)               |
+| Pull-based sync (scheduled)              | Simpler than event-driven; sufficient for daily financial data      |
+| Single Account table with `account_type` | Avoids table explosion; single API response                         |
+| Transactions in raw tables               | Provider-specific; unified via dbt if needed                        |
+| Unified Holdings table                   | Expose investment positions through API regardless of provider      |
+| Scheduled job by group                   | All `gocardless` group assets run together; scalable to more assets |
+| No user assumption                       | Syncs all connections regardless of user                            |
 
 ## Verification
 
@@ -297,17 +303,20 @@ cd backend && make check   # 256 tests, 92% coverage
 ## Future PRDs (Out of Scope)
 
 ### dbt + DuckDB Analytics
+
 - Configure dbt to read from PostgreSQL
 - Transform to DuckDB for analytics queries
 - API endpoints for aggregations
 
 ### Trading212 Integration
+
 - Official REST API available
 - Auth: API key in header
 - Endpoints: `/api/v0/equity/account/cash`, `/api/v0/equity/portfolio`
 - Raw tables: `t212_accounts`, `t212_positions`
 
 ### Vanguard Integration
+
 - No official API - requires web scraper (Playwright)
 - MFA challenge - Telegram bot or manual input
 - Raw tables: `vg_accounts`, `vg_holdings`

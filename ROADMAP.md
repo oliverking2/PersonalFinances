@@ -167,12 +167,13 @@ Schema Changes
 
 Charts and dashboards to understand spending patterns. Requires tagging (Phase 2.6).
 
-### Backend
+### Backend ✅
 
-- [ ] Analytics endpoints (aggregations from dbt marts)
-- [ ] Spending by category endpoint
-- [ ] Monthly/weekly trends endpoint
-- [ ] Account balance history endpoint
+- [x] dbt mart models with filter metadata (dim_accounts, dim_tags, fct_transactions, fct_daily_spending_by_tag, fct_daily_balance_history, fct_monthly_trends)
+- [x] DuckDB client for read-only analytics queries
+- [x] Dataset discovery endpoints (list datasets, get schema from dbt metadata)
+- [x] Generic dataset query endpoint (`/api/analytics/datasets/{id}/query`) - reads filter columns from dbt meta
+- [x] Analytics refresh endpoint (trigger dbt via Dagster)
 - [ ] Data quality checks in dbt (see `prds/20260123-data-dbt-improvements.md`)
 
 ### Frontend
@@ -190,18 +191,16 @@ Improve the user experience and visual design of the app.
 
 ### Accounts
 
-- [ ] Account config popup on the accounts page
+- [ ] Account config popup on the accounts page - convert the "Edit Account Name" to a settings cog
   - [ ] Min balance alerts etc.
   - [ ] Last sync date
 - [ ] Account favourites/reordering (pin important accounts to top)
 
 ### Transactions
 
-- [ ] Transaction detail view (click to expand/modal)
-- [ ] Add notes to transactions
-- [ ] Split transactions (one payment → multiple categories)
+- [ ] Transaction detail view (more details button to create a modal)
+- [ ] Split transactions (one payment → multiple categories - linked to tags)
 - [ ] Recurring transaction indicators (visual badge for subscriptions)
-- [ ] Export transactions (CSV for tax/records)
 - [ ] Date range presets ("This month", "Last 30 days", "This year")
 
 ### Dashboard
@@ -387,6 +386,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260124-frontend-gocardless-callback.md` - OAuth callback handling and toast notifications
 - `20260124-fullstack-background-jobs-dagster.md` - Background jobs table, Dagster sync triggers, connection-scoped sync
 - `20260124-fullstack-transaction-tagging.md` - User-defined tags for transactions
+- `20260125-backend-analytics-visualisation.md` - Analytics API with dbt marts and DuckDB
 
 ### Implemented Without PRD
 

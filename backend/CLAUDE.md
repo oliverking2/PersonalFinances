@@ -29,14 +29,19 @@ backend/
 cd backend
 
 # Validation (run before completing any change)
-make check                    # Run all: lint, format, types, coverage
+make check                    # Run all: lint, format, types, sql-lint, coverage
 
 # Individual checks
 make test                     # Unit tests only
 make lint                     # Ruff linting
 make format                   # Ruff formatting
 make types                    # mypy type checking
+make sql                      # SQLFluff lint and auto-fix for dbt models
 make coverage                 # Tests with 80% threshold
+
+# dbt commands
+make dbt                      # Build dbt models (run + test)
+make dbt-docs                 # Generate and serve dbt docs
 
 # Development
 poetry run pytest testing/path/to/test.py::test_name -v  # Single test
@@ -56,7 +61,7 @@ poetry run dagster dev                                   # Dagster dev server
 | Transforms    | dbt + DuckDB                  |
 | Bank API      | GoCardless (env var secrets)  |
 | Testing       | pytest, pytest-mock           |
-| Linting       | Ruff, mypy                    |
+| Linting       | Ruff, mypy, SQLFluff          |
 
 ## Key Patterns
 
@@ -103,8 +108,8 @@ The database uses a two-layer approach for multi-provider support:
 
 - Python 3.12+, Poetry for dependencies
 - Type hints everywhere
-- Ruff for linting/formatting, mypy for type checking
-- 80% test coverage minimum, ideally 90%
+- Ruff for linting/formatting, mypy for type checking, SQLFluff for SQL
+- **80% test coverage minimum per file** - every file should aim for 80%+ coverage
 - Sphinx-style docstrings for public functions
 - British English in comments and user-facing text
 - Enums defined once in `postgres/common/enums.py` (single source of truth)

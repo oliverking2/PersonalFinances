@@ -47,22 +47,23 @@ Create an authenticated fetch utility that encapsulates auth header injection an
 
 ### API Endpoints (Already Exist)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/connections` | List user's bank connections |
-| GET | `/api/connections/{id}` | Get single connection |
-| PATCH | `/api/connections/{id}` | Update connection friendly_name |
-| DELETE | `/api/connections/{id}` | Delete connection |
-| GET | `/api/accounts` | List accounts (optional connection_id filter) |
-| GET | `/api/accounts/{id}` | Get single account |
-| PATCH | `/api/accounts/{id}` | Update account display_name |
-| GET | `/api/institutions` | List available institutions |
+| Method   | Path                    | Description                                   |
+|----------|-------------------------|-----------------------------------------------|
+| GET      | `/api/connections`      | List user's bank connections                  |
+| GET      | `/api/connections/{id}` | Get single connection                         |
+| PATCH    | `/api/connections/{id}` | Update connection friendly_name               |
+| DELETE   | `/api/connections/{id}` | Delete connection                             |
+| GET      | `/api/accounts`         | List accounts (optional connection_id filter) |
+| GET      | `/api/accounts/{id}`    | Get single account                            |
+| PATCH    | `/api/accounts/{id}`    | Update account display_name                   |
+| GET      | `/api/institutions`     | List available institutions                   |
 
 ### Type Alignment
 
 Frontend types need to match backend Pydantic response models:
 
 **AccountBalance:**
+
 ```typescript
 // Before
 interface AccountBalance {
@@ -80,6 +81,7 @@ interface AccountBalance {
 ```
 
 **CreateConnectionResponse / ReauthoriseResponse:**
+
 ```typescript
 // Before
 interface CreateConnectionResponse {

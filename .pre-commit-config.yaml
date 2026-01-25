@@ -41,6 +41,18 @@ repos:
         files: ^backend/
 
   # ==========================================================================
+  # SQL (dbt models)
+  # ==========================================================================
+  - repo: local
+    hooks:
+      - id: sqlfluff-fix
+        name: SQLFluff fix
+        entry: bash -c 'cd backend && poetry run sqlfluff fix --config pyproject.toml dbt/models/'
+        language: system
+        files: ^backend/dbt/models/.*\.sql$
+        pass_filenames: false
+
+  # ==========================================================================
   # Frontend (format + lint with auto-fix)
   # ==========================================================================
   - repo: local

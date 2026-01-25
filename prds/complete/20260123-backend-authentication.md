@@ -86,7 +86,7 @@ CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at) WHERE r
 
 ### Endpoint Specifications
 
-**POST /auth/login**
+POST /auth/login
 
 Request:
 
@@ -117,7 +117,7 @@ Errors:
 - 401: Invalid credentials
 - 429: Rate limited
 
-**POST /auth/refresh**
+POST /auth/refresh
 
 Request: No body (refresh token from cookie)
 
@@ -137,7 +137,7 @@ Errors:
 - 401: Invalid/expired/revoked refresh token
 - 401 + revoke chain: Replay detected
 
-**POST /auth/logout**
+POST /auth/logout
 
 Request: No body (refresh token from cookie)
 
@@ -155,7 +155,7 @@ Response headers:
 Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/auth; Max-Age=0
 ```
 
-**GET /auth/me**
+GET /auth/me
 
 Request headers: `Authorization: Bearer <access_token>`
 
