@@ -179,12 +179,12 @@ Location: `app/pages/login.vue`
 
 ### Why Memory-Only Token Storage?
 
-| Storage | XSS Risk | Survives Refresh | Our Choice |
-|---------|----------|------------------|------------|
-| localStorage | High (JS accessible) | Yes | No |
-| sessionStorage | High (JS accessible) | No | No |
-| Memory (ref) | Low (not persistent) | No | Yes |
-| HttpOnly cookie | None (not JS accessible) | Yes | For refresh token only |
+| Storage         | XSS Risk                 | Survives Refresh  | Our Choice             |
+|-----------------|--------------------------|-------------------|------------------------|
+| localStorage    | High (JS accessible)     | Yes               | No                     |
+| sessionStorage  | High (JS accessible)     | No                | No                     |
+| Memory (ref)    | Low (not persistent)     | No                | Yes                    |
+| HttpOnly cookie | None (not JS accessible) | Yes               | For refresh token only |
 
 Access token in memory + refresh token in HttpOnly cookie gives us:
 
@@ -225,13 +225,13 @@ The frontend must have:
 
 ### Error Handling
 
-| Scenario | Handling |
-|----------|----------|
-| Login fails (401) | Show "Invalid email or password" |
-| Login fails (429) | Show "Too many attempts, try again later" |
-| Refresh fails | Redirect to login (session expired) |
+| Scenario             | Handling                                         |
+|----------------------|--------------------------------------------------|
+| Login fails (401)    | Show "Invalid email or password"                 |
+| Login fails (429)    | Show "Too many attempts, try again later"        |
+| Refresh fails        | Redirect to login (session expired)              |
 | API call fails (401) | Auto-refresh + retry, or logout if refresh fails |
-| Network error | Show generic error, don't logout |
+| Network error        | Show generic error, don't logout                 |
 
 ---
 
