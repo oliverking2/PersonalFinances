@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -72,19 +73,30 @@ def _validate_tag_ids(db: Session, user: User, tag_ids: list[UUID]) -> list[UUID
 def _serialize_row(row: dict[str, Any]) -> dict[str, Any]:
     """Serialize a row for JSON response.
 
-    Converts date objects to ISO strings and handles other non-JSON types.
+    - Normalizes column names to snake_case
+    - Converts date objects to ISO strings
+    - Converts Decimal to int/float
+    - Handles other non-JSON types
 
     :param row: Row dictionary from DuckDB.
-    :returns: JSON-serializable dictionary.
+    :returns: JSON-serializable dictionary with snake_case keys.
     """
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in row.items():
+        # Normalize column name to snake_case
+        key_normalized = key.lower()
+
         if isinstance(value, date):
-            result[key] = value.isoformat()
+            result[key_normalized] = value.isoformat()
         elif isinstance(value, UUID):
-            result[key] = str(value)
+            result[key_normalized] = str(value)
+        elif isinstance(value, Decimal):
+            # Convert to int if whole number, otherwise float
+            result[key_normalized] = (
+                int(value) if value == value.to_integral_value() else float(value)
+            )
         else:
-            result[key] = value
+            result[key_normalized] = value
     return result
 
 
@@ -130,6 +142,7 @@ def list_datasets(
         datasets=[
             DatasetResponse(
                 id=ds.id,
+                dataset_name=ds.name,
                 friendly_name=ds.friendly_name,
                 description=ds.description,
                 group=ds.group,
@@ -147,12 +160,12 @@ def list_datasets(
     summary="Get dataset schema",
 )
 def get_dataset_schema_endpoint(
-    dataset_id: str,
+    dataset_id: UUID,
     current_user: User = Depends(get_current_user),
 ) -> DatasetSchemaResponse:
     """Get detailed schema for a dataset.
 
-    :param dataset_id: Dataset model name (e.g., "fct_transactions").
+    :param dataset_id: Dataset UUID.
     :param current_user: Authenticated user.
     :returns: Dataset with column definitions.
     :raises HTTPException: If dataset not found.
@@ -163,6 +176,7 @@ def get_dataset_schema_endpoint(
 
     return DatasetSchemaResponse(
         id=dataset.id,
+        dataset_name=dataset.name,
         friendly_name=dataset.friendly_name,
         description=dataset.description,
         group=dataset.group,
@@ -187,7 +201,7 @@ def get_dataset_schema_endpoint(
     summary="Query a dataset",
 )
 def query_dataset(  # noqa: PLR0913
-    dataset_id: str,
+    dataset_id: UUID,
     start_date: date | None = Query(None, description="Start date filter"),
     end_date: date | None = Query(None, description="End date filter"),
     account_ids: list[UUID] = Query(default=[], description="Filter by account IDs"),
@@ -202,7 +216,7 @@ def query_dataset(  # noqa: PLR0913
     Returns rows from the specified dataset, filtered by the user's data.
     All queries are automatically scoped to the authenticated user.
 
-    :param dataset_id: Dataset model name (e.g., "fct_transactions").
+    :param dataset_id: Dataset UUID.
     :param start_date: Optional start date filter.
     :param end_date: Optional end date filter.
     :param account_ids: Optional filter by account IDs.
@@ -240,9 +254,10 @@ def query_dataset(  # noqa: PLR0913
     try:
         rows = execute_query(query, params)
     except FileNotFoundError:
-        logger.warning(f"DuckDB database not available for dataset query: {dataset_id}")
+        logger.warning(f"DuckDB database not available for dataset query: {dataset.name}")
         return DatasetQueryResponse(
-            dataset_id=dataset_id,
+            dataset_id=dataset.id,
+            dataset_name=dataset.name,
             rows=[],
             row_count=0,
             filters_applied={},
@@ -266,7 +281,8 @@ def query_dataset(  # noqa: PLR0913
     serialized_rows = [_serialize_row(row) for row in rows]
 
     return DatasetQueryResponse(
-        dataset_id=dataset_id,
+        dataset_id=dataset.id,
+        dataset_name=dataset.name,
         rows=serialized_rows,
         row_count=len(serialized_rows),
         filters_applied=filters_applied,

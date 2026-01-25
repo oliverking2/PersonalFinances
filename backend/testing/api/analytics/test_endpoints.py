@@ -1,5 +1,6 @@
 """Tests for analytics API endpoints."""
 
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import patch
@@ -9,10 +10,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from src.duckdb.manifest import Dataset, DatasetColumn
+from src.duckdb.manifest import DATASET_UUID_NAMESPACE, Dataset, DatasetColumn
 from src.postgres.auth.models import User
 from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution, Tag
+
+
+def _dataset_uuid(name: str) -> uuid.UUID:
+    """Generate deterministic UUID for a dataset name."""
+    return uuid.uuid5(DATASET_UUID_NAMESPACE, name)
 
 
 @pytest.fixture
@@ -86,14 +92,16 @@ def mock_datasets() -> list[Dataset]:
     """Create mock dataset objects."""
     return [
         Dataset(
-            id="fct_transactions",
+            id=_dataset_uuid("fct_transactions"),
+            name="fct_transactions",
             friendly_name="Transactions",
             description="Transaction data",
             group="facts",
             time_grain=None,
         ),
         Dataset(
-            id="fct_monthly_trends",
+            id=_dataset_uuid("fct_monthly_trends"),
+            name="fct_monthly_trends",
             friendly_name="Monthly Trends",
             description="Monthly trends",
             group="aggregations",
@@ -172,7 +180,8 @@ class TestListDatasets:
             data = response.json()
             assert data["total"] == 2
             assert len(data["datasets"]) == 2
-            assert data["datasets"][0]["id"] == "fct_transactions"
+            assert data["datasets"][0]["dataset_name"] == "fct_transactions"
+            assert data["datasets"][0]["id"] == str(_dataset_uuid("fct_transactions"))
             assert data["datasets"][1]["time_grain"] == "month"
 
     def test_returns_empty_when_no_datasets(
@@ -201,8 +210,10 @@ class TestGetDatasetSchema:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return dataset schema with columns."""
+        dataset_id = _dataset_uuid("fct_transactions")
         mock_dataset = Dataset(
-            id="fct_transactions",
+            id=dataset_id,
+            name="fct_transactions",
             friendly_name="Transactions",
             description="Transaction data",
             group="facts",
@@ -215,13 +226,14 @@ class TestGetDatasetSchema:
             mock_get.return_value = mock_dataset
 
             response = client.get(
-                "/api/analytics/datasets/fct_transactions/schema",
+                f"/api/analytics/datasets/{dataset_id}/schema",
                 headers=api_auth_headers,
             )
 
             assert response.status_code == 200
             data = response.json()
-            assert data["id"] == "fct_transactions"
+            assert data["id"] == str(dataset_id)
+            assert data["dataset_name"] == "fct_transactions"
             assert len(data["columns"]) == 2
             assert data["columns"][0]["name"] == "transaction_id"
 
@@ -231,11 +243,12 @@ class TestGetDatasetSchema:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return 404 for unknown dataset."""
+        unknown_id = uuid4()
         with patch("src.api.analytics.endpoints.get_dataset_schema") as mock_get:
             mock_get.return_value = None
 
             response = client.get(
-                "/api/analytics/datasets/unknown_dataset/schema",
+                f"/api/analytics/datasets/{unknown_id}/schema",
                 headers=api_auth_headers,
             )
 
@@ -252,8 +265,10 @@ class TestQueryDataset:
         test_tag_in_db: Tag,
     ) -> None:
         """Should return query results from dataset."""
+        dataset_id = _dataset_uuid("fct_daily_spending_by_tag")
         mock_dataset = Dataset(
-            id="fct_daily_spending_by_tag",
+            id=dataset_id,
+            name="fct_daily_spending_by_tag",
             friendly_name="Daily Spending by Tag",
             description="Spending by tag",
             group="aggregations",
@@ -276,14 +291,15 @@ class TestQueryDataset:
             mock_exec.return_value = mock_rows
 
             response = client.get(
-                "/api/analytics/datasets/fct_daily_spending_by_tag/query"
+                f"/api/analytics/datasets/{dataset_id}/query"
                 "?start_date=2024-01-01&end_date=2024-01-31",
                 headers=api_auth_headers,
             )
 
             assert response.status_code == 200
             data = response.json()
-            assert data["dataset_id"] == "fct_daily_spending_by_tag"
+            assert data["dataset_id"] == str(dataset_id)
+            assert data["dataset_name"] == "fct_daily_spending_by_tag"
             assert data["row_count"] == 1
             assert data["rows"][0]["tag_name"] == "Groceries"
             assert data["rows"][0]["spending_date"] == "2024-01-15"
@@ -295,8 +311,10 @@ class TestQueryDataset:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return empty results when DuckDB unavailable."""
+        dataset_id = _dataset_uuid("fct_transactions")
         mock_dataset = Dataset(
-            id="fct_transactions",
+            id=dataset_id,
+            name="fct_transactions",
             friendly_name="Transactions",
             description="Transactions",
             group="facts",
@@ -310,7 +328,7 @@ class TestQueryDataset:
             mock_exec.side_effect = FileNotFoundError("DuckDB not found")
 
             response = client.get(
-                "/api/analytics/datasets/fct_transactions/query",
+                f"/api/analytics/datasets/{dataset_id}/query",
                 headers=api_auth_headers,
             )
 
@@ -325,11 +343,12 @@ class TestQueryDataset:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return 404 for unknown dataset."""
+        unknown_id = uuid4()
         with patch("src.api.analytics.endpoints.get_dataset_schema") as mock_get:
             mock_get.return_value = None
 
             response = client.get(
-                "/api/analytics/datasets/unknown_dataset/query",
+                f"/api/analytics/datasets/{unknown_id}/query",
                 headers=api_auth_headers,
             )
 
@@ -342,8 +361,10 @@ class TestQueryDataset:
         test_account_in_db: Account,
     ) -> None:
         """Should filter to only user-owned accounts."""
+        dataset_id = _dataset_uuid("fct_transactions")
         mock_dataset = Dataset(
-            id="fct_transactions",
+            id=dataset_id,
+            name="fct_transactions",
             friendly_name="Transactions",
             description="Transactions",
             group="facts",
@@ -360,7 +381,7 @@ class TestQueryDataset:
             invalid_account_id = str(uuid4())
 
             response = client.get(
-                f"/api/analytics/datasets/fct_transactions/query"
+                f"/api/analytics/datasets/{dataset_id}/query"
                 f"?account_ids={valid_account_id}&account_ids={invalid_account_id}",
                 headers=api_auth_headers,
             )
@@ -378,8 +399,10 @@ class TestQueryDataset:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should support limit and offset parameters."""
+        dataset_id = _dataset_uuid("fct_transactions")
         mock_dataset = Dataset(
-            id="fct_transactions",
+            id=dataset_id,
+            name="fct_transactions",
             friendly_name="Transactions",
             description="Transactions",
             group="facts",
@@ -395,7 +418,7 @@ class TestQueryDataset:
             mock_build.return_value = ("SELECT * FROM mart.fct_transactions", {})
 
             response = client.get(
-                "/api/analytics/datasets/fct_transactions/query?limit=50&offset=100",
+                f"/api/analytics/datasets/{dataset_id}/query?limit=50&offset=100",
                 headers=api_auth_headers,
             )
 

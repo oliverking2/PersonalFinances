@@ -47,7 +47,7 @@ sql:
 # dbt commands (run from backend directory)
 # Source .env for PostgreSQL connection vars needed by DuckDB postgres extension
 dbt:
-	@set -a && . ./.env && set +a && cd dbt && poetry run dbt build --profiles-dir . --profile duckdb_local
+	@set -a && . ./.env && set +a && cd dbt && poetry run dbt build --profiles-dir . --profile duckdb_local && poetry run dbt docs generate --profiles-dir . --profile duckdb_local
 
 dbt-docs:
 	@set -a && . ./.env && set +a && cd dbt && poetry run dbt docs generate --profiles-dir . --profile duckdb_local && poetry run dbt docs serve --profiles-dir . --profile duckdb_local

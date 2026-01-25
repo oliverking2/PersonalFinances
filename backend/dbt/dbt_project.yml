@@ -24,6 +24,7 @@ models:
     +materialized: view
 
     1_source:
+      +materialized: table  # Tables (not views) so data is in DuckDB for API queries
       +schema: source
       +tags: ["auto_eager"]
       unified:

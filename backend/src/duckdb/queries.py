@@ -47,7 +47,7 @@ def build_dataset_query(  # noqa: PLR0913
     :param offset: Number of rows to skip.
     :returns: Tuple of (query string, parameters dict).
     """
-    query = f"SELECT * FROM {dataset.schema_name}.{dataset.id} WHERE user_id = $user_id"
+    query = f"SELECT * FROM {dataset.schema_name}.{dataset.name} WHERE user_id = $user_id"
     params: dict[str, Any] = {"user_id": str(user_id)}
 
     # Apply date filter if dataset has a date column configured

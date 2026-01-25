@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -19,7 +20,8 @@ class DatasetColumnResponse(BaseModel):
 class DatasetResponse(BaseModel):
     """An analytics dataset available for querying."""
 
-    id: str = Field(..., description="Dataset identifier (dbt model name)")
+    id: UUID = Field(..., description="Dataset identifier (UUID)")
+    dataset_name: str = Field(..., description="dbt model name (e.g., fct_transactions)")
     friendly_name: str = Field(..., description="Human-readable name")
     description: str = Field(..., description="Dataset description")
     group: str = Field(..., description="Dataset group (facts, dimensions, aggregations)")
@@ -45,7 +47,8 @@ class DatasetSchemaResponse(DatasetResponse):
 class DatasetQueryResponse(BaseModel):
     """Response for querying a dataset."""
 
-    dataset_id: str = Field(..., description="Dataset identifier")
+    dataset_id: UUID = Field(..., description="Dataset identifier (UUID)")
+    dataset_name: str = Field(..., description="dbt model name")
     rows: list[dict[str, Any]] = Field(..., description="Query result rows")
     row_count: int = Field(..., description="Number of rows returned")
     filters_applied: dict[str, Any] = Field(
