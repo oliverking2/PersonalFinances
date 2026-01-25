@@ -213,7 +213,7 @@ Home page overview and dedicated analytics section. Requires analytics backend (
 ### Navigation & Structure ✅
 
 - [x] Rename "Dashboard" nav item to "Home" (becomes `/` index route)
-- [ ] Add "Analytics" as top-level nav item (`/analytics`) - see analytics PRD
+- [x] Add "Analytics" as top-level nav item (`/analytics`) - see analytics PRD
 
 ### Credit Card Balance Fix ✅
 
@@ -230,15 +230,15 @@ Home page overview and dedicated analytics section. Requires analytics backend (
   - [x] Transaction count this month
 - [x] Recent transactions list (10 items, links to full transactions page)
 
-### Analytics Page (`/analytics`)
+### Analytics Page (`/analytics`) ✅
 
-- [ ] Time period filter (default: current month)
-- [ ] Bar chart: spending by tag/category
-- [ ] Line chart: daily/weekly spending trend
-- [ ] Pie/donut chart: category breakdown
-- [ ] Table view of underlying data
-- [ ] This month vs last month comparison view
-- [ ] Manual refresh button (triggers dbt build via Dagster)
+- [x] Time period filter (default: current month)
+- [x] Bar chart: spending by tag/category
+- [x] Line chart: daily/weekly spending trend
+- [x] Pie/donut chart: category breakdown
+- [x] Table view of underlying data
+- [x] This month vs last month comparison view
+- [x] Manual refresh button (triggers dbt build via Dagster)
 
 ### Future Work
 
@@ -437,6 +437,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260125-backend-analytics-visualisation.md` - Analytics API with dbt marts and DuckDB
 - `20260125-frontend-transaction-detail-modal.md` - Transaction detail modal with tag management
 - `20260125-frontend-transaction-filters.md` - Date presets and value filter dropdowns
+- `20260125-frontend-analytics-page.md` - Analytics page with charts, filters, and comparison view
 
 ### Implemented Without PRD
 
