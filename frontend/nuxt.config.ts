@@ -5,6 +5,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: 'Finances',
       link: [
         { rel: 'stylesheet', href: 'https://use.typekit.net/ogm4kgd.css' },
       ],

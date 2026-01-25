@@ -7,6 +7,8 @@ Manage user-defined tags for categorising transactions
 import type { Tag } from '~/types/tags'
 import { useToastStore } from '~/stores/toast'
 
+useHead({ title: 'Tags | Finances' })
+
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------

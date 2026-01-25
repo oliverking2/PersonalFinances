@@ -4,6 +4,8 @@ Main authenticated view - will show accounts, transactions, etc.
 ============================================================================ -->
 
 <script setup lang="ts">
+useHead({ title: 'Dashboard | Finances' })
+
 const authStore = useAuthStore()
 </script>
 

@@ -9,6 +9,8 @@ import type { Connection, Account } from '~/types/accounts'
 import type { Job } from '~/types/jobs'
 import { useToastStore } from '~/stores/toast'
 
+useHead({ title: 'Accounts | Finances' })
+
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------

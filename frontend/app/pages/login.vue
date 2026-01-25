@@ -10,6 +10,8 @@ definePageMeta({
   public: true, // Skip auth middleware
 })
 
+useHead({ title: 'Login | Finances' })
+
 const authStore = useAuthStore()
 
 // ---------------------------------------------------------------------------

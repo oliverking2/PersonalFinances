@@ -15,6 +15,8 @@ import type {
 } from '~/types/transactions'
 import { useToastStore } from '~/stores/toast'
 
+useHead({ title: 'Transactions | Finances' })
+
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------
