@@ -39,10 +39,6 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     :param token: Refresh token value.
     """
     is_local = is_local_environment()
-    domain = cookie_domain()
-    logger.info(
-        f"Setting refresh cookie: domain={domain}, secure={not is_local}, is_local={is_local}"
-    )
     response.set_cookie(
         key="refresh_token",
         value=token,
@@ -50,7 +46,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         secure=not is_local,
         samesite="lax",
         path="/",  # Must be "/" for SSR - frontend needs to receive cookie too
-        domain=domain,  # Share across subdomains in production
+        domain=cookie_domain(),  # Share across subdomains in production
         max_age=60 * 60 * 24 * 30,  # 30 days
     )
 
@@ -193,13 +189,9 @@ def refresh(
 
     Performs token rotation (old token revoked, new issued) with replay detection.
     """
-    # Log all cookies received for debugging
-    all_cookies = request.cookies
-    logger.info(f"Token refresh attempt: cookies_received={list(all_cookies.keys())}")
-    logger.info(f"Token refresh: has_refresh_token={refresh_token is not None}")
-
+    logger.debug("Token refresh attempt")
     if not refresh_token:
-        logger.info("Token refresh failed: no refresh_token cookie present")
+        logger.debug("Token refresh failed: no cookie present")
         raise HTTPException(status_code=401, detail="Refresh token required")
 
     token = find_token_by_raw_value(db, refresh_token)
