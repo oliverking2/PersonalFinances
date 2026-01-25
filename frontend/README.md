@@ -4,14 +4,14 @@ Vue 3 + Nuxt 4 frontend for the Personal Finances app.
 
 ## Stack
 
-| Technology    | Purpose                           |
-|---------------|-----------------------------------|
-| Nuxt 4        | Vue meta-framework (routing, SSR) |
-| Vue 3         | Reactive UI framework             |
-| Tailwind CSS  | Utility-first CSS                 |
-| Pinia         | State management                  |
-| TypeScript    | Type safety                       |
-| ApexCharts    | Analytics visualisations          |
+| Technology   | Purpose                           |
+| ------------ | --------------------------------- |
+| Nuxt 4       | Vue meta-framework (routing, SSR) |
+| Vue 3        | Reactive UI framework             |
+| Tailwind CSS | Utility-first CSS                 |
+| Pinia        | State management                  |
+| TypeScript   | Type safety                       |
+| ApexCharts   | Analytics visualisations          |
 
 ## Setup
 
@@ -95,7 +95,7 @@ definePageMeta({ public: true })
 ## Environment Variables
 
 | Variable              | Description     | Default                 |
-|-----------------------|-----------------|-------------------------|
+| --------------------- | --------------- | ----------------------- |
 | `NUXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000` |
 
 For production (Cloudflare Tunnel):

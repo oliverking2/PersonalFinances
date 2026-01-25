@@ -50,7 +50,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     try {
       // Call /auth/refresh with the cookie forwarded
       // This validates the refresh token and returns a new access token
-      const refreshResponse = await $fetch<RefreshResponse>(
+      // IMPORTANT: Backend rotates the refresh token on each call, so we must
+      // capture the Set-Cookie header and forward it to the browser
+      const refreshResponse = await $fetch.raw<RefreshResponse>(
         `${config.public.apiUrl}/auth/refresh`,
         {
           method: 'POST',
@@ -60,12 +62,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
         },
       )
 
+      // Forward the Set-Cookie header from backend to browser
+      // This is critical because backend rotates the refresh token on each refresh
+      const setCookie = refreshResponse.headers.get('set-cookie')
+      if (setCookie) {
+        appendResponseHeader(useRequestEvent()!, 'set-cookie', setCookie)
+      }
+
+      // Extract the token data from the raw response
+      const tokenData = refreshResponse._data!
+
       // Fetch user data with the new access token
       const user = await $fetch<User>(`${config.public.apiUrl}/auth/me`, {
         method: 'GET',
         headers: {
           cookie: cookieHeader,
-          Authorization: `Bearer ${refreshResponse.access_token}`,
+          Authorization: `Bearer ${tokenData.access_token}`,
         },
       })
 
@@ -73,8 +85,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
       // The 30-second buffer in isTokenExpired handles any server/client clock skew
       authStore.$patch({
         user,
-        accessToken: refreshResponse.access_token,
-        expiresAt: Date.now() + refreshResponse.expires_in * 1000,
+        accessToken: tokenData.access_token,
+        expiresAt: Date.now() + tokenData.expires_in * 1000,
       })
     } catch {
       // Refresh failed - cookie invalid, expired, or backend unreachable

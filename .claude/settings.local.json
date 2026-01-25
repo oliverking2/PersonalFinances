@@ -35,7 +35,8 @@
       "Bash(make:*)",
       "Bash(npx nuxi typecheck:*)",
       "Bash(npm run lint:*)",
-      "Bash(npm run check:*)"
+      "Bash(npm run check:*)",
+      "Bash(echo:*)"
     ]
   }
 }
