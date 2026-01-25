@@ -83,7 +83,7 @@ def dagster_database_url() -> str:
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:{port}/{os.getenv('POSTGRES_DAGSTER_DATABASE')}"
     )
-    logger.info(f"Database URL: {_mask_password_in_url(url)}")
+    logger.debug(f"Database URL: {_mask_password_in_url(url)}")
     return url
 
 
@@ -98,7 +98,7 @@ def database_url() -> str:
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USERNAME')}:{os.getenv('POSTGRES_PASSWORD')}@"
         f"{host}:{port}/{os.getenv('POSTGRES_DATABASE')}"
     )
-    logger.info(f"Database URL: {_mask_password_in_url(url)}")
+    logger.debug(f"Database URL: {_mask_password_in_url(url)}")
     return url
 
 
