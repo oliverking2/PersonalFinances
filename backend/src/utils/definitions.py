@@ -146,3 +146,19 @@ def refresh_token_expire_days() -> int:
     :return: Refresh token expiry in days (default: 30).
     """
     return int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+
+def admin_token() -> str | None:
+    """Get the admin token for protected operations.
+
+    :return: The admin token, or None if not set.
+    """
+    return os.getenv("ADMIN_TOKEN") or None
+
+
+def is_api_docs_disabled() -> bool:
+    """Check if API docs should be disabled.
+
+    :return: True if DISABLE_API_DOCS is set to 'true'.
+    """
+    return os.getenv("DISABLE_API_DOCS", "").lower() == "true"

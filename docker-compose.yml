@@ -32,6 +32,8 @@ services:
       # Override hostname to use Docker network
       POSTGRES_HOSTNAME: postgres
       DAGSTER_URL: http://dagster-webserver:3000
+      # Disable API docs on public deployments
+      DISABLE_API_DOCS: "true"
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

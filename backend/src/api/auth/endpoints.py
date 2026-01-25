@@ -12,7 +12,7 @@ from src.api.auth.models import (
     TokenResponse,
     UserResponse,
 )
-from src.api.dependencies import get_current_user, get_db
+from src.api.dependencies import get_current_user, get_db, require_admin_token
 from src.api.responses import CONFLICT, UNAUTHORIZED
 from src.postgres.auth.models import User
 from src.postgres.auth.operations.refresh_tokens import (
@@ -138,13 +138,14 @@ def login(
     "/register",
     response_model=UserResponse,
     summary="Register new user",
-    responses=CONFLICT,
+    responses={**UNAUTHORIZED, **CONFLICT},
+    dependencies=[Depends(require_admin_token)],
 )
 def register(
     register_request: RegisterRequest,
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    """Create a new user account."""
+    """Create a new user account. Requires admin token."""
     logger.debug(f"Registration attempt: username={register_request.username}")
     # Check if username already exists
     existing = get_user_by_username(db, register_request.username)

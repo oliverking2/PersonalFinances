@@ -13,10 +13,11 @@ from src.utils.security import create_access_token
 class TestRegister:
     """Tests for POST /auth/register endpoint."""
 
-    def test_register_success(self, client: TestClient) -> None:
+    def test_register_success(self, client: TestClient, admin_auth_headers: dict[str, str]) -> None:
         """Should create user and return user info."""
         response = client.post(
             "/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": "newuser",
                 "password": "securepassword123",
@@ -32,10 +33,13 @@ class TestRegister:
         assert data["last_name"] == "User"
         assert "id" in data
 
-    def test_register_duplicate_username(self, client: TestClient, test_user_in_db: User) -> None:
+    def test_register_duplicate_username(
+        self, client: TestClient, test_user_in_db: User, admin_auth_headers: dict[str, str]
+    ) -> None:
         """Should return 409 for duplicate username."""
         response = client.post(
             "/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": "testuser",
                 "password": "anotherpassword123",
@@ -47,10 +51,13 @@ class TestRegister:
         assert response.status_code == 409
         assert response.json()["detail"] == "Username already exists"
 
-    def test_register_username_too_short(self, client: TestClient) -> None:
+    def test_register_username_too_short(
+        self, client: TestClient, admin_auth_headers: dict[str, str]
+    ) -> None:
         """Should return 422 for username shorter than 3 characters."""
         response = client.post(
             "/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": "ab",
                 "password": "securepassword123",
@@ -61,10 +68,13 @@ class TestRegister:
 
         assert response.status_code == 422
 
-    def test_register_password_too_short(self, client: TestClient) -> None:
+    def test_register_password_too_short(
+        self, client: TestClient, admin_auth_headers: dict[str, str]
+    ) -> None:
         """Should return 422 for password shorter than 8 characters."""
         response = client.post(
             "/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": "newuser",
                 "password": "short",
@@ -74,6 +84,37 @@ class TestRegister:
         )
 
         assert response.status_code == 422
+
+    def test_register_without_admin_token(self, client: TestClient) -> None:
+        """Should return 401 when no admin token provided."""
+        response = client.post(
+            "/auth/register",
+            json={
+                "username": "newuser",
+                "password": "securepassword123",
+                "first_name": "New",
+                "last_name": "User",
+            },
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Admin token required"
+
+    def test_register_with_invalid_admin_token(self, client: TestClient) -> None:
+        """Should return 401 when invalid admin token provided."""
+        response = client.post(
+            "/auth/register",
+            headers={"Authorization": "Bearer wrong-token"},
+            json={
+                "username": "newuser",
+                "password": "securepassword123",
+                "first_name": "New",
+                "last_name": "User",
+            },
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid admin token"
 
 
 class TestLogin:

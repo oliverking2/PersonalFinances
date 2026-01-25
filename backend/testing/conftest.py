@@ -18,6 +18,7 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
 os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "30")
 os.environ.setdefault("GC_SECRET_ID", "test-secret-id")
 os.environ.setdefault("GC_SECRET_KEY", "test-secret-key")
+os.environ.setdefault("ADMIN_TOKEN", "test-admin-token-for-registration")
 
 from collections.abc import Generator
 from datetime import datetime
@@ -156,6 +157,15 @@ def api_auth_headers(test_user_in_db: User) -> dict[str, str]:
     """
     token = create_access_token(test_user_in_db.id)
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def admin_auth_headers() -> dict[str, str]:
+    """Create authentication headers with admin token for protected operations.
+
+    :returns: Dictionary with Authorization header containing admin token.
+    """
+    return {"Authorization": "Bearer test-admin-token-for-registration"}
 
 
 @pytest.fixture

@@ -12,6 +12,7 @@ from src.api.jobs.endpoints import router as jobs_router
 from src.api.middleware import RequestTimingMiddleware
 from src.api.tags.endpoints import router as tags_router
 from src.api.transactions.endpoints import router as transactions_router
+from src.utils.definitions import is_api_docs_disabled
 from src.utils.logging import configure_logging
 
 
@@ -22,10 +23,16 @@ def create_app() -> FastAPI:
     """
     configure_logging()
 
+    # Disable docs in production if configured
+    docs_url = None if is_api_docs_disabled() else "/docs"
+    redoc_url = None if is_api_docs_disabled() else "/redoc"
+
     app = FastAPI(
         title="Personal Finances API",
         description="API for personal finance management and bank account aggregation",
         version="0.1.0",
+        docs_url=docs_url,
+        redoc_url=redoc_url,
     )
 
     # Configure CORS for frontend
