@@ -18,11 +18,15 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Copy Poetry files first for caching
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies
-RUN poetry install --no-interaction --no-ansi --without dev
+# Install dependencies only (not the project itself)
+RUN poetry install --no-interaction --no-ansi --without dev --no-root
 
 # Copy source code
 COPY src ./src
+COPY scripts ./scripts
+
+# Install the project itself now that source exists
+RUN poetry install --no-interaction --no-ansi --without dev --only-root
 COPY alembic ./alembic
 COPY alembic.ini ./
 
