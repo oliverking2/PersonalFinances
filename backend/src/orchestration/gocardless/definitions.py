@@ -8,7 +8,7 @@ from dagster import (
     define_asset_job,
 )
 
-from src.orchestration.gocardless.background_jobs.definitions import gocardless_background_job_defs
+from src.orchestration.gocardless.background_jobs.daily_jobs import daily_job_defs
 from src.orchestration.gocardless.extraction.assets import extraction_asset_defs
 from src.orchestration.gocardless.sync.assets import sync_asset_defs
 
@@ -48,7 +48,7 @@ gocardless_sync_schedule = ScheduleDefinition(
 # Merge all definitions
 gocardless_defs = Definitions.merge(
     extraction_asset_defs,
-    gocardless_background_job_defs,
+    daily_job_defs,
     sync_asset_defs,
     Definitions(
         jobs=[gocardless_sync_job, gocardless_connection_sync_job],

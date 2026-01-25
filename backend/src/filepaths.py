@@ -8,5 +8,5 @@ BACKEND_DIR = Path(__file__).parent.parent
 # Project root (parent of backend/)
 PROJECT_ROOT = BACKEND_DIR.parent
 
-# Legacy alias - points to backend dir
-ROOT_DIR = BACKEND_DIR
+# DuckDB File
+DUCKDB_PATH = BACKEND_DIR / "analytics.duckdb"

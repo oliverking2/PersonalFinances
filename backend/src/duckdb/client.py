@@ -7,11 +7,11 @@ Uses connection-per-request pattern (DuckDB is fast, no pooling needed).
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
 import duckdb
+from src.filepaths import DUCKDB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -28,18 +28,10 @@ def _get_database_path() -> Path:
     :returns: Path to analytics.duckdb file.
     :raises FileNotFoundError: If database file doesn't exist.
     """
-    # Default path relative to backend directory
-    backend_dir = Path(__file__).parent.parent.parent
-    db_path = backend_dir / "analytics.duckdb"
+    if not DUCKDB_PATH.exists():
+        raise FileNotFoundError(f"DuckDB database not found at {DUCKDB_PATH}")
 
-    # Allow override via environment variable
-    if env_path := os.environ.get("DUCKDB_PATH"):
-        db_path = Path(env_path)
-
-    if not db_path.exists():
-        raise FileNotFoundError(f"DuckDB database not found at {db_path}")
-
-    return db_path
+    return DUCKDB_PATH
 
 
 def get_connection() -> duckdb.DuckDBPyConnection:
@@ -56,14 +48,12 @@ def get_connection() -> duckdb.DuckDBPyConnection:
 def execute_query(
     query: str,
     params: dict[str, Any] | None = None,
-    timeout_seconds: int = DEFAULT_QUERY_TIMEOUT_SECONDS,
     max_rows: int = MAX_RESULT_ROWS,
 ) -> list[dict[str, Any]]:
     """Execute a parameterized query and return results as dictionaries.
 
     :param query: SQL query with named parameter placeholders ($name).
     :param params: Dictionary of parameter values.
-    :param timeout_seconds: Query timeout in seconds.
     :param max_rows: Maximum rows to return.
     :returns: List of result rows as dictionaries.
     :raises TimeoutError: If query exceeds timeout.
@@ -71,9 +61,6 @@ def execute_query(
     """
     conn = get_connection()
     try:
-        # Set query timeout
-        conn.execute(f"SET statement_timeout = '{timeout_seconds}s'")
-
         # Add row limit to query if not already present
         limited_query = query
         if "LIMIT" not in query.upper():

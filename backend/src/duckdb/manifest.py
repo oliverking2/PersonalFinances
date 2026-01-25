@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.filepaths import BACKEND_DIR
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,8 +57,7 @@ def _get_manifest_path() -> Path:
     :raises FileNotFoundError: If manifest doesn't exist.
     """
     # Default path relative to backend directory
-    backend_dir = Path(__file__).parent.parent.parent
-    manifest_path = backend_dir / "dbt" / "target" / "manifest.json"
+    manifest_path = BACKEND_DIR / "dbt" / "target" / "manifest.json"
 
     # Allow override via environment variable
     if env_path := os.environ.get("DBT_MANIFEST_PATH"):

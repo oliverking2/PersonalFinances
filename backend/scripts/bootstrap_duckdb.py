@@ -6,9 +6,9 @@ Usage:
 """
 
 import duckdb
-from src.filepaths import ROOT_DIR
+from src.filepaths import BACKEND_DIR
 
-DB_PATH = ROOT_DIR / "analytics.duckdb"
+DB_PATH = BACKEND_DIR / "analytics.duckdb"
 
 
 def bootstrap() -> None:
