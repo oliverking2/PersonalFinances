@@ -73,7 +73,7 @@ function handleRemove(event: MouseEvent) {
 
 .name {
   /* Truncate long names */
-  @apply max-w-24 truncate;
+  @apply max-w-32 truncate;
 }
 
 .remove-btn {
