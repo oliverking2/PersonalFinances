@@ -1,5 +1,7 @@
 """FastAPI application factory and configuration."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +16,29 @@ from src.api.tags.endpoints import router as tags_router
 from src.api.transactions.endpoints import router as transactions_router
 from src.utils.definitions import is_api_docs_disabled
 from src.utils.logging import configure_logging
+
+
+def _get_cors_origins() -> list[str]:
+    """Build list of allowed CORS origins.
+
+    Includes default localhost origins for development, plus any additional
+    origins from CORS_ORIGINS environment variable (comma-separated).
+
+    :returns: List of allowed origin URLs.
+    """
+    # Default origins for local development
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://frontend:3000",
+    ]
+
+    # Add additional origins from environment (e.g., Cloudflare tunnel domains)
+    extra_origins = os.environ.get("CORS_ORIGINS", "")
+    if extra_origins:
+        origins.extend(origin.strip() for origin in extra_origins.split(",") if origin.strip())
+
+    return origins
 
 
 def create_app() -> FastAPI:
@@ -38,11 +63,7 @@ def create_app() -> FastAPI:
     # Configure CORS for frontend
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://frontend:3000",
-        ],
+        allow_origins=_get_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -65,6 +65,24 @@ Backend environment variables in `backend/.env` (copy from `backend/.env_example
 - `POSTGRES_*` - Database connection (also used by dbt/DuckDB)
 - `GC_SECRET_ID`, `GC_SECRET_KEY` - GoCardless API credentials
 - `GC_CALLBACK_URL` - GoCardless OAuth callback
+- `CORS_ORIGINS` - Additional allowed origins (comma-separated) for production/tunnel domains
+
+Frontend environment variables in `frontend/.env` (copy from `frontend/.env.example`):
+
+- `NUXT_PUBLIC_API_URL` - Backend API URL (browser calls this directly)
+
+## Deployment
+
+The app runs on a home server exposed via **Cloudflare Tunnel** (cloudflared).
+
+- **Frontend**: `https://finances.oliverking.me.uk`
+- **Backend API**: `https://finances-api.oliverking.me.uk`
+
+For tunnel deployments:
+
+1. Set `CORS_ORIGINS=https://finances.oliverking.me.uk` in backend `.env`
+2. Set `NUXT_PUBLIC_API_URL=https://finances-api.oliverking.me.uk` in frontend `.env`
+3. Both tunnels must be configured in Cloudflare dashboard
 
 ## PRD Naming Convention
 
