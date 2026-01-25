@@ -1,85 +1,34 @@
-with raw_data as (
-    select * from {{ ref('src_gocardless_transactions') }}
-),
+-- Staging layer for GoCardless transactions
+-- Transforms source data into analytics-ready format
 
-booked as (
-    select UNNEST(STRUCT_EXTRACT(transactions, 'booked')) as txn, last_updated, _extract_dt
-    from raw_data
-),
-
-pending as (
-    select UNNEST(STRUCT_EXTRACT(transactions, 'pending')) as txn, last_updated, _extract_dt
-    from raw_data
-),
-
-all_transactions as (
-select  -- noqa: AM07
-    txn.transactionid as transaction_id,
-    'booked' as transaction_type,
-    txn.bookingdate as booking_date,
-    txn.valuedate as value_date,
-    txn.bookingdatetime as booking_datetime,
-    txn.valuedatetime as value_datetime,
-    txn.transactionamount.amount as transaction_amount,
-    txn.transactionamount.currency as transaction_amount_currency,
-    txn.debtoraccount as debtor_account,
-    txn.remittanceinformationunstructured as remittance_information_unstructured,
-    txn.proprietarybanktransactioncode as proprietary_bank_transaction_code,
-    txn.internaltransactionid as internal_transaction_id,
-    txn.entryreference as entry_reference,
-    txn.creditorname as creditor_name,
-    txn.debtorname as debtor_name,
-    txn.additionalinformation as additional_information,
-    txn.creditoraccount as creditor_account,
-    txn.currencyexchange.instructedamount.amount as currency_exchange_instructed_amount,
-    txn.currencyexchange.instructedamount.currency as currency_exchange_instructed_amount_currency,
-    txn.currencyexchange.sourcecurrency as currency_exchange_source_currency,
-    txn.currencyexchange.exchangerate as currency_exchange_rate,
-    last_updated, _extract_dt
-from
-    booked
-
-union all by name
-
-select
-    txn.transactionid as transaction_id,
-    'pending' as transaction_type,
-    txn.bookingdate as booking_date,
-    txn.bookingdatetime as booking_datetime,
-    txn.transactionamount.amount as transaction_amount,
-    txn.transactionamount.currency as transaction_amount_currency,
-    txn.debtoraccount as debtor_account,
-    txn.remittanceinformationunstructured as remittance_information_unstructured,
-    txn.proprietarybanktransactioncode as proprietary_bank_transaction_code,
-    txn.creditorname as creditor_name,
-    txn.debtorname as debtor_name,
-    last_updated, _extract_dt
-from
-    pending
+WITH SOURCE AS (
+    SELECT * FROM {{ ref('src_gocardless_transactions') }}
 )
 
-select
-    transaction_id,
-    transaction_type,
-    booking_date,
-    value_date,
-    booking_datetime,
-    value_datetime,
-    transaction_amount,
-    transaction_amount_currency,
-    debtor_account,
-    remittance_information_unstructured,
-    proprietary_bank_transaction_code,
-    internal_transaction_id,
-    entry_reference,
-    creditor_name,
-    debtor_name,
-    additional_information,
-    creditor_account,
-    currency_exchange_instructed_amount,
-    currency_exchange_instructed_amount_currency,
-    currency_exchange_source_currency,
-    currency_exchange_rate,
-last_updated, _extract_dt
-from all_transactions
-qualify row_number() over (partition by transaction_id order by _extract_dt desc) = 1
+SELECT
+    TRANSACTION_ID,
+    ACCOUNT_ID,
+    STATUS                 AS TRANSACTION_TYPE,  -- 'booked' or 'pending'
+    BOOKING_DATE,
+    VALUE_DATE,
+    BOOKING_DATETIME,
+    NULL::TIMESTAMP        AS VALUE_DATETIME,  -- Not available in current source
+    TRANSACTION_AMOUNT,
+    CURRENCY               AS TRANSACTION_AMOUNT_CURRENCY,
+    DEBTOR_ACCOUNT,
+    REMITTANCE_INFORMATION AS REMITTANCE_INFORMATION_UNSTRUCTURED,
+    PROPRIETARY_BANK_CODE  AS PROPRIETARY_BANK_TRANSACTION_CODE,
+    INTERNAL_TRANSACTION_ID,
+    NULL::VARCHAR          AS ENTRY_REFERENCE,  -- Not available in current source
+    CREDITOR_NAME,
+    DEBTOR_NAME,
+    NULL::VARCHAR          AS ADDITIONAL_INFORMATION,  -- Not available in current source
+    CREDITOR_ACCOUNT,
+    NULL::DECIMAL          AS CURRENCY_EXCHANGE_INSTRUCTED_AMOUNT,
+    NULL::VARCHAR          AS CURRENCY_EXCHANGE_INSTRUCTED_AMOUNT_CURRENCY,
+    NULL::VARCHAR          AS CURRENCY_EXCHANGE_SOURCE_CURRENCY,
+    NULL::DECIMAL          AS CURRENCY_EXCHANGE_RATE,
+    EXTRACTED_AT           AS LAST_UPDATED,
+    EXTRACTED_AT::DATE     AS _EXTRACT_DT
+FROM SOURCE
+QUALIFY ROW_NUMBER() OVER (PARTITION BY TRANSACTION_ID, ACCOUNT_ID ORDER BY EXTRACTED_AT DESC) = 1

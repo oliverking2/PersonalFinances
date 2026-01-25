@@ -1,0 +1,68 @@
+-- Dimension table for accounts with institution context
+-- Joins accounts with connections and institutions to provide full context for analytics
+
+WITH ACCOUNTS AS (
+    SELECT
+        ID AS ACCOUNT_ID,
+        CONNECTION_ID,
+        DISPLAY_NAME,
+        NAME,
+        IBAN,
+        CURRENCY,
+        ACCOUNT_TYPE,
+        STATUS,
+        BALANCE_AMOUNT,
+        BALANCE_CURRENCY,
+        BALANCE_TYPE,
+        BALANCE_UPDATED_AT,
+        TOTAL_VALUE,
+        UNREALISED_PNL,
+        PROVIDER_ID
+    FROM {{ ref('src_accounts') }}
+),
+
+CONNECTIONS AS (
+    SELECT
+        ID            AS CONNECTION_ID,
+        USER_ID,
+        INSTITUTION_ID,
+        FRIENDLY_NAME AS CONNECTION_NAME,
+        PROVIDER,
+        STATUS        AS CONNECTION_STATUS,
+        EXPIRES_AT    AS CONNECTION_EXPIRES_AT
+    FROM {{ ref('src_connections') }}
+),
+
+INSTITUTIONS AS (
+    SELECT
+        ID       AS INSTITUTION_ID,
+        NAME     AS INSTITUTION_NAME,
+        LOGO_URL AS INSTITUTION_LOGO_URL
+    FROM {{ ref('src_institutions') }}
+)
+
+SELECT
+    ACC.ACCOUNT_ID,
+    CON.USER_ID,
+    COALESCE(ACC.DISPLAY_NAME, ACC.NAME, 'Unknown Account') AS DISPLAY_NAME,
+    ACC.CURRENCY,
+    ACC.ACCOUNT_TYPE,
+    ACC.STATUS                                              AS ACCOUNT_STATUS,
+    ACC.BALANCE_AMOUNT,
+    ACC.BALANCE_CURRENCY,
+    ACC.BALANCE_TYPE,
+    ACC.BALANCE_UPDATED_AT,
+    ACC.TOTAL_VALUE,
+    ACC.UNREALISED_PNL,
+    ACC.PROVIDER_ID,
+    CON.CONNECTION_ID,
+    CON.CONNECTION_NAME,
+    CON.PROVIDER,
+    CON.CONNECTION_STATUS,
+    CON.CONNECTION_EXPIRES_AT,
+    INS.INSTITUTION_ID,
+    INS.INSTITUTION_NAME,
+    INS.INSTITUTION_LOGO_URL
+FROM ACCOUNTS AS ACC
+INNER JOIN CONNECTIONS AS CON ON ACC.CONNECTION_ID = CON.CONNECTION_ID
+INNER JOIN INSTITUTIONS AS INS ON CON.INSTITUTION_ID = INS.INSTITUTION_ID

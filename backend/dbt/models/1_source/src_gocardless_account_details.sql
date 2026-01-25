@@ -1,25 +1,24 @@
--- depends_on: {{ source('dagster','gocardless_raw_account_details') }}
 -- Loads account details from PostgreSQL gc_bank_accounts table.
 
 SELECT
-    id AS account_id,
-    bban,
-    bic,
-    cash_account_type,
-    currency,
-    details,
-    display_name,
-    iban,
-    linked_accounts,
-    msisdn,
-    name,
-    owner_address_unstructured,
-    owner_name,
-    product,
-    status,
-    scan,
-    usage,
-    requisition_id,
-    dg_transaction_extract_date
-FROM pg.gc_bank_accounts
-WHERE id IS NOT NULL
+    ID AS ACCOUNT_ID,
+    BBAN,
+    BIC,
+    CASH_ACCOUNT_TYPE,
+    CURRENCY,
+    DETAILS,
+    DISPLAY_NAME,
+    IBAN,
+    LINKED_ACCOUNTS,
+    MSISDN,
+    NAME,
+    OWNER_ADDRESS_UNSTRUCTURED,
+    OWNER_NAME,
+    PRODUCT,
+    STATUS,
+    SCAN,
+    USAGE,
+    REQUISITION_ID,
+    DG_TRANSACTION_EXTRACT_DATE
+FROM {{ source('gocardless', 'gc_bank_accounts') }}
+WHERE ID IS NOT NULL

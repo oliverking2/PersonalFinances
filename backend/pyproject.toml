@@ -140,10 +140,13 @@ source = ["src"]
 omit = [
     "*/testing/*",
     "*/__pycache__/*",
-    # Infrastructure files requiring running services - tested via integration
-    "src/orchestration/*",      # Dagster jobs, assets, schedules
-    "src/api/*",                # FastAPI endpoints (stub implementations)
-    "src/postgres/gocardless/seed.py",  # One-off seed script
+    # Orchestration requires running Dagster instance - tested via integration
+    "src/orchestration/*",
+    # Analytics requires running DuckDB with attached PostgreSQL - tested via integration
+    "src/duckdb/*",
+    # One-off scripts
+    "src/postgres/gocardless/seed.py",
+    "src/filepaths.py",
 ]
 
 [tool.coverage.report]
@@ -157,13 +160,56 @@ exclude_lines = [
 [tool.sqlfluff.core]
 templater = "dbt"
 dialect = "duckdb"
-
-# Optional but sensible defaults
 sql_file_exts = ".sql,.sql.j2,.dml,.ddl"
 max_line_length = 120
 ignore_templated_areas = true
+# Exclude source models that pull from external tables
+exclude_rules = ["ST06"]  # Column ordering - not always practical with CTEs
 
 [tool.sqlfluff.templater.dbt]
-project_dir = "../dbt"
-profiles_dir = "../dbt"
+project_dir = "dbt"
+profiles_dir = "dbt"
 profile = "duckdb_local"
+
+[tool.sqlfluff.rules.aliasing.length]
+min_alias_length = 3
+
+[tool.sqlfluff.rules.aliasing.table]
+# Require explicit AS keyword for table aliases
+aliasing = "explicit"
+
+[tool.sqlfluff.rules.aliasing.column]
+# Require explicit AS keyword for column aliases
+aliasing = "explicit"
+
+[tool.sqlfluff.rules.capitalisation.keywords]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.identifiers]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.functions]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.literals]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.types]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.convention.not_equal]
+# Default to preferring the "c_style" (i.e. `!=`)
+preferred_not_equal_style = "c_style"
+
+[tool.sqlfluff.layout.type.alias_expression]
+# We want non-default spacing _before_ the alias expressions.
+spacing_before = "align"
+# We want to align them within the next outer select clause.
+# This means for example that alias expressions within the FROM
+# or JOIN clause would _not_ be aligned with them.
+align_within = "select_clause"
+# The point at which to stop searching outward for siblings, which
+# in this example would likely be the boundary of a CTE. Stopping
+# when we hit brackets is usually a good rule of thumb for this
+# configuration.
+align_scope = "bracketed"

@@ -1,16 +1,25 @@
-.PHONY: check test lint format types coverage clean
+.PHONY: check test lint format types coverage clean dbt dbt-docs sql
 
 # Default target
 help:
 	@echo "Backend validation commands:"
 	@echo ""
-	@echo "  make check    Run all checks (lint, format, types, coverage)"
+	@echo "  make check    Run all checks (lint, format, types, sql, coverage)"
 	@echo "  make test     Run unit tests only"
 	@echo "  make clean    Remove caches and build artefacts"
 	@echo ""
+	@echo "SQL commands:"
+	@echo ""
+	@echo "  make sql      Lint and auto-fix SQL files with sqlfluff"
+	@echo ""
+	@echo "dbt commands:"
+	@echo ""
+	@echo "  make dbt      Build dbt models (run + test)"
+	@echo "  make dbt-docs Generate and serve dbt docs"
+	@echo ""
 	@echo "For setup and dev servers, use the root Makefile."
 
-check: lint format types coverage
+check: lint format types sql coverage
 
 test:
 	poetry run pytest testing/ -v
@@ -29,3 +38,16 @@ coverage:
 
 clean:
 	rm -rf .mypy_cache .ruff_cache .coverage htmlcov dist build .pytest_cache
+
+# SQL linting and auto-fix (run from backend directory)
+# Source .env for PostgreSQL connection vars needed by dbt templater
+sql:
+	@set -a && . ./.env && set +a && poetry run sqlfluff fix dbt/models/ --config pyproject.toml
+
+# dbt commands (run from backend directory)
+# Source .env for PostgreSQL connection vars needed by DuckDB postgres extension
+dbt:
+	@set -a && . ./.env && set +a && cd dbt && poetry run dbt build --profiles-dir . --profile duckdb_local
+
+dbt-docs:
+	@set -a && . ./.env && set +a && cd dbt && poetry run dbt docs generate --profiles-dir . --profile duckdb_local && poetry run dbt docs serve --profiles-dir . --profile duckdb_local

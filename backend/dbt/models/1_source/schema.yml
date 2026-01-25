@@ -1,35 +1,158 @@
 sources:
-  - name: dagster
+  # Unified tables maintained by Dagster sync pipeline
+  - name: unified
+    description: Provider-agnostic unified tables maintained by Dagster sync pipeline
+    database: pg  # PostgreSQL attached to DuckDB via postgres extension
+    schema: public  # PostgreSQL public schema
+    tables:
+      - name: accounts
+        description: Unified account data from all providers
+        meta:
+          dagster:
+            asset_key: ["sync", "gocardless", "accounts"]
+        columns:
+          - name: id
+          - name: connection_id
+          - name: provider_id
+          - name: account_type
+          - name: display_name
+          - name: name
+          - name: iban
+          - name: currency
+          - name: status
+          - name: last_synced_at
+          - name: synced_at
+          - name: balance_amount
+          - name: balance_currency
+          - name: balance_type
+          - name: balance_updated_at
+          - name: total_value
+          - name: unrealised_pnl
+      - name: connections
+        description: Provider connections linking users to financial institutions
+        meta:
+          dagster:
+            asset_key: ["sync", "gocardless", "connections"]
+        columns:
+          - name: id
+          - name: user_id
+          - name: institution_id
+          - name: provider
+          - name: provider_ref
+          - name: status
+          - name: last_synced_at
+          - name: created_at
+          - name: expires_at
+      - name: institutions
+        description: Financial institution metadata
+        meta:
+          dagster:
+            asset_key: ["sync", "gocardless", "institutions"]
+        columns:
+          - name: id
+          - name: provider
+          - name: provider_id
+          - name: name
+          - name: logo_url
+          - name: countries
+      - name: transactions
+        description: Unified transaction data from all providers
+        meta:
+          dagster:
+            asset_key: ["sync", "gocardless", "transactions"]
+        columns:
+          - name: id
+          - name: account_id
+          - name: provider_id
+          - name: booking_date
+          - name: value_date
+          - name: amount
+          - name: currency
+          - name: counterparty_name
+          - name: description
+          - name: category
+          - name: synced_at
+      - name: tags
+        description: User-defined tags for categorising transactions
+        columns:
+          - name: id
+          - name: user_id
+          - name: name
+          - name: colour
+          - name: created_at
+          - name: updated_at
+      - name: transaction_tags
+        description: Junction table linking transactions to tags
+        columns:
+          - name: transaction_id
+          - name: tag_id
+          - name: created_at
+
+  # GoCardless raw data extracted by Dagster
+  - name: gocardless
     description: Raw data extracted from GoCardless API by Dagster, stored in PostgreSQL
+    database: pg  # PostgreSQL attached to DuckDB via postgres extension
+    schema: public  # PostgreSQL public schema
     freshness:
       warn_after: {count: 24, period: hour}
       error_after: {count: 48, period: hour}
     loaded_at_field: extracted_at
     tables:
-      - name: gocardless_raw_transactions
-        description: Transaction data from GoCardless API stored in PostgreSQL (gc_transactions)
+      - name: gc_transactions
+        description: Transaction data from GoCardless API
         meta:
           dagster:
-            asset_key:
-            - source
-            - gocardless
-            - extract
-            - transactions
-      - name: gocardless_raw_account_details
-        description: Account metadata and details from GoCardless API stored in PostgreSQL (gc_bank_accounts)
+            asset_key: ["source", "gocardless", "extract", "transactions"]
+        columns:
+          - name: id
+          - name: account_id
+          - name: transaction_id
+          - name: booking_date
+          - name: value_date
+          - name: amount
+          - name: currency
+          - name: counterparty_name
+          - name: remittance_info
+          - name: additional_info
+          - name: proprietary_code
+          - name: merchant_category
+          - name: balance_after_transaction
+          - name: extracted_at
+      - name: gc_bank_accounts
+        description: Account metadata and details from GoCardless API
         meta:
           dagster:
-            asset_key:
-              - source
-              - gocardless
-              - extract
-              - account_details
-      - name: gocardless_raw_account_balances
-        description: Balance snapshots for accounts from GoCardless API stored in PostgreSQL (gc_balances)
+            asset_key: ["source", "gocardless", "extract", "account_details"]
+        columns:
+          - name: id
+          - name: requisition_id
+          - name: gc_account_id
+          - name: iban
+          - name: bban
+          - name: name
+          - name: product
+          - name: owner_name
+          - name: currency
+          - name: account_type
+          - name: cash_account_type
+          - name: status
+          - name: bic
+          - name: resource_id
+          - name: details
+          - name: extracted_at
+      - name: gc_balances
+        description: Balance snapshots for accounts from GoCardless API
         meta:
           dagster:
-            asset_key:
-              - source
-              - gocardless
-              - extract
-              - account_balances
+            asset_key: ["source", "gocardless", "extract", "account_balances"]
+        columns:
+          - name: id
+          - name: account_id
+          - name: balance_amount
+          - name: balance_currency
+          - name: balance_type
+          - name: credit_limit_included
+          - name: last_change_date
+          - name: last_committed_transaction
+          - name: reference_date
+          - name: extracted_at
