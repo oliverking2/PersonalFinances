@@ -13,14 +13,14 @@ WITH TRANSACTIONS AS (
         DESCRIPTION,
         CATEGORY,
         SYNCED_AT
-    FROM {{ ref('src_transactions') }}
+    FROM {{ ref("src_unified_transactions") }}
 ),
 
 TRANSACTION_TAGS AS (
     SELECT
         TRANSACTION_ID,
         TAG_ID
-    FROM {{ ref('src_transaction_tags') }}
+    FROM {{ ref("src_unified_transaction_tags") }}
 ),
 
 TAGS AS (
@@ -28,7 +28,7 @@ TAGS AS (
         ID     AS TAG_ID,
         NAME   AS TAG_NAME,
         COLOUR AS TAG_COLOUR
-    FROM {{ ref('src_tags') }}
+    FROM {{ ref("src_unified_tags") }}
 ),
 
 -- Aggregate tags per transaction into a list

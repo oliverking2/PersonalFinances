@@ -201,44 +201,6 @@ models:
         data_tests:
           - not_null
 
-  - name: fct_daily_balance_history
-    description: |
-      Daily balance history per account.
-      Uses balance snapshots from GoCardless to track account balances over time.
-    meta:
-      dataset: true
-      friendly_name: "Daily Balance History"
-      group: "aggregations"
-      time_grain: "day"
-      filters:
-        date_column: "balance_date"
-        account_id_column: "account_id"
-    columns:
-      - name: balance_date
-        description: Date of the balance snapshot
-        data_tests:
-          - not_null
-      - name: account_id
-        description: Account the balance belongs to (UUID)
-        data_tests:
-          - not_null
-      - name: user_id
-        description: Owner of the account (UUID)
-        data_tests:
-          - not_null
-      - name: account_name
-        description: Name of the account
-      - name: currency
-        description: Currency of the balance
-      - name: balance_amount
-        description: Balance amount
-        data_tests:
-          - not_null
-      - name: balance_type
-        description: Type of balance (expected, booked, etc.)
-      - name: snapshot_at
-        description: When this snapshot was taken
-
   - name: fct_monthly_trends
     description: |
       Monthly income, spending, and net trends per user.

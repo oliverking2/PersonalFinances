@@ -24,12 +24,16 @@ models:
     +materialized: view
 
     1_source:
-      +materialized: table
       +schema: source
-      +meta:
-        dagster:
-          group: dbt_source
       +tags: ["auto_eager"]
+      unified:
+        +meta:
+          dagster:
+            group: dbt_source_unified
+      gocardless:
+        +meta:
+          dagster:
+            group: dbt_source_gocardless
 
     2_staging:
       +schema: staging

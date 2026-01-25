@@ -8,7 +8,7 @@ WITH TRANSACTIONS AS (
         BOOKING_DATE,
         AMOUNT,
         CURRENCY
-    FROM {{ ref('src_transactions') }}
+    FROM {{ ref("src_unified_transactions") }}
     WHERE
         BOOKING_DATE IS NOT NULL
         AND AMOUNT < 0  -- Only spending (negative amounts)
@@ -18,7 +18,7 @@ TRANSACTION_TAGS AS (
     SELECT
         TRANSACTION_ID,
         TAG_ID
-    FROM {{ ref('src_transaction_tags') }}
+    FROM {{ ref("src_unified_transaction_tags") }}
 ),
 
 TAGS AS (
@@ -27,7 +27,7 @@ TAGS AS (
         USER_ID,
         NAME   AS TAG_NAME,
         COLOUR AS TAG_COLOUR
-    FROM {{ ref('src_tags') }}
+    FROM {{ ref("src_unified_tags") }}
 ),
 
 ACCOUNTS AS (

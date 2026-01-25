@@ -8,7 +8,7 @@ WITH TRANSACTIONS AS (
         BOOKING_DATE,
         AMOUNT,
         CURRENCY
-    FROM {{ ref('src_transactions') }}
+    FROM {{ ref("src_unified_transactions") }}
     WHERE BOOKING_DATE IS NOT NULL
 ),
 

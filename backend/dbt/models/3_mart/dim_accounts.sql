@@ -18,7 +18,7 @@ WITH ACCOUNTS AS (
         TOTAL_VALUE,
         UNREALISED_PNL,
         PROVIDER_ID
-    FROM {{ ref('src_accounts') }}
+    FROM {{ ref("src_unified_accounts") }}
 ),
 
 CONNECTIONS AS (
@@ -30,7 +30,7 @@ CONNECTIONS AS (
         PROVIDER,
         STATUS        AS CONNECTION_STATUS,
         EXPIRES_AT    AS CONNECTION_EXPIRES_AT
-    FROM {{ ref('src_connections') }}
+    FROM {{ ref("src_unified_connections") }}
 ),
 
 INSTITUTIONS AS (
@@ -38,7 +38,7 @@ INSTITUTIONS AS (
         ID       AS INSTITUTION_ID,
         NAME     AS INSTITUTION_NAME,
         LOGO_URL AS INSTITUTION_LOGO_URL
-    FROM {{ ref('src_institutions') }}
+    FROM {{ ref("src_unified_institutions") }}
 )
 
 SELECT

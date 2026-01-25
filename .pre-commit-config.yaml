@@ -42,15 +42,19 @@ repos:
 
   # ==========================================================================
   # SQL (dbt models)
+  # Note: Uses jinja templater for pre-commit (dbt templater needs DB connection).
+  # Run `cd backend && make sql` for full dbt-aware linting.
   # ==========================================================================
-  - repo: local
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 3.5.0
     hooks:
       - id: sqlfluff-fix
-        name: SQLFluff fix
-        entry: make -C backend sql
-        language: system
+        args:
+          - --config
+          - backend/pyproject.toml
+          - --templater
+          - jinja
         files: ^backend/dbt/models/.*\.sql$
-        pass_filenames: false
 
   # ==========================================================================
   # Frontend (format + lint with auto-fix)

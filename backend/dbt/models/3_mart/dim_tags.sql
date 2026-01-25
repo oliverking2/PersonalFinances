@@ -7,4 +7,4 @@ SELECT
     NAME,
     COLOUR,
     CREATED_AT
-FROM {{ ref('src_tags') }}
+FROM {{ ref("src_unified_tags") }}
