@@ -83,7 +83,7 @@ Address tech debt and improve code quality before adding new data sources.
 ### Code Quality
 
 - [x] Replace broad exception handlers with specific exceptions in requisitions.py
-- [ ] Fix the alembic failing autogenerating migration files
+- [x] Fix the alembic failing autogenerating migration files
 
 ### Completed Tech Debt (January 2026)
 
