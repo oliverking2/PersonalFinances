@@ -33,7 +33,8 @@
       "Bash(find:*)",
       "Bash(git log:*)",
       "Bash(make:*)",
-      "Bash(npx nuxi typecheck:*)"
+      "Bash(npx nuxi typecheck:*)",
+      "Bash(npm run lint:*)"
     ]
   }
 }
