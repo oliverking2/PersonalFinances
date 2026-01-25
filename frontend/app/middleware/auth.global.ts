@@ -7,6 +7,8 @@
 // - Client: Uses hydrated state or refreshes token on client-side navigation
 // =============================================================================
 
+import { appendResponseHeader } from 'h3'
+
 // Types for API responses (duplicated here to avoid import issues in middleware)
 interface RefreshResponse {
   access_token: string
