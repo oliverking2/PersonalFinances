@@ -8,5 +8,5 @@ BACKEND_DIR = Path(__file__).parent.parent
 # Project root (parent of backend/)
 PROJECT_ROOT = BACKEND_DIR.parent
 
-# DuckDB File
-DUCKDB_PATH = BACKEND_DIR / "analytics.duckdb"
+# DuckDB File (in data/ subdirectory for Docker volume mounting)
+DUCKDB_PATH = BACKEND_DIR / "data" / "analytics.duckdb"

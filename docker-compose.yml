@@ -70,6 +70,8 @@ services:
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
     ports:
       - "${DAGSTER_WEBSERVER_PORT:-3001}:3000"
+    volumes:
+      - duckdb_data:/opt/dagster/dagster_home/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,6 +94,8 @@ services:
       - run
       - -w
       - /opt/dagster/dagster_home/workspace.yaml
+    volumes:
+      - duckdb_data:/opt/dagster/dagster_home/data
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -99,5 +103,5 @@ services:
 volumes:
   postgres_data:
     driver: local
-  dagster_data:
+  duckdb_data:
     driver: local
