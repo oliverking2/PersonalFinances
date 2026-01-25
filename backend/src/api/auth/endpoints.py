@@ -24,7 +24,7 @@ from src.postgres.auth.operations.refresh_tokens import (
     rotate_token,
 )
 from src.postgres.auth.operations.users import create_user, get_user_by_username
-from src.utils.definitions import access_token_expire_minutes, is_local_environment
+from src.utils.definitions import access_token_expire_minutes, cookie_domain, is_local_environment
 from src.utils.security import create_access_token, verify_password
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         secure=not is_local,
         samesite="lax",
         path="/auth",
+        domain=cookie_domain(),  # Share across subdomains in production
         max_age=60 * 60 * 24 * 30,  # 30 days
     )
 
@@ -63,6 +64,7 @@ def _clear_refresh_cookie(response: Response) -> None:
         secure=not is_local,
         samesite="lax",
         path="/auth",
+        domain=cookie_domain(),  # Must match the domain used when setting
         max_age=0,
     )
 

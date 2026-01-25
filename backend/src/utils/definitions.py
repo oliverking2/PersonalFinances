@@ -162,3 +162,19 @@ def is_api_docs_disabled() -> bool:
     :return: True if DISABLE_API_DOCS is set to 'true'.
     """
     return os.getenv("DISABLE_API_DOCS", "").lower() == "true"
+
+
+def cookie_domain() -> str | None:
+    """Get the domain for auth cookies.
+
+    In production with separate frontend/backend subdomains (e.g., finances.example.com
+    and finances-api.example.com), set COOKIE_DOMAIN=.example.com to share cookies
+    across subdomains. The leading dot is required.
+
+    In local development, returns None to use browser default (current host only).
+
+    :return: The cookie domain, or None for local development.
+    """
+    if is_local_environment():
+        return None
+    return os.getenv("COOKIE_DOMAIN") or None
