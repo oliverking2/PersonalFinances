@@ -46,10 +46,11 @@ const categoryOptions: { value: AccountCategory; label: string }[] = [
 
 const displayName = ref('')
 const category = ref<AccountCategory | ''>('')
-const minBalance = ref<string>('')
-const creditLimit = ref<string>('')
 const saving = ref(false)
 const error = ref('')
+
+const minBalanceField = useMoneyField({ allowNegative: true })
+const creditLimitField = useMoneyField({ allowNegative: false })
 
 // Reset state when modal opens or account changes
 // immediate: true ensures this runs when the component mounts (since it's conditionally rendered)
@@ -59,11 +60,11 @@ watch(
     if (isOpen) {
       displayName.value = props.account.display_name || ''
       category.value = props.account.category || ''
-      minBalance.value =
+      minBalanceField.value.value =
         props.account.min_balance !== null
           ? String(props.account.min_balance)
           : ''
-      creditLimit.value =
+      creditLimitField.value.value =
         props.account.credit_limit !== null
           ? String(props.account.credit_limit)
           : ''
@@ -102,8 +103,8 @@ const hasChanges = computed(() => {
   return (
     displayName.value !== originalDisplayName ||
     category.value !== originalCategory ||
-    minBalance.value !== originalMinBalance ||
-    creditLimit.value !== originalCreditLimit
+    minBalanceField.value.value !== originalMinBalance ||
+    creditLimitField.value.value !== originalCreditLimit
   )
 })
 
@@ -111,18 +112,10 @@ const hasChanges = computed(() => {
 const isCreditCard = computed(() => category.value === 'credit_card')
 
 // Validate min balance is a valid number if provided
-const isValidMinBalance = computed(() => {
-  if (minBalance.value === '') return true
-  const num = parseFloat(minBalance.value)
-  return !isNaN(num) && isFinite(num)
-})
+const isValidMinBalance = minBalanceField.isValid
 
 // Validate credit limit is a valid number if provided
-const isValidCreditLimit = computed(() => {
-  if (creditLimit.value === '') return true
-  const num = parseFloat(creditLimit.value)
-  return !isNaN(num) && isFinite(num) && num >= 0
-})
+const isValidCreditLimit = creditLimitField.isValid
 
 // Overall form validity
 const isValid = computed(() => {
@@ -150,8 +143,12 @@ async function handleSave() {
     const settings = {
       display_name: displayName.value.trim() || null,
       category: (category.value as AccountCategory) || null,
-      min_balance: minBalance.value ? parseFloat(minBalance.value) : null,
-      credit_limit: creditLimit.value ? parseFloat(creditLimit.value) : null,
+      min_balance: minBalanceField.value.value
+        ? parseFloat(minBalanceField.value.value)
+        : null,
+      credit_limit: creditLimitField.value.value
+        ? parseFloat(creditLimitField.value.value)
+        : null,
     }
 
     emit('save', props.account.id, settings)
@@ -161,14 +158,35 @@ async function handleSave() {
   }
 }
 
+function useMoneyField(options: { allowNegative: boolean }) {
+  const value = ref('')
+
+  function sanitise(v: unknown): void {
+    const s = String(v ?? '').replace(/[£,\s]/g, '')
+    value.value = s
+      .replace(options.allowNegative ? /[^\d.-]/g : /[^\d.]/g, '')
+      .replace(/(?!^)-/g, '')
+      .replace(/(\..*)\./g, '$1')
+  }
+
+  const isValid = computed(() => {
+    if (value.value === '') return true
+    const n = Number.parseFloat(value.value)
+    if (!Number.isFinite(n)) return false
+    return !(!options.allowNegative && n < 0)
+  })
+
+  return { value, sanitise, isValid }
+}
+
 // Clear min balance field
 function clearMinBalance() {
-  minBalance.value = ''
+  minBalanceField.value.value = ''
 }
 
 // Clear credit limit field
 function clearCreditLimit() {
-  creditLimit.value = ''
+  creditLimitField.value.value = ''
 }
 </script>
 
@@ -252,20 +270,22 @@ function clearCreditLimit() {
                 for="credit-limit"
                 class="mb-2 block text-sm font-medium text-muted"
               >
-                Credit Limit
+                Credit Limit (non-negative)
               </label>
               <div class="relative">
                 <AppInput
                   id="credit-limit"
-                  v-model="creditLimit"
+                  :model-value="creditLimitField.value.value"
                   type="number"
                   step="0.01"
                   placeholder="e.g. 5000.00"
-                  :class="{ 'pr-8': creditLimit }"
+                  prefix="£"
+                  :class="{ 'pr-8': creditLimitField.value.value }"
+                  @update:model-value="creditLimitField.sanitise"
                 />
                 <!-- Clear button (shown when there's a value) -->
                 <button
-                  v-if="creditLimit"
+                  v-if="creditLimitField.value.value"
                   type="button"
                   class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted transition-colors hover:text-foreground"
                   title="Clear"
@@ -284,7 +304,7 @@ function clearCreditLimit() {
                 </button>
               </div>
               <p
-                v-if="creditLimit && !isValidCreditLimit"
+                v-if="creditLimitField.value.value && !isValidCreditLimit"
                 class="mt-1 text-xs text-negative"
               >
                 Please enter a valid positive number
@@ -302,15 +322,17 @@ function clearCreditLimit() {
               <div class="relative">
                 <AppInput
                   id="min-balance"
-                  v-model="minBalance"
+                  :model-value="minBalanceField.value.value"
                   type="number"
                   step="0.01"
                   placeholder="e.g. 500.00"
-                  :class="{ 'pr-8': minBalance }"
+                  prefix="£"
+                  :class="{ 'pr-8': minBalanceField.value.value }"
+                  @update:model-value="minBalanceField.sanitise"
                 />
                 <!-- Clear button (shown when there's a value) -->
                 <button
-                  v-if="minBalance"
+                  v-if="minBalanceField.value.value"
                   type="button"
                   class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted transition-colors hover:text-foreground"
                   title="Clear"
@@ -332,7 +354,7 @@ function clearCreditLimit() {
                 Get notified when balance falls below this amount (coming soon)
               </p>
               <p
-                v-if="minBalance && !isValidMinBalance"
+                v-if="minBalanceField.value.value && !isValidMinBalance"
                 class="mt-1 text-xs text-negative"
               >
                 Please enter a valid number

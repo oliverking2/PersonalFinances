@@ -14,6 +14,7 @@ defineProps<{
   type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   required?: boolean
+  prefix?: string
 }>()
 
 const emit = defineEmits<{
@@ -28,19 +29,23 @@ function onInput(event: Event) {
 </script>
 
 <template>
-  <input
-    :type="type ?? 'text'"
-    :value="modelValue"
-    :placeholder="placeholder"
-    :required="required"
-    @input="onInput"
-  />
+  <div class="input-wrapper">
+    <span v-if="prefix" class="input-prefix">{{ prefix }}</span>
+
+    <input
+      :type="type ?? 'text'"
+      :value="modelValue"
+      :placeholder="placeholder"
+      :required="required"
+      @input="onInput"
+    />
+  </div>
 </template>
 
 <style scoped>
 input {
   /* Layout: full width with padding */
-  @apply w-full rounded-lg px-4 py-3;
+  @apply w-full rounded-lg py-3 pl-8 pr-4;
 
   /* Colours: dark input with light text */
   @apply border border-border bg-onyx text-foreground;
@@ -50,5 +55,18 @@ input {
 
   /* Focus state: highlight border */
   @apply focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50;
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.input-prefix {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  @apply text-muted;
 }
 </style>
