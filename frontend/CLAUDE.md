@@ -84,7 +84,7 @@ Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.confi
 
 ## Design Decisions
 
-- **Client-only auth**: Auth middleware runs only on the client for simplicity. SSR would require cookie forwarding which adds complexity.
+- **SSR auth validation**: Auth middleware runs on both server and client. On server, it forwards the refresh cookie to the backend API to validate - if invalid, redirects to `/login` before any HTML is sent (no flash of protected content). Pinia hydrates the auth state to the client.
 - **Simple refresh flow**: Check token expiry before API calls. If expired, refresh. If refresh fails, redirect to login.
 - **Component-based styling**: Reusable components (AppButton, AppInput) encapsulate Tailwind classes to reduce duplication.
 - **Toast notifications**: Pinia store (`stores/toast.ts`) for user feedback on OAuth callbacks and other actions.

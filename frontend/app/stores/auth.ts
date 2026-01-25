@@ -172,6 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     loading,
     accessToken,
+    expiresAt, // Exposed for SSR hydration in auth middleware
 
     // Getters
     isAuthenticated,
