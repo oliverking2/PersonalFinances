@@ -694,17 +694,14 @@ class TestOAuthCallback:
         client: TestClient,
         api_db_session: Session,
         test_connection_in_db: Connection,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Should process callback and redirect to frontend on success."""
-        monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
-
+        """Should process callback and return success JSON."""
         # Create a requisition for the existing connection
         requisition = RequisitionLink(
             id=test_connection_in_db.provider_id,
             created=datetime.now(),
             updated=datetime.now(),
-            redirect="http://localhost:8000/api/connections/callback",
+            redirect="http://localhost:3000/accounts",
             status="CR",
             institution_id=test_connection_in_db.institution_id,
             agreement="agreement-id",
@@ -727,11 +724,12 @@ class TestOAuthCallback:
         response = client.get(
             "/api/connections/callback",
             params={"ref": test_connection_in_db.provider_id},
-            follow_redirects=False,
         )
 
-        assert response.status_code == 307
-        assert "callback=success" in response.headers["location"]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["reason"] is None
 
         # Verify connection status was updated
         api_db_session.expire_all()
@@ -742,17 +740,14 @@ class TestOAuthCallback:
     def test_callback_unknown_requisition(
         self,
         client: TestClient,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Should redirect with error for unknown requisition."""
-        monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
-
+        """Should return error JSON for unknown requisition."""
         response = client.get(
             "/api/connections/callback",
             params={"ref": "nonexistent-req-id"},
-            follow_redirects=False,
         )
 
-        assert response.status_code == 307
-        assert "callback=error" in response.headers["location"]
-        assert "unknown_requisition" in response.headers["location"]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["reason"] == "unknown_requisition"

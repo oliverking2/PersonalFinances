@@ -171,7 +171,7 @@ const isEmpty = computed(
 // Check if filters are active (for empty state messaging)
 const hasActiveFilters = computed(() => {
   const f = filters.value
-  return !!(
+  return (
     (f.account_ids && f.account_ids.length > 0) ||
     (f.tag_ids && f.tag_ids.length > 0) ||
     f.start_date ||

@@ -12,7 +12,12 @@ from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import RefreshToken, User
 from src.utils.definitions import refresh_token_expire_days
-from src.utils.security import generate_refresh_token, hash_refresh_token, verify_refresh_token
+from src.utils.security import (
+    generate_refresh_token,
+    hash_refresh_token,
+    lookup_hash_refresh_token,
+    verify_refresh_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +44,13 @@ def create_refresh_token(  # noqa: PLR0913
         expires_days = refresh_token_expire_days()
 
     raw_token = generate_refresh_token()
+    lookup_hash = lookup_hash_refresh_token(raw_token)
     token_hash = hash_refresh_token(raw_token)
     expires_at = datetime.now(UTC) + timedelta(days=expires_days)
 
     token = RefreshToken(
         user_id=user.id,
+        lookup_hash=lookup_hash,
         token_hash=token_hash,
         expires_at=expires_at,
         user_agent=user_agent,
@@ -60,27 +67,28 @@ def create_refresh_token(  # noqa: PLR0913
 def find_token_by_raw_value(session: Session, raw_token: str) -> RefreshToken | None:
     """Find a refresh token by its raw value.
 
-    This iterates through active tokens and verifies the hash.
-    For MVP, this is acceptable. Add SHA256 lookup hash for scale.
+    Uses a two-step approach for performance:
+    1. Fast O(1) lookup by SHA256 hash (indexed)
+    2. Verify with bcrypt to confirm match
 
     :param session: SQLAlchemy session.
     :param raw_token: Raw token string to find.
-    :return: RefreshToken if found, None otherwise.
+    :return: RefreshToken if found and valid, None otherwise.
     """
-    # Get all tokens (including revoked for replay detection)
-    # We check expiry in Python to handle timezone-naive datetimes from SQLite
-    tokens = session.query(RefreshToken).all()
-    now = datetime.now(UTC)
+    lookup_hash = lookup_hash_refresh_token(raw_token)
 
-    for token in tokens:
-        expires_at = token.expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
+    # Fast indexed lookup by SHA256 hash
+    token = session.query(RefreshToken).filter(RefreshToken.lookup_hash == lookup_hash).first()
 
-        if expires_at > now and verify_refresh_token(raw_token, token.token_hash):
-            return token
+    if token is None:
+        return None
 
-    return None
+    # Verify with bcrypt for security (prevents hash collision attacks)
+    if not verify_refresh_token(raw_token, token.token_hash):
+        logger.warning("Token lookup hash matched but bcrypt verification failed - possible attack")
+        return None
+
+    return token
 
 
 def is_token_valid(token: RefreshToken) -> bool:

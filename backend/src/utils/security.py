@@ -4,6 +4,7 @@ This module provides password hashing, JWT token management, and
 refresh token generation utilities.
 """
 
+import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -47,13 +48,25 @@ def generate_refresh_token() -> str:
 
 
 def hash_refresh_token(token: str) -> str:
-    """Hash a refresh token for storage.
+    """Hash a refresh token for storage (slow bcrypt for security).
 
     :param token: Plain text refresh token.
     :return: Bcrypt hashed token.
     """
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(token.encode(), salt).decode()
+
+
+def lookup_hash_refresh_token(token: str) -> str:
+    """Create a fast lookup hash for a refresh token (SHA256).
+
+    This is used for quick database lookups. After finding a candidate,
+    verify with the bcrypt hash for security.
+
+    :param token: Plain text refresh token.
+    :return: Hex-encoded SHA256 hash.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def verify_refresh_token(plain_token: str, hashed_token: str) -> bool:

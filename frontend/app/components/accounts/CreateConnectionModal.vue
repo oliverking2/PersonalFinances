@@ -6,6 +6,7 @@ Shows institution selection and friendly name input
 
 <script setup lang="ts">
 import type { Institution } from '~/types/accounts'
+import type { FilterOption } from '~/components/FilterDropdown.vue'
 
 // ---------------------------------------------------------------------------
 // Props & Emits
@@ -33,6 +34,7 @@ const selectedInstitutionId = ref('')
 const friendlyName = ref('')
 const loading = ref(false)
 const creating = ref(false)
+const redirecting = ref(false)
 const error = ref('')
 
 // ---------------------------------------------------------------------------
@@ -42,6 +44,19 @@ const error = ref('')
 // Get the selected institution object
 const selectedInstitution = computed(() => {
   return institutions.value.find((i) => i.id === selectedInstitutionId.value)
+})
+
+// Convert institutions to FilterOption format for the dropdown
+const institutionOptions = computed<FilterOption[]>(() => {
+  return institutions.value.map((inst) => ({
+    id: inst.id,
+    label: inst.name,
+  }))
+})
+
+// FilterDropdown uses arrays, so wrap the single ID in an array
+const selectedInstitutionIds = computed(() => {
+  return selectedInstitutionId.value ? [selectedInstitutionId.value] : []
 })
 
 // Validation: both fields must be filled
@@ -78,15 +93,21 @@ watch(
       selectedInstitutionId.value = ''
       friendlyName.value = ''
       error.value = ''
+      redirecting.value = false
       await loadInstitutions()
     }
   },
 )
 
 function handleClose() {
-  if (!creating.value) {
+  if (!creating.value && !redirecting.value) {
     emit('close')
   }
+}
+
+// Handle institution selection from FilterDropdown (converts array back to single value)
+function handleInstitutionSelect(ids: string[]) {
+  selectedInstitutionId.value = ids[0] ?? ''
 }
 
 async function handleCreate() {
@@ -100,6 +121,13 @@ async function handleCreate() {
       institution_id: selectedInstitutionId.value,
       friendly_name: friendlyName.value.trim(),
     })
+
+    // Show redirecting state before navigating
+    creating.value = false
+    redirecting.value = true
+
+    // Small delay so user sees the message
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     emit('created', response.link)
   } catch (e) {
@@ -159,26 +187,30 @@ async function handleCreate() {
             Loading banks...
           </div>
 
+          <!-- Redirecting state -->
+          <div v-else-if="redirecting" class="py-8 text-center">
+            <div
+              class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+            />
+            <p class="text-foreground">Redirecting to GoCardless...</p>
+            <p class="mt-1 text-sm text-muted">
+              You'll be asked to sign in to your bank
+            </p>
+          </div>
+
           <!-- Form -->
           <form v-else @submit.prevent="handleCreate">
-            <!-- Institution select -->
+            <!-- Institution select using FilterDropdown in single-select mode -->
             <div class="mb-4">
-              <label class="mb-2 block text-sm font-medium text-muted">
-                Select Bank
-              </label>
-              <select
-                v-model="selectedInstitutionId"
-                class="w-full rounded-lg border border-border bg-onyx px-4 py-3 text-foreground focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50"
-              >
-                <option value="" disabled>Choose a bank...</option>
-                <option
-                  v-for="institution in institutions"
-                  :key="institution.id"
-                  :value="institution.id"
-                >
-                  {{ institution.name }}
-                </option>
-              </select>
+              <FilterDropdown
+                label="Select Bank"
+                placeholder="Choose a bank..."
+                :options="institutionOptions"
+                :selected-ids="selectedInstitutionIds"
+                :multi-select="false"
+                :searchable="true"
+                @update:selected-ids="handleInstitutionSelect"
+              />
             </div>
 
             <!-- Selected bank preview -->

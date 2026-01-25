@@ -210,7 +210,16 @@ onUnmounted(() => {
         title="Add tag"
         @click="toggleTagSelector"
       >
-        <span class="plus">+</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          class="h-3 w-3"
+        >
+          <path
+            d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+          />
+        </svg>
       </button>
 
       <!-- Tag selector popover -->
@@ -259,10 +268,6 @@ onUnmounted(() => {
 
   /* Only show on hover (except on touch devices) */
   @apply opacity-0 group-hover:opacity-100;
-}
-
-.plus {
-  @apply leading-none;
 }
 
 /* Always show add button if there are no tags */

@@ -1,7 +1,8 @@
 <!-- ==========================================================================
 FilterDropdown
-Reusable multi-select dropdown for filtering (tags, accounts, etc.)
-Displays selected items as chips with a searchable dropdown
+Reusable dropdown for filtering (tags, accounts, etc.)
+Supports both multi-select (default) and single-select modes.
+Multi-select shows checkboxes; single-select shows checkmarks and auto-closes.
 ============================================================================ -->
 
 <script setup lang="ts">
@@ -36,6 +37,7 @@ const emit = defineEmits<{
 const isOpen = ref(false)
 const searchQuery = ref('')
 const dropdownRef = ref<HTMLDivElement | null>(null)
+const searchInputRef = ref<HTMLInputElement | null>(null)
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -68,6 +70,10 @@ function toggleDropdown() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     searchQuery.value = ''
+    // Auto-focus the search input when dropdown opens
+    nextTick(() => {
+      searchInputRef.value?.focus()
+    })
   }
 }
 
@@ -195,6 +201,7 @@ onUnmounted(() => {
       <!-- Search input -->
       <div v-if="searchable !== false" class="border-b border-border p-2">
         <input
+          ref="searchInputRef"
           v-model="searchQuery"
           type="text"
           placeholder="Search..."
@@ -219,8 +226,9 @@ onUnmounted(() => {
           class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-onyx"
           @click.stop="toggleOption(option.id)"
         >
-          <!-- Checkbox -->
+          <!-- Checkbox for multi-select mode -->
           <span
+            v-if="multiSelect !== false"
             class="flex h-4 w-4 items-center justify-center rounded border"
             :class="
               isSelected(option.id)
@@ -242,6 +250,23 @@ onUnmounted(() => {
               />
             </svg>
           </span>
+
+          <!-- Simple checkmark for single-select mode (only shown when selected) -->
+          <svg
+            v-else-if="isSelected(option.id)"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="h-4 w-4 text-primary"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <!-- Empty spacer for unselected items in single-select to keep alignment -->
+          <span v-else class="h-4 w-4" />
 
           <!-- Colour dot (if present) -->
           <span

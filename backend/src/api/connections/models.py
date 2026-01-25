@@ -64,3 +64,10 @@ class ReauthoriseConnectionResponse(BaseModel):
 
     id: str = Field(..., description="Connection UUID")
     link: str = Field(..., description="Reauthorisation link")
+
+
+class OAuthCallbackResponse(BaseModel):
+    """Response model for OAuth callback processing."""
+
+    success: bool = Field(..., description="Whether the callback was processed successfully")
+    reason: str | None = Field(None, description="Error reason if not successful")

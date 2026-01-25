@@ -8,7 +8,6 @@ from uuid import UUID
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from src.api.connections.models import (
@@ -17,6 +16,7 @@ from src.api.connections.models import (
     CreateConnectionRequest,
     CreateConnectionResponse,
     InstitutionResponse,
+    OAuthCallbackResponse,
     ReauthoriseConnectionResponse,
     UpdateConnectionRequest,
 )
@@ -82,32 +82,31 @@ def list_connections(
     )
 
 
-@router.get("/callback", summary="OAuth callback")
+@router.get("/callback", response_model=OAuthCallbackResponse, summary="OAuth callback")
 def oauth_callback(
     ref: str = Query(..., description="Requisition reference from GoCardless"),
     db: Session = Depends(get_db),
     creds: GoCardlessCredentials = Depends(get_gocardless_credentials),
-) -> RedirectResponse:
+) -> OAuthCallbackResponse:
     """Handle OAuth callback from GoCardless.
 
-    This endpoint is called after the user completes the bank authorisation flow.
-    It updates the requisition and connection status, then redirects to the frontend.
+    This endpoint is called by the frontend after the user completes the bank
+    authorisation flow. It updates the requisition and connection status.
+
+    The frontend receives the initial redirect from GoCardless at
+    /accounts?ref=xxx, then calls this endpoint to process it.
 
     :param ref: Requisition reference (the requisition ID we sent to GoCardless).
     :param db: Database session.
     :param creds: GoCardless credentials.
-    :returns: Redirect to frontend with success or error status.
+    :returns: Response with success status and optional error reason.
     """
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
     try:
         # Look up the requisition by ID (ref is the requisition ID)
         requisition = db.get(RequisitionLink, ref)
         if not requisition:
             logger.warning(f"Callback received for unknown requisition: ref={ref}")
-            return RedirectResponse(
-                url=f"{frontend_url}/accounts?callback=error&reason=unknown_requisition"
-            )
+            return OAuthCallbackResponse(success=False, reason="unknown_requisition")
 
         # Fetch latest status from GoCardless
         gc_data = get_requisition_data_by_id(creds, ref)
@@ -120,9 +119,7 @@ def oauth_callback(
         connection = get_connection_by_provider_id(db, Provider.GOCARDLESS, ref)
         if not connection:
             logger.warning(f"No connection found for requisition: ref={ref}")
-            return RedirectResponse(
-                url=f"{frontend_url}/accounts?callback=error&reason=no_connection"
-            )
+            return OAuthCallbackResponse(success=False, reason="no_connection")
 
         # Map GoCardless status to ConnectionStatus
         if new_status == "LN":
@@ -161,12 +158,12 @@ def oauth_callback(
 
         db.commit()
         logger.info(f"OAuth callback processed: ref={ref}, status={new_status}")
-        return RedirectResponse(url=f"{frontend_url}/accounts?callback=success")
+        return OAuthCallbackResponse(success=True, reason=None)
 
     except Exception as e:
         logger.exception(f"Error processing OAuth callback: ref={ref}, error={e}")
         db.rollback()
-        return RedirectResponse(url=f"{frontend_url}/accounts?callback=error&reason=internal_error")
+        return OAuthCallbackResponse(success=False, reason="internal_error")
 
 
 @router.get("/{connection_id}", response_model=ConnectionResponse, summary="Get connection by ID")

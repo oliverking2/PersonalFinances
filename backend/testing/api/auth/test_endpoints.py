@@ -175,7 +175,7 @@ class TestRefresh:
         response = client.post("/auth/refresh")
 
         assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid refresh token"
+        assert response.json()["detail"] == "Refresh token expired"
 
     def test_refresh_replay_detection(
         self, client: TestClient, api_db_session: Session, test_user_in_db: User

@@ -54,6 +54,9 @@ class RefreshToken(Base):
     """Database model for refresh tokens.
 
     Stores hashed refresh tokens with rotation tracking for replay detection.
+    Uses a two-hash approach:
+    - lookup_hash: Fast SHA256 for database queries
+    - token_hash: Slow bcrypt for security verification
     """
 
     __tablename__ = "refresh_tokens"
@@ -63,7 +66,10 @@ class RefreshToken(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    # Fast SHA256 hash for database lookups
+    lookup_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    # Slow bcrypt hash for security verification
+    token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     issued_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -86,4 +92,7 @@ class RefreshToken(Base):
 
     user: Mapped[User] = relationship("User", back_populates="refresh_tokens")
 
-    __table_args__ = (Index("idx_refresh_tokens_user_id", "user_id"),)
+    __table_args__ = (
+        Index("idx_refresh_tokens_user_id", "user_id"),
+        Index("idx_refresh_tokens_lookup_hash", "lookup_hash"),
+    )

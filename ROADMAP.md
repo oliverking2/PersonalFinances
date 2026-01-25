@@ -123,8 +123,43 @@ User-defined tags for categorising transactions. See PRD: `prds/complete/2026012
 ### Future (Not in Scope)
 
 - [ ] Multi-tag support with cost splitting (e.g., split £100 grocery shop: £80 Food, £20 Household)
-- [ ] Rule-based auto-tagging (merchant patterns, amount ranges)
 - [ ] Smart tag suggestions (ML-based)
+
+#### Auto-Tagging with Standard Tags
+
+When implementing auto-tagging, introduce a distinction between **standard tags** and **custom tags**:
+
+Standard Tags (system-provided)
+
+- Seeded on account creation via migration
+- Consistent set used by auto-tagging rules
+- Enable reliable analytics and reporting
+- Cannot be deleted (only hidden/disabled)
+- Suggested set: Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees
+
+Custom Tags (user-created)
+
+- Created by user for personal categorisation
+- Not used by auto-tagging rules (unless user creates a rule)
+- Can be deleted freely
+
+Auto-Tagging Rules
+
+- Rule structure: condition(s) → standard tag
+- Conditions: merchant name pattern, merchant category code, amount range, account
+- Examples:
+  - Merchant contains "TESCO" or "SAINSBURY" → Groceries
+  - Merchant contains "UBER" or "TFL" → Transport
+  - MCC code 5411 (Grocery Stores) → Groceries
+- Rules have priority order (first match wins)
+- User can override auto-assigned tags manually
+- Consider a "learn from corrections" feature (user overrides train the model)
+
+Schema Changes
+
+- Add `is_standard` boolean to Tag model
+- Add `TagRule` model: id, user_id, name, conditions (JSON), tag_id, priority, enabled
+- Add `auto_tagged` boolean to TransactionTag to track which were auto-assigned
 
 ---
 

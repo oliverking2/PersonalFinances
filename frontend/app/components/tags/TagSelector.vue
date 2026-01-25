@@ -35,11 +35,11 @@ const selectorWidth = computed(() => {
     (max, tag) => Math.max(max, tag.name.length),
     0,
   )
-  // Min width 140px, max width 280px
+  // Min width 160px (fits placeholder text), max width 280px
   const charWidth = 7
   const baseWidth = 84
   const calculatedWidth = baseWidth + longestTag * charWidth
-  return Math.min(Math.max(calculatedWidth, 140), 280)
+  return Math.min(Math.max(calculatedWidth, 160), 280)
 })
 
 // Filter tags based on search

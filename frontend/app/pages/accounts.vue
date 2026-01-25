@@ -112,25 +112,78 @@ async function loadData() {
 // OAuth Callback Handling
 // ---------------------------------------------------------------------------
 
-// Handle return from GoCardless OAuth flow
-// Backend redirects to /accounts?callback=success or ?callback=error&reason=...
-function handleOAuthCallback() {
-  const callback = route.query.callback as string | undefined
+// State for callback processing
+const processingCallback = ref(false)
 
-  if (callback === 'success') {
-    toast.success('Bank account connected successfully')
-    // Clear query params from URL to prevent re-triggering on refresh
+// Handle return from GoCardless OAuth flow
+// GoCardless redirects to /accounts?ref=xxx (or ?ref=xxx&error=xxx&details=xxx on error)
+async function handleOAuthCallback() {
+  const ref = route.query.ref as string | undefined
+  const gcError = route.query.error as string | undefined
+
+  // If no ref, check for legacy callback param (in case backend redirects directly)
+  if (!ref) {
+    const callback = route.query.callback as string | undefined
+    if (callback === 'success') {
+      toast.success('Bank account connected successfully')
+      router.replace({ query: {} })
+    } else if (callback === 'error') {
+      const reason = (route.query.reason as string) || 'Unknown error'
+      toast.error(`Failed to connect bank: ${reason}`)
+      router.replace({ query: {} })
+    }
+    return
+  }
+
+  // Handle GoCardless error (user cancelled, access denied, etc.)
+  if (gcError) {
+    const errorMessages: Record<string, string> = {
+      UserCancelledSession: 'You cancelled the bank connection',
+      AccessDenied: 'Access was denied by your bank',
+      InstitutionError: 'Your bank reported an error',
+    }
+    const message = errorMessages[gcError] || `Connection failed: ${gcError}`
+    toast.error(message)
     router.replace({ query: {} })
-  } else if (callback === 'error') {
-    const reason = (route.query.reason as string) || 'Unknown error'
-    toast.error(`Failed to connect bank: ${reason}`)
+    return
+  }
+
+  // Process successful callback via backend API
+  processingCallback.value = true
+  try {
+    const config = useRuntimeConfig()
+
+    const response = await fetch(
+      `${config.public.apiUrl}/api/connections/callback?ref=${encodeURIComponent(ref)}`,
+      { method: 'GET', credentials: 'include' },
+    )
+
+    const data = await response.json()
+
+    if (data.success) {
+      toast.success('Bank account connected successfully')
+    } else {
+      const reasonMessages: Record<string, string> = {
+        unknown_requisition: 'Connection not found',
+        no_connection: 'Connection not found',
+        internal_error: 'An error occurred',
+      }
+      const message =
+        reasonMessages[data.reason] || `Connection failed: ${data.reason}`
+      toast.error(message)
+    }
+  } catch (e) {
+    console.error('Failed to process callback:', e)
+    toast.error('Failed to complete bank connection')
+  } finally {
+    processingCallback.value = false
     router.replace({ query: {} })
   }
 }
 
 // Load data on mount and handle any OAuth callback
-onMounted(() => {
-  handleOAuthCallback()
+onMounted(async () => {
+  await handleOAuthCallback()
   loadData()
 })
 
@@ -329,193 +382,208 @@ async function pollJobStatus(
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Page header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">Accounts</h1>
-        <p class="mt-1 text-muted">Manage your connected bank accounts</p>
+  <div>
+    <!-- Full-page overlay when processing OAuth callback -->
+    <div
+      v-if="processingCallback"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-onyx"
+    >
+      <div class="text-center">
+        <div
+          class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+        />
+        <p class="text-foreground">Connecting to your bank...</p>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <!-- Page header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold sm:text-3xl">Accounts</h1>
+          <p class="mt-1 text-muted">Manage your connected bank accounts</p>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-3">
+          <!-- Refresh button (only shown when there are connections) -->
+          <button
+            v-if="hasConnections"
+            type="button"
+            class="flex items-center gap-2 rounded-lg border border-border px-4 py-2 font-medium text-muted transition-colors hover:bg-border hover:text-foreground"
+            :disabled="syncingConnections.size > 0"
+            @click="loadData"
+          >
+            <!-- Refresh icon -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': syncingConnections.size > 0 }"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Refresh
+          </button>
+
+          <!-- New Connection button -->
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
+            @click="openCreateModal"
+          >
+            <!-- Plus icon -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="h-5 w-5"
+            >
+              <path
+                d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+              />
+            </svg>
+            New Connection
+          </button>
+        </div>
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex items-center gap-3">
-        <!-- Refresh button (only shown when there are connections) -->
+      <!-- Loading state -->
+      <div v-if="loading" class="py-12 text-center text-muted">
+        Loading accounts...
+      </div>
+
+      <!-- Error state -->
+      <div
+        v-else-if="error"
+        class="rounded-lg border border-negative/50 bg-negative/10 px-6 py-4 text-negative"
+      >
+        {{ error }}
         <button
-          v-if="hasConnections"
           type="button"
-          class="flex items-center gap-2 rounded-lg border border-border px-4 py-2 font-medium text-muted transition-colors hover:bg-border hover:text-foreground"
-          :disabled="syncingConnections.size > 0"
+          class="ml-2 underline hover:no-underline"
           @click="loadData"
         >
-          <!-- Refresh icon -->
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            class="h-5 w-5"
-            :class="{ 'animate-spin': syncingConnections.size > 0 }"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          Refresh
-        </button>
-
-        <!-- New Connection button -->
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
-          @click="openCreateModal"
-        >
-          <!-- Plus icon -->
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            class="h-5 w-5"
-          >
-            <path
-              d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
-            />
-          </svg>
-          New Connection
+          Retry
         </button>
       </div>
-    </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="py-12 text-center text-muted">
-      Loading accounts...
-    </div>
-
-    <!-- Error state -->
-    <div
-      v-else-if="error"
-      class="rounded-lg border border-negative/50 bg-negative/10 px-6 py-4 text-negative"
-    >
-      {{ error }}
-      <button
-        type="button"
-        class="ml-2 underline hover:no-underline"
-        @click="loadData"
+      <!-- Empty state -->
+      <div
+        v-else-if="!hasConnections"
+        class="rounded-lg border border-border bg-surface px-6 py-12 text-center"
       >
-        Retry
-      </button>
-    </div>
-
-    <!-- Empty state -->
-    <div
-      v-else-if="!hasConnections"
-      class="rounded-lg border border-border bg-surface px-6 py-12 text-center"
-    >
-      <!-- Bank icon -->
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="1.5"
-        stroke="currentColor"
-        class="mx-auto h-12 w-12 text-muted"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z"
-        />
-      </svg>
-      <h3 class="mt-4 font-semibold text-foreground">No connections yet</h3>
-      <p class="mt-1 text-sm text-muted">
-        Connect your first bank account to start tracking your finances.
-      </p>
-      <button
-        type="button"
-        class="mt-4 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
-        @click="openCreateModal"
-      >
-        Connect Bank Account
-      </button>
-    </div>
-
-    <!-- Connections list -->
-    <div v-else class="space-y-4">
-      <AccountsConnectionCard
-        v-for="connection in connections"
-        :key="connection.id"
-        :connection="connection"
-        :accounts="accountsByConnection[connection.id] || []"
-        :sync-job="syncJobs.get(connection.id) || null"
-        :syncing="syncingConnections.has(connection.id)"
-        @edit-connection="openEditConnectionModal"
-        @edit-account="openEditAccountModal"
-        @reauthorise="handleReauthorise"
-        @delete="openDeleteConfirm"
-        @sync="handleSync"
-      />
-    </div>
-
-    <!-- Create Connection Modal -->
-    <AccountsCreateConnectionModal
-      :show="showCreateModal"
-      @close="closeCreateModal"
-      @created="handleConnectionCreated"
-    />
-
-    <!-- Edit Display Name Modal -->
-    <AccountsEditDisplayNameModal
-      v-if="editingEntity"
-      :show="showEditModal"
-      :entity-type="editingEntity.type"
-      :entity-id="editingEntity.id"
-      :current-name="editingEntity.currentName"
-      @close="closeEditModal"
-      @save="handleSaveEdit"
-    />
-
-    <!-- Delete Confirmation Modal -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="showDeleteConfirm && deletingConnection"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          @click.self="closeDeleteConfirm"
+        <!-- Bank icon -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="mx-auto h-12 w-12 text-muted"
         >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z"
+          />
+        </svg>
+        <h3 class="mt-4 font-semibold text-foreground">No connections yet</h3>
+        <p class="mt-1 text-sm text-muted">
+          Connect your first bank account to start tracking your finances.
+        </p>
+        <button
+          type="button"
+          class="mt-4 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
+          @click="openCreateModal"
+        >
+          Connect Bank Account
+        </button>
+      </div>
+
+      <!-- Connections list -->
+      <div v-else class="space-y-4">
+        <AccountsConnectionCard
+          v-for="connection in connections"
+          :key="connection.id"
+          :connection="connection"
+          :accounts="accountsByConnection[connection.id] || []"
+          :sync-job="syncJobs.get(connection.id) || null"
+          :syncing="syncingConnections.has(connection.id)"
+          @edit-connection="openEditConnectionModal"
+          @edit-account="openEditAccountModal"
+          @reauthorise="handleReauthorise"
+          @delete="openDeleteConfirm"
+          @sync="handleSync"
+        />
+      </div>
+
+      <!-- Create Connection Modal -->
+      <AccountsCreateConnectionModal
+        :show="showCreateModal"
+        @close="closeCreateModal"
+        @created="handleConnectionCreated"
+      />
+
+      <!-- Edit Display Name Modal -->
+      <AccountsEditDisplayNameModal
+        v-if="editingEntity"
+        :show="showEditModal"
+        :entity-type="editingEntity.type"
+        :entity-id="editingEntity.id"
+        :current-name="editingEntity.currentName"
+        @close="closeEditModal"
+        @save="handleSaveEdit"
+      />
+
+      <!-- Delete Confirmation Modal -->
+      <Teleport to="body">
+        <Transition name="fade">
           <div
-            class="w-full max-w-md rounded-lg border border-border bg-surface p-6"
+            v-if="showDeleteConfirm && deletingConnection"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            @click.self="closeDeleteConfirm"
           >
-            <h2 class="text-lg font-semibold text-foreground">
-              Delete Connection
-            </h2>
-            <p class="mt-2 text-muted">
-              Are you sure you want to delete
-              <strong class="text-foreground">{{
-                deletingConnection.friendly_name
-              }}</strong
-              >? This will also remove all associated accounts and cannot be
-              undone.
-            </p>
-            <div class="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-border hover:text-foreground"
-                @click="closeDeleteConfirm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="rounded-lg bg-negative px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-negative/80"
-                @click="handleConfirmDelete"
-              >
-                Delete
-              </button>
+            <div
+              class="w-full max-w-md rounded-lg border border-border bg-surface p-6"
+            >
+              <h2 class="text-lg font-semibold text-foreground">
+                Delete Connection
+              </h2>
+              <p class="mt-2 text-muted">
+                Are you sure you want to delete
+                <strong class="text-foreground">{{
+                  deletingConnection.friendly_name
+                }}</strong
+                >? This will also remove all associated accounts and cannot be
+                undone.
+              </p>
+              <div class="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-border hover:text-foreground"
+                  @click="closeDeleteConfirm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg bg-negative px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-negative/80"
+                  @click="handleConfirmDelete"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </Transition>
-    </Teleport>
+        </Transition>
+      </Teleport>
+    </div>
   </div>
 </template>
 
