@@ -42,8 +42,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const headers = useRequestHeaders(['cookie'])
     const cookieHeader = headers.cookie
 
-    // No cookie at all = definitely not authenticated
-    if (!cookieHeader) {
+    // Check if we have the refresh_token cookie
+    // In local dev, cookie won't be sent because frontend (port 3000) and backend (port 8000)
+    // are different origins. In production, COOKIE_DOMAIN must be set to share across subdomains.
+    if (!cookieHeader || !cookieHeader.includes('refresh_token=')) {
+      if (import.meta.dev) {
+        // Dev mode: skip SSR auth, let client-side handle it (avoids flash to login)
+        return
+      }
+      // Production: no cookie means not authenticated
       return navigateTo('/login')
     }
 
