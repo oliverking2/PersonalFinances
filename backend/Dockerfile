@@ -26,7 +26,7 @@ COPY src ./src
 COPY scripts ./scripts
 
 # Install the project itself now that source exists
-RUN poetry install --no-interaction --no-ansi --without dev --only-root
+RUN poetry install --no-interaction --no-ansi --only-root
 COPY alembic ./alembic
 COPY alembic.ini ./
 
