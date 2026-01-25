@@ -37,6 +37,8 @@ services:
       DISABLE_API_DOCS: "true"
     ports:
       - "${API_PORT:-8000}:8000"
+    volumes:
+      - duckdb_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy

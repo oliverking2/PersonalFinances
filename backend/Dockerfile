@@ -24,11 +24,19 @@ RUN poetry install --no-interaction --no-ansi --without dev --no-root
 # Copy source code
 COPY src ./src
 COPY scripts ./scripts
+COPY dbt ./dbt
 
 # Install the project itself now that source exists
 RUN poetry install --no-interaction --no-ansi --only-root
+
+# Generate dbt manifest for analytics dataset discovery
+RUN poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt
+
 COPY alembic ./alembic
 COPY alembic.ini ./
+
+# Create data directory for DuckDB (will be mounted as volume)
+RUN mkdir -p ./data
 
 # Expose port
 EXPOSE 8000
