@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_current_user, get_db
+from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES, UNAUTHORIZED
 from src.api.transactions.models import (
     BulkTagRequest,
     BulkTagResponse,
@@ -33,7 +34,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=TransactionListResponse, summary="List transactions")
+@router.get(
+    "",
+    response_model=TransactionListResponse,
+    summary="List transactions",
+    responses=UNAUTHORIZED,
+)
 def list_transactions(
     params: TransactionQueryParams = Depends(),
     account_ids: list[UUID] = Query(default=[]),
@@ -43,15 +49,7 @@ def list_transactions(
 ) -> TransactionListResponse:
     """List transactions with optional filters.
 
-    Returns transactions for all accounts belonging to the authenticated user.
-    Can be filtered by account_ids, tag_ids, date range, amount range, and search term.
-
-    :param params: Query parameters for filtering.
-    :param account_ids: Filter by account IDs (OR logic).
-    :param tag_ids: Filter by tag IDs (OR logic).
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Paginated list of transactions.
+    Supports filtering by accounts, tags, date range, amount range, and search term.
     """
     # Get all account IDs for this user
     connections = get_connections_by_user_id(db, current_user.id)
@@ -160,6 +158,7 @@ def _verify_transaction_ownership(
     "/{transaction_id}/tags",
     response_model=TransactionTagsResponse,
     summary="Add tags to transaction",
+    responses=RESOURCE_WRITE_RESPONSES,
 )
 def add_transaction_tags(
     transaction_id: UUID,
@@ -167,15 +166,7 @@ def add_transaction_tags(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TransactionTagsResponse:
-    """Add tags to a transaction.
-
-    :param transaction_id: Transaction UUID.
-    :param request: List of tag IDs to add.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Updated tags on the transaction.
-    :raises HTTPException: If transaction not found or not owned by user.
-    """
+    """Add one or more tags to a transaction."""
     transaction = _verify_transaction_ownership(db, transaction_id, current_user)
     if not transaction:
         raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
@@ -200,6 +191,7 @@ def add_transaction_tags(
     "/{transaction_id}/tags/{tag_id}",
     response_model=TransactionTagsResponse,
     summary="Remove tag from transaction",
+    responses=RESOURCE_RESPONSES,
 )
 def remove_transaction_tag(
     transaction_id: UUID,
@@ -207,15 +199,7 @@ def remove_transaction_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TransactionTagsResponse:
-    """Remove a tag from a transaction.
-
-    :param transaction_id: Transaction UUID.
-    :param tag_id: Tag UUID to remove.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Updated tags on the transaction.
-    :raises HTTPException: If transaction not found or not owned by user.
-    """
+    """Remove a tag from a transaction."""
     transaction = _verify_transaction_ownership(db, transaction_id, current_user)
     if not transaction:
         raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
@@ -229,20 +213,18 @@ def remove_transaction_tag(
     )
 
 
-@router.post("/bulk/tags", response_model=BulkTagResponse, summary="Bulk tag transactions")
+@router.post(
+    "/bulk/tags",
+    response_model=BulkTagResponse,
+    summary="Bulk tag transactions",
+    responses=RESOURCE_WRITE_RESPONSES,
+)
 def bulk_tag(
     request: BulkTagRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> BulkTagResponse:
-    """Add or remove tags from multiple transactions.
-
-    :param request: Bulk tagging request with transaction and tag IDs.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Number of transactions updated.
-    :raises HTTPException: If any transaction or tag is invalid.
-    """
+    """Add or remove tags from multiple transactions in a single operation."""
     account_ids = _get_user_account_ids(db, current_user)
 
     # Verify all transactions belong to user

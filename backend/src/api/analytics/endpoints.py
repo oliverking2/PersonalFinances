@@ -1,7 +1,7 @@
 """Analytics API endpoints."""
 
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -19,9 +19,11 @@ from src.api.analytics.models import (
     RefreshResponse,
 )
 from src.api.dependencies import get_current_user, get_db
+from src.api.responses import INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
 from src.duckdb.client import check_connection, execute_query
 from src.duckdb.manifest import get_dataset_schema, get_datasets
 from src.duckdb.queries import build_dataset_query
+from src.filepaths import DUCKDB_PATH
 from src.postgres.auth.models import User
 from src.postgres.common.enums import JobStatus, JobType
 from src.postgres.common.models import Job
@@ -32,6 +34,17 @@ from src.providers.dagster import trigger_job
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _get_last_refresh_time() -> datetime | None:
+    """Get the last time the DuckDB database was modified.
+
+    :returns: Modification time as UTC datetime, or None if file doesn't exist.
+    """
+    if not DUCKDB_PATH.exists():
+        return None
+    mtime = DUCKDB_PATH.stat().st_mtime
+    return datetime.fromtimestamp(mtime, tz=UTC)
 
 
 def _get_user_account_ids(db: Session, user: User) -> list[UUID]:
@@ -103,17 +116,16 @@ def _serialize_row(row: dict[str, Any]) -> dict[str, Any]:
 # Dataset discovery endpoints
 
 
-@router.get("/status", response_model=AnalyticsStatusResponse, summary="Get analytics status")
+@router.get(
+    "/status",
+    response_model=AnalyticsStatusResponse,
+    summary="Get analytics status",
+    responses=UNAUTHORIZED,
+)
 def get_analytics_status(
     current_user: User = Depends(get_current_user),
 ) -> AnalyticsStatusResponse:
-    """Get the status of the analytics system.
-
-    Checks if DuckDB database and dbt manifest are available.
-
-    :param current_user: Authenticated user.
-    :returns: Analytics system status.
-    """
+    """Check if DuckDB database and dbt manifest are available."""
     duckdb_ok = check_connection()
     datasets = get_datasets()
 
@@ -121,21 +133,20 @@ def get_analytics_status(
         duckdb_available=duckdb_ok,
         manifest_available=len(datasets) > 0,
         dataset_count=len(datasets),
-        last_refresh=None,  # TODO: Track last refresh time
+        last_refresh=_get_last_refresh_time(),
     )
 
 
-@router.get("/datasets", response_model=DatasetListResponse, summary="List datasets")
+@router.get(
+    "/datasets",
+    response_model=DatasetListResponse,
+    summary="List datasets",
+    responses=UNAUTHORIZED,
+)
 def list_datasets(
     current_user: User = Depends(get_current_user),
 ) -> DatasetListResponse:
-    """List available analytics datasets.
-
-    Returns datasets marked with `meta.dataset: true` in dbt schema.yml.
-
-    :param current_user: Authenticated user.
-    :returns: List of available datasets.
-    """
+    """List available analytics datasets from dbt manifest."""
     datasets = get_datasets()
 
     return DatasetListResponse(
@@ -158,18 +169,13 @@ def list_datasets(
     "/datasets/{dataset_id}/schema",
     response_model=DatasetSchemaResponse,
     summary="Get dataset schema",
+    responses=RESOURCE_RESPONSES,
 )
 def get_dataset_schema_endpoint(
     dataset_id: UUID,
     current_user: User = Depends(get_current_user),
 ) -> DatasetSchemaResponse:
-    """Get detailed schema for a dataset.
-
-    :param dataset_id: Dataset UUID.
-    :param current_user: Authenticated user.
-    :returns: Dataset with column definitions.
-    :raises HTTPException: If dataset not found.
-    """
+    """Get detailed schema for a dataset including column definitions."""
     dataset = get_dataset_schema(dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
@@ -199,6 +205,7 @@ def get_dataset_schema_endpoint(
     "/datasets/{dataset_id}/query",
     response_model=DatasetQueryResponse,
     summary="Query a dataset",
+    responses={**RESOURCE_RESPONSES, **INTERNAL_ERROR},
 )
 def query_dataset(  # noqa: PLR0913
     dataset_id: UUID,
@@ -213,20 +220,7 @@ def query_dataset(  # noqa: PLR0913
 ) -> DatasetQueryResponse:
     """Query a dataset with optional filters.
 
-    Returns rows from the specified dataset, filtered by the user's data.
-    All queries are automatically scoped to the authenticated user.
-
-    :param dataset_id: Dataset UUID.
-    :param start_date: Optional start date filter.
-    :param end_date: Optional end date filter.
-    :param account_ids: Optional filter by account IDs.
-    :param tag_ids: Optional filter by tag IDs.
-    :param limit: Maximum rows to return (default 1000, max 10000).
-    :param offset: Number of rows to skip for pagination.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Query results.
-    :raises HTTPException: If dataset not found or query fails.
+    Results are automatically scoped to the authenticated user's data.
     """
     # Validate dataset exists
     dataset = get_dataset_schema(dataset_id)
@@ -292,19 +286,17 @@ def query_dataset(  # noqa: PLR0913
 # Refresh endpoint
 
 
-@router.post("/refresh", response_model=RefreshResponse, summary="Trigger analytics refresh")
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    summary="Trigger analytics refresh",
+    responses=UNAUTHORIZED,
+)
 def trigger_refresh(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RefreshResponse:
-    """Trigger a refresh of analytics data.
-
-    Runs dbt to rebuild mart tables from the latest PostgreSQL data.
-
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Job information for tracking refresh progress.
-    """
+    """Trigger a dbt rebuild of mart tables from the latest PostgreSQL data."""
     # Create a job record to track the refresh
     job = Job(
         job_type=JobType.SYNC.value,  # Reusing SYNC type for analytics refresh

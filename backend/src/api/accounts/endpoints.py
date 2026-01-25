@@ -13,6 +13,7 @@ from src.api.accounts.models import (
     AccountUpdateRequest,
 )
 from src.api.dependencies import get_current_user, get_db
+from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES
 from src.postgres.auth.models import User
 from src.postgres.common.enums import AccountStatus
 from src.postgres.common.models import Account
@@ -31,19 +32,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=AccountListResponse, summary="List accounts")
+@router.get(
+    "",
+    response_model=AccountListResponse,
+    summary="List accounts",
+    responses=RESOURCE_RESPONSES,
+)
 def list_accounts(
     connection_id: UUID | None = Query(None, description="Filter by connection ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AccountListResponse:
-    """List all bank accounts for the authenticated user.
-
-    :param connection_id: Optional filter by connection ID.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: List of accounts.
-    """
+    """List all bank accounts for the authenticated user."""
     if connection_id:
         # Verify user owns this connection
         connection = get_connection_by_id(db, connection_id)
@@ -63,20 +63,18 @@ def list_accounts(
     )
 
 
-@router.get("/{account_id}", response_model=AccountResponse, summary="Get account by ID")
+@router.get(
+    "/{account_id}",
+    response_model=AccountResponse,
+    summary="Get account by ID",
+    responses=RESOURCE_RESPONSES,
+)
 def get_account(
     account_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AccountResponse:
-    """Get a specific account by ID.
-
-    :param account_id: Account UUID to retrieve.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Account details.
-    :raises HTTPException: If account not found or not owned by user.
-    """
+    """Retrieve a specific bank account by its UUID."""
     account = get_account_by_id(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
@@ -88,22 +86,19 @@ def get_account(
     return _to_response(account)
 
 
-@router.patch("/{account_id}", response_model=AccountResponse, summary="Update account")
-def update_account(
+@router.patch(
+    "/{account_id}",
+    response_model=AccountResponse,
+    summary="Update account",
+    responses=RESOURCE_WRITE_RESPONSES,
+)
+def patch_account(
     account_id: UUID,
     request: AccountUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AccountResponse:
-    """Update an account's display name.
-
-    :param account_id: Account UUID to update.
-    :param request: Update request data.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Updated account.
-    :raises HTTPException: If account not found or not owned by user.
-    """
+    """Update an account's display name, category, or minimum balance."""
     account = get_account_by_id(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_current_user, get_db
 from src.api.jobs.models import JobListResponse, JobResponse
+from src.api.responses import RESOURCE_RESPONSES, UNAUTHORIZED
 from src.postgres.auth.models import User
 from src.postgres.common.enums import JobStatus, JobType
 from src.postgres.common.models import Job
@@ -39,22 +40,21 @@ def _to_response(job: Job) -> JobResponse:
     )
 
 
-@router.get("/{job_id}", response_model=JobResponse, summary="Get job by ID")
+@router.get(
+    "/{job_id}",
+    response_model=JobResponse,
+    summary="Get job by ID",
+    responses=RESOURCE_RESPONSES,
+)
 def get_job(
     job_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobResponse:
-    """Get a specific job by ID.
+    """Retrieve a specific job by its UUID.
 
-    If the job is still running, this endpoint will check Dagster for the
-    actual status and update the job record accordingly.
-
-    :param job_id: Job UUID to retrieve.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Job details.
-    :raises HTTPException: If job not found or not owned by user.
+    If the job is still running, checks Dagster for the actual status and
+    updates the job record accordingly.
     """
     job = get_job_by_id(db, job_id)
     if not job:
@@ -84,7 +84,12 @@ def get_job(
     return _to_response(job)
 
 
-@router.get("", response_model=JobListResponse, summary="List jobs")
+@router.get(
+    "",
+    response_model=JobListResponse,
+    summary="List jobs",
+    responses=UNAUTHORIZED,
+)
 def list_jobs(  # noqa: PLR0913
     entity_type: str | None = Query(None, description="Filter by entity type"),
     entity_id: UUID | None = Query(None, description="Filter by entity ID"),
@@ -93,16 +98,7 @@ def list_jobs(  # noqa: PLR0913
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobListResponse:
-    """List jobs for the authenticated user.
-
-    :param entity_type: Optional filter by entity type (e.g., 'connection').
-    :param entity_id: Optional filter by entity ID.
-    :param job_type: Optional filter by job type.
-    :param limit: Maximum number of jobs to return.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: List of jobs.
-    """
+    """List jobs for the authenticated user with optional filters."""
     jobs = get_jobs_by_user(
         db,
         user_id=current_user.id,

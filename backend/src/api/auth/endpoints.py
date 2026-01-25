@@ -13,6 +13,7 @@ from src.api.auth.models import (
     UserResponse,
 )
 from src.api.dependencies import get_current_user, get_db
+from src.api.responses import CONFLICT, UNAUTHORIZED
 from src.postgres.auth.models import User
 from src.postgres.auth.operations.refresh_tokens import (
     create_refresh_token,
@@ -83,23 +84,21 @@ def _get_client_info(request: Request) -> tuple[str | None, str | None]:
     return user_agent, ip_address
 
 
-@router.post("/login", response_model=TokenResponse, summary="Authenticate user")
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="Authenticate user",
+    responses=UNAUTHORIZED,
+)
 def login(
     request: Request,
     response: Response,
     login_request: LoginRequest,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    """Authenticate a user and return access token.
+    """Authenticate with username and password, returning an access token.
 
-    Sets a refresh token cookie for subsequent token refreshes.
-
-    :param request: FastAPI Request object.
-    :param response: FastAPI Response object.
-    :param login_request: Login credentials.
-    :param db: Database session.
-    :return: Access token response.
-    :raises HTTPException: 401 if credentials are invalid.
+    Also sets a refresh token cookie for subsequent token refreshes.
     """
     logger.debug(f"Login attempt: username={login_request.username}")
     user = get_user_by_username(db, login_request.username)
@@ -135,18 +134,17 @@ def login(
     )
 
 
-@router.post("/register", response_model=UserResponse, summary="Register new user")
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    summary="Register new user",
+    responses=CONFLICT,
+)
 def register(
     register_request: RegisterRequest,
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    """Register a new user.
-
-    :param register_request: Registration details.
-    :param db: Database session.
-    :return: Created user information.
-    :raises HTTPException: 409 if username already exists.
-    """
+    """Create a new user account."""
     logger.debug(f"Registration attempt: username={register_request.username}")
     # Check if username already exists
     existing = get_user_by_username(db, register_request.username)
@@ -172,25 +170,21 @@ def register(
     )
 
 
-@router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh access token",
+    responses=UNAUTHORIZED,
+)
 def refresh(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None),
 ) -> TokenResponse:
-    """Exchange refresh token for new access token.
+    """Exchange refresh token for a new access token.
 
-    Performs token rotation: old token is revoked, new one is issued.
-    Implements replay detection: if a revoked token is reused, all
-    tokens for the user are revoked.
-
-    :param request: FastAPI Request object.
-    :param response: FastAPI Response object.
-    :param db: Database session.
-    :param refresh_token: Refresh token from cookie.
-    :return: New access token response.
-    :raises HTTPException: 401 if token is invalid, expired, or revoked.
+    Performs token rotation (old token revoked, new issued) with replay detection.
     """
     logger.debug("Token refresh attempt")
     if not refresh_token:
@@ -251,15 +245,7 @@ def logout(
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None),
 ) -> LogoutResponse:
-    """Logout user by revoking their refresh token.
-
-    Clears the refresh token cookie regardless of token validity.
-
-    :param response: FastAPI Response object.
-    :param db: Database session.
-    :param refresh_token: Refresh token from cookie.
-    :return: Logout confirmation.
-    """
+    """Revoke the refresh token and clear the cookie."""
     logger.debug("Logout request received")
     if refresh_token:
         token = find_token_by_raw_value(db, refresh_token)
@@ -278,13 +264,14 @@ def logout(
     return LogoutResponse(ok=True)
 
 
-@router.get("/me", response_model=UserResponse, summary="Get current user")
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user",
+    responses=UNAUTHORIZED,
+)
 def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
-    """Get the currently authenticated user's information.
-
-    :param current_user: Authenticated user from JWT token.
-    :return: User information.
-    """
+    """Get the currently authenticated user's profile."""
     return UserResponse(
         id=current_user.id,
         username=current_user.username,

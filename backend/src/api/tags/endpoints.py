@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_current_user, get_db
+from src.api.responses import BAD_REQUEST, RESOURCE_RESPONSES, UNAUTHORIZED
 from src.api.tags.models import (
     TagCreateRequest,
     TagListResponse,
@@ -32,17 +33,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=TagListResponse, summary="List tags")
+@router.get(
+    "",
+    response_model=TagListResponse,
+    summary="List tags",
+    responses=UNAUTHORIZED,
+)
 def list_tags(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TagListResponse:
-    """List all tags for the authenticated user.
-
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: List of tags with usage counts.
-    """
+    """List all tags for the authenticated user with usage counts."""
     tags = get_tags_by_user_id(db, current_user.id)
     usage_counts = get_tag_usage_counts(db, current_user.id)
 
@@ -52,20 +53,19 @@ def list_tags(
     )
 
 
-@router.post("", response_model=TagResponse, status_code=201, summary="Create tag")
+@router.post(
+    "",
+    response_model=TagResponse,
+    status_code=201,
+    summary="Create tag",
+    responses={**UNAUTHORIZED, **BAD_REQUEST},
+)
 def create_new_tag(
     request: TagCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TagResponse:
-    """Create a new tag.
-
-    :param request: Tag creation data.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Created tag.
-    :raises HTTPException: If tag limit reached or name already exists.
-    """
+    """Create a new tag for categorising transactions."""
     # Check tag limit
     tag_count = count_tags_by_user_id(db, current_user.id)
     if tag_count >= MAX_TAGS_PER_USER:
@@ -89,20 +89,18 @@ def create_new_tag(
     return _to_response(tag, 0)
 
 
-@router.get("/{tag_id}", response_model=TagResponse, summary="Get tag by ID")
+@router.get(
+    "/{tag_id}",
+    response_model=TagResponse,
+    summary="Get tag by ID",
+    responses=RESOURCE_RESPONSES,
+)
 def get_tag(
     tag_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TagResponse:
-    """Get a specific tag by ID.
-
-    :param tag_id: Tag UUID to retrieve.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Tag details.
-    :raises HTTPException: If tag not found or not owned by user.
-    """
+    """Retrieve a specific tag by its UUID."""
     tag = get_tag_by_id(db, tag_id)
     if not tag or tag.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
@@ -111,22 +109,19 @@ def get_tag(
     return _to_response(tag, usage_counts.get(tag.id, 0))
 
 
-@router.put("/{tag_id}", response_model=TagResponse, summary="Update tag")
+@router.put(
+    "/{tag_id}",
+    response_model=TagResponse,
+    summary="Update tag",
+    responses={**RESOURCE_RESPONSES, **BAD_REQUEST},
+)
 def update_existing_tag(
     tag_id: UUID,
     request: TagUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TagResponse:
-    """Update a tag's name and/or colour.
-
-    :param tag_id: Tag UUID to update.
-    :param request: Update request data.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :returns: Updated tag.
-    :raises HTTPException: If tag not found or name conflict.
-    """
+    """Update a tag's name and/or colour."""
     tag = get_tag_by_id(db, tag_id)
     if not tag or tag.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
@@ -152,21 +147,18 @@ def update_existing_tag(
     return _to_response(updated, usage_counts.get(updated.id, 0))
 
 
-@router.delete("/{tag_id}", status_code=204, summary="Delete tag")
+@router.delete(
+    "/{tag_id}",
+    status_code=204,
+    summary="Delete tag",
+    responses=RESOURCE_RESPONSES,
+)
 def delete_existing_tag(
     tag_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a tag.
-
-    This removes the tag from all transactions.
-
-    :param tag_id: Tag UUID to delete.
-    :param db: Database session.
-    :param current_user: Authenticated user.
-    :raises HTTPException: If tag not found or not owned by user.
-    """
+    """Delete a tag, removing it from all associated transactions."""
     tag = get_tag_by_id(db, tag_id)
     if not tag or tag.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
