@@ -42,10 +42,7 @@ setup:
 	@cd frontend && npm install
 	@echo ""
 	@echo "=== Starting database ==="
-	@$(COMPOSE) up -d postgres
-	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
-		sleep 1; \
-	done
+	@$(COMPOSE) up -d --wait postgres
 	@echo "Postgres ready."
 	@echo ""
 	@echo "=== Running migrations ==="
@@ -92,10 +89,7 @@ setup-demo:
 	@cd frontend && npm install
 	@echo ""
 	@echo "=== Starting database ==="
-	@$(COMPOSE) up -d postgres
-	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
-		sleep 1; \
-	done
+	@$(COMPOSE) up -d --wait postgres
 	@echo "Postgres ready."
 	@echo ""
 	@echo "=== Running migrations ==="
@@ -125,10 +119,7 @@ setup-demo:
 COMPOSE := docker compose --env-file .env.compose
 
 up:
-	@$(COMPOSE) up -d postgres
-	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
-		sleep 1; \
-	done
+	@$(COMPOSE) up -d --wait postgres
 	@cd backend && poetry run alembic upgrade head
 	@$(COMPOSE) up -d --build
 	@echo ""
@@ -141,10 +132,7 @@ up:
 # Local dev servers
 # =============================================================================
 up-db:
-	@$(COMPOSE) up -d postgres
-	@until $(COMPOSE) exec postgres pg_isready -U $$(grep POSTGRES_USERNAME .env.compose | cut -d '=' -f2) > /dev/null 2>&1; do \
-		sleep 1; \
-	done
+	@$(COMPOSE) up -d --wait postgres
 	@echo "Postgres ready."
 	@cd backend && poetry run alembic upgrade head
 
