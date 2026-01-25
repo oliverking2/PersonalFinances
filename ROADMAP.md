@@ -120,7 +120,7 @@ User-defined tags for categorising transactions. See PRD: `prds/complete/2026012
 - [x] Selection mode infrastructure for bulk operations
 - [x] Filter transactions by tag dropdown
 
-### Future (Not in Scope)
+### Future
 
 - [ ] Multi-tag support with cost splitting (e.g., split £100 grocery shop: £80 Food, £20 Household)
 - [ ] Smart tag suggestions (ML-based)
@@ -180,20 +180,13 @@ Charts and dashboards to understand spending patterns. Requires tagging (Phase 2
 - [ ] `fct_daily_balance_history` mart model - requires unified balance table first (currently only raw gc_balances available)
 - [ ] Export engine (Dagster job) - CSV/Parquet exports with parameterised filters, see PRD
 
-### Frontend
-
-- [ ] Charts and visualisations (spending by category, trends)
-- [ ] Dashboard with key metrics
-- [ ] Balance over time graphs
-- [ ] Spending breakdown charts
-
 ---
 
 ## Phase 2.8: Misc UI Improvements
 
 Improve the user experience and visual design of the app.
 
-### Accounts
+### Accounts ✅
 
 - [x] Account settings modal - cog icon opens modal with:
   - [x] Display name (editable)
@@ -203,21 +196,52 @@ Improve the user experience and visual design of the app.
 
 ### Transactions
 
-- [ ] Transaction detail view (more details button to create a modal)
-- [ ] Date range presets ("This month", "Last 30 days", "This year", "Custom" - this then shows the date selectors, need to work out the best UX for this)
-- [ ] Split transactions (one payment → multiple categories - linked to tags)
+- [x] Transaction detail view (more details button, modal showing all fields, tag management)
+- [x] Date range presets dropdown (This month, Last 30 days, This year, Custom with date selectors)
+- [x] Value filter dropdown (min/max amount in single dropdown)
+- [ ] Split transactions to different tags (one payment → multiple categories - linked to tags)
 - [ ] Recurring transaction indicators (visual badge for subscriptions)
 
-### Dashboard
+---
 
-- [ ] Net worth summary (total across all accounts)
-- [ ] Recent activity feed
-- [ ] Upcoming bills/subscriptions
-- [ ] Refresh data button
+## Phase 2.9: Dashboard & Analytics UI
 
-### General
+Home page overview and dedicated analytics section. Requires analytics backend (Phase 2.7).
 
-- [ ] Mobile responsive improvements
+### Navigation & Structure
+
+- [ ] Rename "Dashboard" nav item to "Home" (becomes `/` index route)
+- [ ] Add "Analytics" as top-level nav item (`/analytics`)
+
+### Credit Card Balance Fix
+
+- [ ] Investigate credit card balance data (credit limit showing as available funds)
+- [ ] Fix net worth calculation to treat credit cards as liabilities
+
+### Home Page (`/`)
+
+- [ ] Net worth summary card (assets minus liabilities)
+- [ ] Key metrics cards:
+  - [ ] Total spending this month
+  - [ ] Spending vs last month (% change)
+  - [ ] Top spending category this month
+  - [ ] Transaction count this month
+- [ ] Recent transactions list (5 items, links to full transactions page)
+
+### Analytics Page (`/analytics`)
+
+- [ ] Time period filter (default: current month)
+- [ ] Bar chart: spending by tag/category
+- [ ] Line chart: daily/weekly spending trend
+- [ ] Pie/donut chart: category breakdown
+- [ ] Table view of underlying data
+- [ ] This month vs last month comparison view
+- [ ] Manual refresh button (triggers dbt build via Dagster)
+
+### Future Work
+
+- [ ] Balance over time graphs (requires `fct_daily_balance_history` mart)
+- [ ] Upcoming bills/subscriptions widget (requires recurring transaction detection - see Phase 6)
 
 ---
 
@@ -359,6 +383,19 @@ AI-powered features for insights and automation. Lower priority.
 
 ---
 
+## Phase 7: Mobile Responsiveness
+
+Low priority polish pass to improve mobile experience across all pages.
+
+- [ ] Responsive navigation (hamburger menu, mobile-friendly nav)
+- [ ] Home page mobile layout
+- [ ] Analytics page mobile layout (charts that work on small screens)
+- [ ] Accounts page mobile layout
+- [ ] Transactions page mobile layout
+- [ ] Settings pages mobile layout
+
+---
+
 ## Out of Scope
 
 Items explicitly not needed for this project:
@@ -393,6 +430,8 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260124-fullstack-background-jobs-dagster.md` - Background jobs table, Dagster sync triggers, connection-scoped sync
 - `20260124-fullstack-transaction-tagging.md` - User-defined tags for transactions
 - `20260125-backend-analytics-visualisation.md` - Analytics API with dbt marts and DuckDB
+- `20260125-frontend-transaction-detail-modal.md` - Transaction detail modal with tag management
+- `20260125-frontend-transaction-filters.md` - Date presets and value filter dropdowns
 
 ### Implemented Without PRD
 
