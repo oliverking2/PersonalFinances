@@ -5,13 +5,23 @@ Displays a group of transactions for a single day with a sticky header
 
 <script setup lang="ts">
 import type { TransactionDayGroup } from '~/types/transactions'
+import type { Tag } from '~/types/tags'
 
 // ---------------------------------------------------------------------------
-// Props
+// Props & Emits
 // ---------------------------------------------------------------------------
 const props = defineProps<{
   group: TransactionDayGroup
   accountNames: Record<string, string> // Map of account_id to display name
+  availableTags?: Tag[] // All user's tags for the selector
+  selectedTransactionIds?: Set<string> // IDs of selected transactions
+}>()
+
+const emit = defineEmits<{
+  'toggle-select': [transactionId: string]
+  'add-tag': [transactionId: string, tagId: string]
+  'remove-tag': [transactionId: string, tagId: string]
+  'create-tag': [transactionId: string, name: string]
 }>()
 
 // ---------------------------------------------------------------------------
@@ -34,6 +44,14 @@ const formattedDayTotal = computed(() => {
 const totalColorClass = computed(() => {
   return props.group.dayTotal >= 0 ? 'text-positive' : 'text-muted'
 })
+
+// ---------------------------------------------------------------------------
+// Methods
+// ---------------------------------------------------------------------------
+
+function isSelected(transactionId: string): boolean {
+  return props.selectedTransactionIds?.has(transactionId) || false
+}
 </script>
 
 <template>
@@ -64,6 +82,12 @@ const totalColorClass = computed(() => {
         :key="transaction.id"
         :transaction="transaction"
         :account-name="accountNames[transaction.account_id]"
+        :available-tags="availableTags"
+        :selected="isSelected(transaction.id)"
+        @toggle-select="emit('toggle-select', transaction.id)"
+        @add-tag="emit('add-tag', transaction.id, $event)"
+        @remove-tag="emit('remove-tag', transaction.id, $event)"
+        @create-tag="emit('create-tag', transaction.id, $event)"
       />
     </div>
   </div>

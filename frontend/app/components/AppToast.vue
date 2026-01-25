@@ -32,9 +32,9 @@ const icons: Record<Toast['type'], string> = {
             'flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg',
             'min-w-[280px] max-w-[400px]',
             // Background and border colours based on toast type
-            toast.type === 'success' && 'border-primary/30 bg-primary/10',
-            toast.type === 'error' && 'border-negative/30 bg-negative/10',
-            toast.type === 'info' && 'border-sage/30 bg-sage/10',
+            toast.type === 'success' && 'border-primary/30 bg-primary/20',
+            toast.type === 'error' && 'border-negative/30 bg-negative/20',
+            toast.type === 'info' && 'border-sage/30 bg-sage/20',
           ]"
         >
           <!-- Icon -->

@@ -32,8 +32,11 @@ export function useTransactionsApi() {
     // Build query string from params
     const queryParams = new URLSearchParams()
 
-    if (params.account_id) {
-      queryParams.set('account_id', params.account_id)
+    // Add each account_id as separate query param (account_ids=x&account_ids=y)
+    if (params.account_ids && params.account_ids.length > 0) {
+      for (const accountId of params.account_ids) {
+        queryParams.append('account_ids', accountId)
+      }
     }
     if (params.start_date) {
       queryParams.set('start_date', params.start_date)
@@ -49,6 +52,12 @@ export function useTransactionsApi() {
     }
     if (params.search) {
       queryParams.set('search', params.search)
+    }
+    // Add each tag_id as separate query param (tag_ids=x&tag_ids=y)
+    if (params.tag_ids && params.tag_ids.length > 0) {
+      for (const tagId of params.tag_ids) {
+        queryParams.append('tag_ids', tagId)
+      }
     }
     if (params.page) {
       queryParams.set('page', String(params.page))

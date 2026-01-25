@@ -83,6 +83,7 @@ Address tech debt and improve code quality before adding new data sources.
 ### Code Quality
 
 - [x] Replace broad exception handlers with specific exceptions in requisitions.py
+- [ ] Fix the alembic failing autogenerating migration files
 
 ### Completed Tech Debt (January 2026)
 
@@ -100,22 +101,30 @@ Address tech debt and improve code quality before adding new data sources.
 
 ---
 
-## Phase 2.6: Transaction Tagging
+## Phase 2.6: Transaction Tagging ✅
 
-Categorise transactions for analytics and budgeting.
+User-defined tags for categorising transactions. See PRD: `prds/complete/20260124-fullstack-transaction-tagging.md`
 
-### Manual Tagging
+### Backend
 
-- [ ] Tag/category data model
-- [ ] API endpoints for tagging transactions
-- [ ] UI for manual tag assignment
-- [ ] Bulk tagging support
+- [x] `Tag` and `TransactionTag` models + migration
+- [x] Tags CRUD API (`/api/tags`)
+- [x] Transaction tagging endpoints (add/remove/bulk)
+- [x] Tag filter on transaction list
 
-### Automatic Tagging
+### Frontend
 
-- [ ] Rule-based auto-tagging (merchant name patterns, amount ranges)
-- [ ] Apply rules to new transactions on sync
-- [ ] Backfill existing transactions with rules
+- [x] Tags management page (`/settings/tags`)
+- [x] Tag components (`TagChip`, `TagSelector`)
+- [x] Transaction row tagging UI (inline add/remove tags)
+- [x] Selection mode infrastructure for bulk operations
+- [x] Filter transactions by tag dropdown
+
+### Future (Not in Scope)
+
+- [ ] Multi-tag support with cost splitting (e.g., split £100 grocery shop: £80 Food, £20 Household)
+- [ ] Rule-based auto-tagging (merchant patterns, amount ranges)
+- [ ] Smart tag suggestions (ML-based)
 
 ---
 
@@ -342,6 +351,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260124-backend-gocardless-oauth.md` - GoCardless OAuth flow (create, callback, reauthorise endpoints)
 - `20260124-frontend-gocardless-callback.md` - OAuth callback handling and toast notifications
 - `20260124-fullstack-background-jobs-dagster.md` - Background jobs table, Dagster sync triggers, connection-scoped sync
+- `20260124-fullstack-transaction-tagging.md` - User-defined tags for transactions
 
 ### Implemented Without PRD
 

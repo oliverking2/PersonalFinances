@@ -5,13 +5,16 @@ Filter controls for searching and filtering transactions
 
 <script setup lang="ts">
 import type { Account } from '~/types/accounts'
+import type { Tag } from '~/types/tags'
 import type { TransactionQueryParams } from '~/types/transactions'
+import type { FilterOption } from '~/components/FilterDropdown.vue'
 
 // ---------------------------------------------------------------------------
 // Props & Emits
 // ---------------------------------------------------------------------------
 const props = defineProps<{
   accounts: Account[]
+  tags: Tag[]
   connectionNames: Record<string, string>
   modelValue: TransactionQueryParams
 }>()
@@ -54,7 +57,8 @@ function handleSearchInput() {
 const hasActiveFilters = computed(() => {
   const f = props.modelValue
   return !!(
-    f.account_id ||
+    (f.account_ids && f.account_ids.length > 0) ||
+    (f.tag_ids && f.tag_ids.length > 0) ||
     f.start_date ||
     f.end_date ||
     f.min_amount !== undefined ||
@@ -62,6 +66,29 @@ const hasActiveFilters = computed(() => {
     f.search
   )
 })
+
+// Convert accounts to FilterOption format for the dropdown
+const accountOptions = computed((): FilterOption[] => {
+  return props.accounts.map((account) => ({
+    id: account.id,
+    label: getAccountDisplayName(account),
+  }))
+})
+
+// Currently selected account IDs (defaulting to empty array)
+const selectedAccountIds = computed(() => props.modelValue.account_ids || [])
+
+// Convert tags to FilterOption format for the dropdown
+const tagOptions = computed((): FilterOption[] => {
+  return props.tags.map((tag) => ({
+    id: tag.id,
+    label: tag.name,
+    colour: tag.colour,
+  }))
+})
+
+// Currently selected tag IDs (defaulting to empty array)
+const selectedTagIds = computed(() => props.modelValue.tag_ids || [])
 
 // ---------------------------------------------------------------------------
 // Methods
@@ -76,10 +103,14 @@ function updateFilters(updates: Partial<TransactionQueryParams>) {
   })
 }
 
-// Handle account dropdown change
-function handleAccountChange(event: Event) {
-  const select = event.target as HTMLSelectElement
-  updateFilters({ account_id: select.value || undefined })
+// Handle account selection change (multi-select)
+function handleAccountsChange(ids: string[]) {
+  updateFilters({ account_ids: ids.length > 0 ? ids : undefined })
+}
+
+// Handle tag selection change (multi-select)
+function handleTagsChange(ids: string[]) {
+  updateFilters({ tag_ids: ids.length > 0 ? ids : undefined })
 }
 
 // Handle date range changes
@@ -153,23 +184,32 @@ function getAccountDisplayName(account: Account): string {
 
     <!-- Filter row - wraps on smaller screens -->
     <div class="flex flex-wrap items-end gap-3">
-      <!-- Account filter -->
-      <div class="min-w-[150px] flex-1">
-        <label class="mb-1 block text-sm text-muted">Account</label>
-        <select
-          :value="modelValue.account_id || ''"
-          class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          @change="handleAccountChange"
-        >
-          <option value="">All accounts</option>
-          <option
-            v-for="account in accounts"
-            :key="account.id"
-            :value="account.id"
-          >
-            {{ getAccountDisplayName(account) }}
-          </option>
-        </select>
+      <!-- Account filter (multi-select dropdown) -->
+      <div class="min-w-[180px] flex-1">
+        <FilterDropdown
+          label="Accounts"
+          placeholder="All accounts"
+          :options="accountOptions"
+          :selected-ids="selectedAccountIds"
+          :multi-select="true"
+          :searchable="true"
+          @update:selected-ids="handleAccountsChange"
+        />
+      </div>
+
+      <!-- Tag filter (multi-select dropdown) -->
+      <div class="min-w-[140px]">
+        <FilterDropdown
+          label="Tags"
+          placeholder="All tags"
+          :options="tagOptions"
+          :selected-ids="selectedTagIds"
+          :multi-select="true"
+          :searchable="true"
+          manage-link="/settings/tags"
+          manage-link-text="Manage"
+          @update:selected-ids="handleTagsChange"
+        />
       </div>
 
       <!-- Date range -->
@@ -218,11 +258,16 @@ function getAccountDisplayName(account: Account): string {
         />
       </div>
 
-      <!-- Clear button - only shown when filters are active -->
+      <!-- Clear button - always visible, disabled when no filters active -->
       <button
-        v-if="hasActiveFilters"
         type="button"
-        class="rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:bg-border hover:text-foreground"
+        class="mb-px self-end rounded-lg border border-border px-3 py-2 text-sm transition-colors"
+        :class="
+          hasActiveFilters
+            ? 'text-muted hover:bg-border hover:text-foreground'
+            : 'cursor-not-allowed text-muted/40'
+        "
+        :disabled="!hasActiveFilters"
         @click="clearFilters"
       >
         Clear

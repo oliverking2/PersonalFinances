@@ -1,18 +1,35 @@
 <!-- ==========================================================================
 TransactionRow
-Displays a single transaction with merchant/description and amount
+Displays a single transaction with merchant/description, tags, and amount
+Click to select for bulk operations
 ============================================================================ -->
 
 <script setup lang="ts">
 import type { Transaction } from '~/types/transactions'
+import type { Tag } from '~/types/tags'
 
 // ---------------------------------------------------------------------------
-// Props
+// Props & Emits
 // ---------------------------------------------------------------------------
 const props = defineProps<{
   transaction: Transaction
   accountName?: string // Display name of the account this transaction belongs to
+  availableTags?: Tag[] // All user's tags for the selector
+  selected?: boolean // Whether this row is selected (for bulk operations)
 }>()
+
+const emit = defineEmits<{
+  'toggle-select': []
+  'add-tag': [tagId: string]
+  'remove-tag': [tagId: string]
+  'create-tag': [name: string]
+}>()
+
+// ---------------------------------------------------------------------------
+// Local State
+// ---------------------------------------------------------------------------
+
+const showTagSelector = ref(false)
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -63,26 +80,198 @@ const formattedAmount = computed(() => {
 const amountColorClass = computed(() => {
   return props.transaction.amount >= 0 ? 'text-positive' : 'text-foreground'
 })
+
+// Get tag IDs for selector
+const selectedTagIds = computed(() => {
+  return props.transaction.tags?.map((t) => t.id) || []
+})
+
+// ---------------------------------------------------------------------------
+// Methods
+// ---------------------------------------------------------------------------
+
+function handleRowClick(event: MouseEvent) {
+  // Don't toggle selection if clicking on interactive elements
+  const target = event.target as HTMLElement
+  if (
+    target.closest('button') ||
+    target.closest('.tag-chip') ||
+    target.closest('.tag-selector-container')
+  ) {
+    return
+  }
+  emit('toggle-select')
+}
+
+function toggleTagSelector(event: MouseEvent) {
+  event.stopPropagation()
+  showTagSelector.value = !showTagSelector.value
+}
+
+function handleTagSelect(tagId: string) {
+  emit('add-tag', tagId)
+  showTagSelector.value = false // Close after selecting (single tag only)
+}
+
+function handleTagDeselect(tagId: string) {
+  emit('remove-tag', tagId)
+}
+
+function handleTagCreate(name: string) {
+  emit('create-tag', name)
+  showTagSelector.value = false
+}
+
+function handleRemoveTag(tagId: string) {
+  emit('remove-tag', tagId)
+}
+
+// Close selector when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.tag-selector-container')) {
+    showTagSelector.value = false
+  }
+}
+
+// Set up click outside listener
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
-  <!-- Transaction row with subtle hover effect -->
+  <!-- Transaction row - clickable for selection -->
   <div
-    class="flex items-center justify-between rounded-lg px-4 py-3 transition-colors hover:bg-onyx/50"
+    class="group flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 transition-colors"
+    :class="
+      selected
+        ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
+        : 'hover:bg-onyx/50'
+    "
+    @click="handleRowClick"
   >
-    <!-- Left side: merchant/description -->
-    <div class="min-w-0 flex-1">
+    <!-- Selection indicator (checkmark when selected) -->
+    <div
+      class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all"
+      :class="
+        selected
+          ? 'bg-primary text-background'
+          : 'border border-gray-600 bg-transparent'
+      "
+    >
+      <svg
+        v-if="selected"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        class="h-3 w-3"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </div>
+
+    <!-- Left side: merchant/description (no flex-1, only takes needed space) -->
+    <div class="min-w-0 max-w-[50%] flex-shrink">
       <p class="truncate font-medium text-foreground">{{ displayName }}</p>
-      <p v-if="metadataText" class="truncate text-sm text-muted">
+      <p v-if="metadataText" class="mt-0.5 truncate text-sm text-muted">
         {{ metadataText }}
       </p>
     </div>
 
+    <!-- Tags (right after transaction name, with left margin for spacing) -->
+    <div
+      class="tag-selector-container relative ml-4 flex flex-shrink-0 items-center gap-1.5"
+    >
+      <!-- Existing tag -->
+      <TagsTagChip
+        v-for="tag in transaction.tags"
+        :key="tag.id"
+        class="tag-chip"
+        :name="tag.name"
+        :colour="tag.colour"
+        removable
+        @remove="handleRemoveTag(tag.id)"
+      />
+
+      <!-- Add tag button (only show if no tag yet - single tag only) -->
+      <button
+        v-if="!transaction.tags || transaction.tags.length === 0"
+        type="button"
+        class="add-tag-btn"
+        title="Add tag"
+        @click="toggleTagSelector"
+      >
+        <span class="plus">+</span>
+      </button>
+
+      <!-- Tag selector popover -->
+      <!-- z-20 to appear above sticky date headers (z-10) -->
+      <div
+        v-if="showTagSelector && availableTags"
+        class="absolute left-0 top-full z-20 mt-1"
+        @click.stop
+      >
+        <TagsTagSelector
+          :available-tags="availableTags"
+          :selected-tag-ids="selectedTagIds"
+          @select="handleTagSelect"
+          @deselect="handleTagDeselect"
+          @create="handleTagCreate"
+        />
+      </div>
+    </div>
+
+    <!-- Spacer to push amount to the right -->
+    <div class="flex-1" />
+
     <!-- Right side: amount -->
-    <div class="ml-4 flex-shrink-0">
+    <div class="flex-shrink-0">
       <span class="font-medium" :class="amountColorClass">
         {{ formattedAmount }}
       </span>
     </div>
   </div>
 </template>
+
+<style scoped>
+.add-tag-btn {
+  /* Layout: small circular button */
+  @apply flex h-5 w-5 items-center justify-center rounded-full;
+
+  /* Colours */
+  @apply border border-dashed border-gray-600 bg-transparent;
+
+  /* Typography */
+  @apply text-xs text-gray-500;
+
+  /* Interaction */
+  @apply cursor-pointer transition-colors;
+  @apply hover:border-primary hover:text-primary;
+
+  /* Only show on hover (except on touch devices) */
+  @apply opacity-0 group-hover:opacity-100;
+}
+
+.plus {
+  @apply leading-none;
+}
+
+/* Always show add button if there are no tags */
+.group:has(.add-tag-btn:only-child) .add-tag-btn {
+  @apply opacity-100;
+}
+
+/* Always show add button when row is selected */
+.group:has(.bg-primary\/10) .add-tag-btn {
+  @apply opacity-100;
+}
+</style>

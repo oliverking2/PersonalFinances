@@ -8,6 +8,12 @@
 // Represents a single bank transaction
 // -----------------------------------------------------------------------------
 
+export interface TransactionTag {
+  id: string
+  name: string
+  colour: string | null
+}
+
 export interface Transaction {
   id: string
   account_id: string
@@ -17,7 +23,8 @@ export interface Transaction {
   currency: string
   description: string | null
   merchant_name: string | null
-  category: string | null // Future: user-editable
+  category: string | null // Provider category (read-only)
+  tags: TransactionTag[] // User-defined tags
 }
 
 // -----------------------------------------------------------------------------
@@ -36,7 +43,8 @@ export interface TransactionListResponse {
 // -----------------------------------------------------------------------------
 
 export interface TransactionQueryParams {
-  account_id?: string
+  account_ids?: string[] // Filter by accounts (transactions in ANY of these accounts)
+  tag_ids?: string[] // Filter by tags (transactions matching ANY of these tags)
   start_date?: string // ISO date (YYYY-MM-DD)
   end_date?: string // ISO date (YYYY-MM-DD)
   min_amount?: number

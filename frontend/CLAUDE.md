@@ -4,6 +4,8 @@
 
 Claude writes code directly with clear comments explaining the how and why. Changes are small and incremental. Simplicity is preferred over complexity - slightly slower load times are acceptable.
 
+**Design/UX decisions**: Never make design or UX decisions without presenting options to the user first. When a task involves layout, positioning, visual feedback, or interaction patterns, propose 2-3 approaches with trade-offs and get approval before implementing.
+
 ## Code Style
 
 **Comments:** Add comments liberally to explain:
@@ -80,6 +82,8 @@ Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.confi
 - **Simple refresh flow**: Check token expiry before API calls. If expired, refresh. If refresh fails, redirect to login.
 - **Component-based styling**: Reusable components (AppButton, AppInput) encapsulate Tailwind classes to reduce duplication.
 - **Toast notifications**: Pinia store (`stores/toast.ts`) for user feedback on OAuth callbacks and other actions.
+- **Avoid layout shift**: Prefer showing disabled/faded elements over hiding them (e.g., disabled buttons stay visible).
+- **Client-side filtering**: Filter already-loaded data locally for instant response; only paginate via API.
 
 ## Patterns
 
@@ -110,6 +114,9 @@ components/
 │   ├── AccountRow.vue         # Single account display
 │   ├── ConnectionCard.vue     # Connection with nested accounts
 │   └── ...
+├── tags/
+│   ├── TagChip.vue            # Small coloured tag pill
+│   └── TagSelector.vue        # Dropdown for selecting/creating tags
 └── transactions/
     ├── TransactionRow.vue     # Single transaction
     ├── TransactionDayGroup.vue # Day header + transactions

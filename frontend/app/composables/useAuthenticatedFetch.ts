@@ -45,7 +45,7 @@ export function useAuthenticatedFetch() {
   async function authFetch<T>(
     path: string,
     options: {
-      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body?: Record<string, any>
     } = {},

@@ -28,8 +28,8 @@ function logout() {
   <div class="flex min-h-screen flex-col bg-background text-foreground">
     <!-- Header -->
     <!-- sticky top-0: stays at top when scrolling -->
-    <!-- z-20: above sticky day headers (z-10) in transaction list -->
-    <header class="sticky top-0 z-20 border-b border-border bg-surface">
+    <!-- z-[100]: always above page content (dropdowns, popovers, sticky headers) -->
+    <header class="sticky top-0 z-[100] border-b border-border bg-surface">
       <!-- px-4 sm:px-6: more padding on larger screens -->
       <nav class="flex items-center justify-between px-4 py-3 sm:px-6">
         <!-- App name - clickable to go home -->
