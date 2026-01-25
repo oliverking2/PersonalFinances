@@ -4,8 +4,9 @@ profile: duckdb_local
 
 on-run-start:
   - "INSTALL postgres; LOAD postgres;"
+  # Default values allow dbt parse at build time; real env vars used at runtime
   - |
-    ATTACH 'postgresql://{{ env_var("POSTGRES_USERNAME") }}:{{ env_var("POSTGRES_PASSWORD") }}@{{ env_var("POSTGRES_HOSTNAME") }}:{{ env_var("POSTGRES_PORT") }}/{{ env_var("POSTGRES_DATABASE") }}' AS pg (TYPE POSTGRES, READ_ONLY);
+    ATTACH 'postgresql://{{ env_var("POSTGRES_USERNAME", "build") }}:{{ env_var("POSTGRES_PASSWORD", "build") }}@{{ env_var("POSTGRES_HOSTNAME", "localhost") }}:{{ env_var("POSTGRES_PORT", "5432") }}/{{ env_var("POSTGRES_DATABASE", "build") }}' AS pg (TYPE POSTGRES, READ_ONLY);
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
