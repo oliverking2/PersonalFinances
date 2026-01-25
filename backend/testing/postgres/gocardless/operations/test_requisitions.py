@@ -13,6 +13,7 @@ from src.postgres.gocardless.operations.requisitions import (
     fetch_requisition_links,
     update_requisition_record,
     upsert_requisition_status,
+    upsert_requisitions,
 )
 from testing.conftest import build_gocardless_requisition_response
 
@@ -169,3 +170,96 @@ class TestCreateNewRequisitionLink:
             pytest.raises(KeyError, match="GC_CALLBACK_URL"),
         ):
             create_new_requisition_link(db_session, mock_creds, "CHASE_CHASGB2L", "My Account")
+
+
+class TestUpsertRequisitions:
+    """Tests for upsert_requisitions function."""
+
+    def test_upsert_empty_list_returns_zero(self, db_session: Session) -> None:
+        """Test that empty list returns 0 without errors."""
+        result = upsert_requisitions(db_session, [])
+
+        assert result == 0
+
+    def test_upsert_updates_existing_requisitions(
+        self, db_session: Session, test_requisition_link: RequisitionLink
+    ) -> None:
+        """Test that existing requisitions get status updated."""
+        original_status = test_requisition_link.status
+        new_status = "EX"
+
+        requisitions = [{"id": test_requisition_link.id, "status": new_status}]
+
+        result = upsert_requisitions(db_session, requisitions)
+        db_session.commit()
+
+        assert result == 1
+        updated = db_session.get(RequisitionLink, test_requisition_link.id)
+        assert updated is not None
+        assert updated.status == new_status
+        assert updated.status != original_status
+
+    def test_upsert_skips_unknown_requisitions(self, db_session: Session) -> None:
+        """Test that requisitions not in DB are skipped."""
+        requisitions = [
+            {"id": "unknown-req-1", "status": "LN"},
+            {"id": "unknown-req-2", "status": "CR"},
+        ]
+
+        result = upsert_requisitions(db_session, requisitions)
+
+        assert result == 0
+
+    def test_upsert_mixed_known_and_unknown(
+        self, db_session: Session, test_requisition_link: RequisitionLink
+    ) -> None:
+        """Test that only known requisitions are updated."""
+        requisitions = [
+            {"id": test_requisition_link.id, "status": "EX"},
+            {"id": "unknown-req", "status": "LN"},
+        ]
+
+        result = upsert_requisitions(db_session, requisitions)
+        db_session.commit()
+
+        # Only one should be updated (the known one)
+        assert result == 1
+        updated = db_session.get(RequisitionLink, test_requisition_link.id)
+        assert updated is not None
+        assert updated.status == "EX"
+
+    def test_upsert_logs_status_change(
+        self, db_session: Session, test_requisition_link: RequisitionLink
+    ) -> None:
+        """Test that status changes are logged (coverage for logging branch)."""
+        # Set initial status
+        test_requisition_link.status = "CR"
+        db_session.commit()
+
+        # Update to different status
+        requisitions = [{"id": test_requisition_link.id, "status": "LN"}]
+
+        result = upsert_requisitions(db_session, requisitions)
+        db_session.commit()
+
+        assert result == 1
+        updated = db_session.get(RequisitionLink, test_requisition_link.id)
+        assert updated is not None
+        assert updated.status == "LN"
+
+    def test_upsert_uses_existing_status_if_not_provided(
+        self, db_session: Session, test_requisition_link: RequisitionLink
+    ) -> None:
+        """Test that existing status is preserved if not in payload."""
+        original_status = test_requisition_link.status
+
+        # Payload without status field
+        requisitions = [{"id": test_requisition_link.id}]
+
+        result = upsert_requisitions(db_session, requisitions)
+        db_session.commit()
+
+        assert result == 1
+        updated = db_session.get(RequisitionLink, test_requisition_link.id)
+        assert updated is not None
+        assert updated.status == original_status

@@ -147,16 +147,16 @@ class TestListTransactions:
         dates = [t["booking_date"] for t in data["transactions"]]
         assert dates == sorted(dates, reverse=True)
 
-    def test_filters_by_account_id(
+    def test_filters_by_account_ids(
         self,
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_transactions_in_db: list[Transaction],
         test_account_in_db: Account,
     ) -> None:
-        """Should filter transactions by account_id."""
+        """Should filter transactions by account_ids."""
         response = client.get(
-            f"/api/transactions?account_id={test_account_in_db.id}",
+            f"/api/transactions?account_ids={test_account_in_db.id}",
             headers=api_auth_headers,
         )
 
@@ -244,7 +244,7 @@ class TestListTransactions:
     ) -> None:
         """Should return empty results for account not owned by user."""
         response = client.get(
-            f"/api/transactions?account_id={uuid4()}",
+            f"/api/transactions?account_ids={uuid4()}",
             headers=api_auth_headers,
         )
 

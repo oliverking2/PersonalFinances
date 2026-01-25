@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from src.postgres.common.models import Transaction
+from src.postgres.common.models import Transaction, TransactionTag
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -44,6 +44,7 @@ def get_transactions_for_user(  # noqa: PLR0913
     session: Session,
     account_ids: list[UUID],
     *,
+    tag_ids: list[UUID] | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     min_amount: Decimal | None = None,
@@ -56,6 +57,7 @@ def get_transactions_for_user(  # noqa: PLR0913
 
     :param session: SQLAlchemy session.
     :param account_ids: List of account UUIDs to query.
+    :param tag_ids: Filter to transactions with any of these tags (OR logic).
     :param start_date: Filter from this date (inclusive).
     :param end_date: Filter to this date (inclusive).
     :param min_amount: Minimum transaction amount.
@@ -74,6 +76,11 @@ def get_transactions_for_user(  # noqa: PLR0913
         )
 
     query = session.query(Transaction).filter(Transaction.account_id.in_(account_ids))
+
+    # Apply tag filter (join with transaction_tags if needed)
+    # Uses OR logic: transactions with ANY of the specified tags
+    if tag_ids:
+        query = query.join(TransactionTag).filter(TransactionTag.tag_id.in_(tag_ids)).distinct()
 
     # Apply date filters (convert date to datetime for proper comparison)
     if start_date is not None:

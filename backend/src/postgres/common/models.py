@@ -296,6 +296,11 @@ class Transaction(Base):
 
     # Relationships
     account: Mapped[Account] = relationship("Account")
+    tags: Mapped[list["Tag"]] = relationship(
+        "Tag",
+        secondary="transaction_tags",
+        back_populates="transactions",
+    )
 
     __table_args__ = (
         Index("idx_transactions_account_id", "account_id"),
@@ -358,3 +363,69 @@ class Job(Base):
     def status_enum(self) -> JobStatus:
         """Get status as JobStatus enum."""
         return JobStatus(self.status)
+
+
+class Tag(Base):
+    """Database model for user-defined tags.
+
+    Tags are user-scoped labels for categorising transactions.
+    Each user can create up to 100 tags with unique names.
+    """
+
+    __tablename__ = "tags"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    colour: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    # Relationships
+    transactions: Mapped[list["Transaction"]] = relationship(
+        "Transaction",
+        secondary="transaction_tags",
+        back_populates="tags",
+    )
+
+    __table_args__ = (
+        Index("idx_tags_user_id", "user_id"),
+        Index("idx_tags_user_name", "user_id", "name", unique=True),
+    )
+
+
+class TransactionTag(Base):
+    """Junction table for transaction-tag many-to-many relationship.
+
+    Each transaction can have up to 10 tags.
+    """
+
+    __tablename__ = "transaction_tags"
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    tag_id: Mapped[UUID] = mapped_column(
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+
+    __table_args__ = (Index("idx_transaction_tags_tag_id", "tag_id"),)
