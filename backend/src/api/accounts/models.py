@@ -27,6 +27,8 @@ class AccountResponse(BaseModel):
     currency: str | None = Field(None, description="Currency code")
     status: AccountStatus = Field(..., description="Account status")
     balance: AccountBalance | None = Field(None, description="Current balance")
+    category: str | None = Field(None, description="User-selected account category")
+    min_balance: float | None = Field(None, description="Minimum balance threshold for alerts")
     last_synced_at: datetime | None = Field(None, description="Last data sync timestamp")
 
     model_config = {"from_attributes": True}
@@ -43,3 +45,5 @@ class AccountUpdateRequest(BaseModel):
     """Request model for updating an account."""
 
     display_name: str | None = Field(None, max_length=128, description="New display name")
+    category: str | None = Field(None, max_length=30, description="Account category")
+    min_balance: float | None = Field(None, description="Minimum balance threshold")

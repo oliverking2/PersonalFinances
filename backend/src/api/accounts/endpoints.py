@@ -1,6 +1,7 @@
 """Account API endpoints."""
 
 import logging
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,12 +16,12 @@ from src.api.accounts.models import (
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES
 from src.postgres.auth.models import User
-from src.postgres.common.enums import AccountStatus
+from src.postgres.common.enums import AccountCategory, AccountStatus
 from src.postgres.common.models import Account
 from src.postgres.common.operations.accounts import (
     get_account_by_id,
     get_accounts_by_connection_id,
-    update_account_display_name,
+    update_account,
 )
 from src.postgres.common.operations.connections import (
     get_connection_by_id,
@@ -107,7 +108,49 @@ def patch_account(
     if account.connection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
 
-    updated = update_account_display_name(db, account_id, request.display_name)
+    # Check which fields were explicitly provided in the request
+    # This allows us to differentiate between "not provided" and "explicitly set to null"
+    fields_set = request.model_fields_set
+
+    # Parse category if provided
+    category = None
+    clear_category = False
+    if "category" in fields_set:
+        if request.category is not None:
+            try:
+                category = AccountCategory(request.category)
+            except ValueError:
+                valid_values = [c.value for c in AccountCategory]
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid category: {request.category}. Must be one of: {valid_values}",
+                )
+        else:
+            clear_category = True
+
+    # Convert min_balance to Decimal if provided
+    min_balance = None
+    clear_min_balance = False
+    if "min_balance" in fields_set:
+        if request.min_balance is not None:
+            min_balance = Decimal(str(request.min_balance))
+        else:
+            clear_min_balance = True
+
+    # Handle display_name
+    display_name = request.display_name if "display_name" in fields_set else None
+    clear_display_name = "display_name" in fields_set and request.display_name is None
+
+    updated = update_account(
+        db,
+        account_id,
+        display_name=display_name,
+        category=category,
+        min_balance=min_balance,
+        clear_display_name=clear_display_name,
+        clear_category=clear_category,
+        clear_min_balance=clear_min_balance,
+    )
     if not updated:
         raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
 
@@ -136,5 +179,7 @@ def _to_response(account: Account) -> AccountResponse:
         currency=account.currency,
         status=AccountStatus(account.status),
         balance=balance,
+        category=account.category,
+        min_balance=float(account.min_balance) if account.min_balance is not None else None,
         last_synced_at=account.last_synced_at,
     )

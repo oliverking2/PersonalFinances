@@ -91,7 +91,7 @@ export function useAccountsApi() {
     return authFetch<AccountListResponse>(`/api/accounts${query}`)
   }
 
-  // Update an account's display name
+  // Update an account's settings (display name, category, min balance)
   async function updateAccount(
     id: string,
     req: UpdateAccountRequest,

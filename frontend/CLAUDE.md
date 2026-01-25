@@ -18,7 +18,13 @@ Claude writes code directly with clear comments explaining the how and why. Chan
 
 - `AppButton` - Styled button with hover/focus states
 - `AppInput` - Styled text input with focus states
+- `AppSelect` - Custom dropdown with fully styled options (not native select)
 - Use `@apply` in component `<style scoped>` blocks for base styles
+
+**Form inputs:** Always use the standard `App*` components for form elements:
+
+- Text/number inputs: `<AppInput v-model="value" />`
+- Dropdowns: `<AppSelect v-model="value" :options="options" placeholder="Select..." />`
 
 ## Stack
 

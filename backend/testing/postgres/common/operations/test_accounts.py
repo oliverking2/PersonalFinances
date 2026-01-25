@@ -1,16 +1,17 @@
 """Tests for account operations."""
 
+from decimal import Decimal
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.postgres.common.enums import AccountStatus
+from src.postgres.common.enums import AccountCategory, AccountStatus
 from src.postgres.common.models import Account, Connection
 from src.postgres.common.operations.accounts import (
     create_account,
     get_account_by_id,
     get_accounts_by_connection_id,
-    update_account_display_name,
+    update_account,
 )
 
 
@@ -107,29 +108,92 @@ class TestCreateAccount:
         assert result.name is None
 
 
-class TestUpdateAccountDisplayName:
-    """Tests for update_account_display_name operation."""
+class TestUpdateAccount:
+    """Tests for update_account operation."""
 
     def test_updates_display_name(self, db_session: Session, test_account: Account) -> None:
         """Should update the display name."""
-        result = update_account_display_name(db_session, test_account.id, "Updated Display Name")
+        result = update_account(db_session, test_account.id, display_name="Updated Display Name")
         db_session.commit()
 
         assert result is not None
         assert result.display_name == "Updated Display Name"
 
     def test_clears_display_name(self, db_session: Session, test_account: Account) -> None:
-        """Should clear display name when set to None."""
-        result = update_account_display_name(db_session, test_account.id, None)
+        """Should clear display name when clear_display_name is True."""
+        # First set a display name
+        update_account(db_session, test_account.id, display_name="Some Name")
+        db_session.commit()
+
+        # Then clear it
+        result = update_account(db_session, test_account.id, clear_display_name=True)
         db_session.commit()
 
         assert result is not None
         assert result.display_name is None
 
+    def test_updates_category(self, db_session: Session, test_account: Account) -> None:
+        """Should update the category."""
+        result = update_account(db_session, test_account.id, category=AccountCategory.CREDIT_CARD)
+        db_session.commit()
+
+        assert result is not None
+        assert result.category == AccountCategory.CREDIT_CARD.value
+
+    def test_clears_category(self, db_session: Session, test_account: Account) -> None:
+        """Should clear category when clear_category is True."""
+        # First set a category
+        update_account(db_session, test_account.id, category=AccountCategory.BANK_ACCOUNT)
+        db_session.commit()
+
+        # Then clear it
+        result = update_account(db_session, test_account.id, clear_category=True)
+        db_session.commit()
+
+        assert result is not None
+        assert result.category is None
+
+    def test_updates_min_balance(self, db_session: Session, test_account: Account) -> None:
+        """Should update the min_balance."""
+        result = update_account(db_session, test_account.id, min_balance=Decimal("500.00"))
+        db_session.commit()
+
+        assert result is not None
+        assert result.min_balance == Decimal("500.00")
+
+    def test_clears_min_balance(self, db_session: Session, test_account: Account) -> None:
+        """Should clear min_balance when clear_min_balance is True."""
+        # First set a min_balance
+        update_account(db_session, test_account.id, min_balance=Decimal("100.00"))
+        db_session.commit()
+
+        # Then clear it
+        result = update_account(db_session, test_account.id, clear_min_balance=True)
+        db_session.commit()
+
+        assert result is not None
+        assert result.min_balance is None
+
+    def test_updates_multiple_fields(self, db_session: Session, test_account: Account) -> None:
+        """Should update multiple fields at once."""
+        result = update_account(
+            db_session,
+            test_account.id,
+            display_name="Multi Update",
+            category=AccountCategory.DEBIT_CARD,
+            min_balance=Decimal("250.50"),
+        )
+        db_session.commit()
+
+        assert result is not None
+        assert result.display_name == "Multi Update"
+        assert result.category == AccountCategory.DEBIT_CARD.value
+        assert result.min_balance == Decimal("250.50")
+
     def test_returns_none_when_not_found(
         self, db_session: Session, test_connection: Connection
     ) -> None:
         """Should return None when account doesn't exist."""
-        result = update_account_display_name(db_session, uuid4(), "Name")
+        result = update_account(db_session, uuid4(), display_name="Name")
 
         assert result is None

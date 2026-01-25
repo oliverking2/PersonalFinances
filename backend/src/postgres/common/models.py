@@ -18,6 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # without importing auth.models will fail with NoReferencedTableError.
 from src.postgres.auth.models import User  # noqa: F401
 from src.postgres.common.enums import (
+    AccountCategory,
     AccountStatus,
     AccountType,
     ConnectionStatus,
@@ -164,6 +165,10 @@ class Account(Base):
         default=_utc_now,
     )
 
+    # User-configurable settings
+    category: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    min_balance: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+
     # Balance fields (synced from provider tables - bank accounts)
     balance_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     balance_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
@@ -207,6 +212,11 @@ class Account(Base):
     def account_type_enum(self) -> AccountType:
         """Get account_type as AccountType enum."""
         return AccountType(self.account_type)
+
+    @property
+    def category_enum(self) -> AccountCategory | None:
+        """Get category as AccountCategory enum, or None if not set."""
+        return AccountCategory(self.category) if self.category else None
 
 
 class Holding(Base):

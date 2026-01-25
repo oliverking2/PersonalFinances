@@ -55,6 +55,19 @@ class AccountStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class AccountCategory(StrEnum):
+    """User-selectable account category.
+
+    Provides additional categorisation for accounts beyond the provider-determined
+    account_type. Users can classify their accounts for better organisation.
+    """
+
+    CREDIT_CARD = "credit_card"
+    DEBIT_CARD = "debit_card"
+    BANK_ACCOUNT = "bank_account"
+    INVESTMENT_ACCOUNT = "investment_account"
+
+
 # GoCardless status mapping helpers
 _GC_REQUISITION_STATUS_MAP: dict[str, ConnectionStatus] = {
     "CR": ConnectionStatus.PENDING,  # Created

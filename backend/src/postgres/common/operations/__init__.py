@@ -4,7 +4,7 @@ from src.postgres.common.operations.accounts import (
     create_account,
     get_account_by_id,
     get_accounts_by_connection_id,
-    update_account_display_name,
+    update_account,
 )
 from src.postgres.common.operations.connections import (
     create_connection,
@@ -45,7 +45,7 @@ __all__ = [
     "get_jobs_by_user",
     "get_latest_job_for_entity",
     "list_institutions",
-    "update_account_display_name",
+    "update_account",
     "update_connection_friendly_name",
     "update_connection_status",
     "update_job_status",

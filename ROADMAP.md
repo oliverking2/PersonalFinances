@@ -178,7 +178,7 @@ Charts and dashboards to understand spending patterns. Requires tagging (Phase 2
 ### Future Work
 
 - [ ] `fct_daily_balance_history` mart model - requires unified balance table first (currently only raw gc_balances available)
-- [ ] Export engine (Dagster job) - CSV/Parquet exports with parameterised filters, see plan file for design
+- [ ] Export engine (Dagster job) - CSV/Parquet exports with parameterised filters, see PRD
 
 ### Frontend
 
@@ -195,23 +195,25 @@ Improve the user experience and visual design of the app.
 
 ### Accounts
 
-- [ ] Account config popup on the accounts page - convert the "Edit Account Name" to a settings cog
-  - [ ] Min balance alerts etc.
-  - [ ] Last sync date
-- [ ] Account favourites/reordering (pin important accounts to top)
+- [x] Account settings modal - cog icon opens modal with:
+  - [x] Display name (editable)
+  - [x] Account category (Credit Card, Debit Card, Bank Account, Investment Account)
+  - [x] Min balance threshold (for future alerts)
+  - [x] Last sync date (read-only)
 
 ### Transactions
 
 - [ ] Transaction detail view (more details button to create a modal)
+- [ ] Date range presets ("This month", "Last 30 days", "This year", "Custom" - this then shows the date selectors, need to work out the best UX for this)
 - [ ] Split transactions (one payment → multiple categories - linked to tags)
 - [ ] Recurring transaction indicators (visual badge for subscriptions)
-- [ ] Date range presets ("This month", "Last 30 days", "This year")
 
 ### Dashboard
 
 - [ ] Net worth summary (total across all accounts)
 - [ ] Recent activity feed
 - [ ] Upcoming bills/subscriptions
+- [ ] Refresh data button
 
 ### General
 
@@ -395,3 +397,4 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 ### Implemented Without PRD
 
 - Frontend transactions view - Day-grouped list with infinite scroll, filters (search, account, date range, amount range)
+- Account settings modal - Category selection, min balance threshold, last sync date display

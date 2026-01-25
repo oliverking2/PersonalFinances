@@ -18,6 +18,13 @@ export type AccountStatus = 'active' | 'inactive'
 // Provider types - each bank integration source
 export type Provider = 'gocardless' | 'vanguard' | 'trading212'
 
+// Account category - user-selectable classification
+export type AccountCategory =
+  | 'credit_card'
+  | 'debit_card'
+  | 'bank_account'
+  | 'investment_account'
+
 // -----------------------------------------------------------------------------
 // Institution (Bank)
 // -----------------------------------------------------------------------------
@@ -67,6 +74,8 @@ export interface Account {
   currency: string | null // e.g. "GBP"
   status: AccountStatus
   balance?: AccountBalance // Optional - not all providers give balance
+  category: AccountCategory | null // User-selected account category
+  min_balance: number | null // Minimum balance threshold for alerts
   last_synced_at?: string // ISO timestamp
 }
 
@@ -108,7 +117,9 @@ export interface UpdateConnectionRequest {
 }
 
 export interface UpdateAccountRequest {
-  display_name: string
+  display_name?: string | null
+  category?: AccountCategory | null
+  min_balance?: number | null
 }
 
 export interface ReauthoriseResponse {

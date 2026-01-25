@@ -5,7 +5,7 @@ Shows connections grouped with their nested accounts
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { Connection, Account } from '~/types/accounts'
+import type { Connection, Account, AccountCategory } from '~/types/accounts'
 import type { Job } from '~/types/jobs'
 import { useToastStore } from '~/stores/toast'
 
@@ -41,13 +41,11 @@ const error = ref('')
 
 // Modal state
 const showCreateModal = ref(false)
-const showEditModal = ref(false)
+const showEditConnectionModal = ref(false)
+const showAccountSettingsModal = ref(false)
 const showDeleteConfirm = ref(false)
-const editingEntity = ref<{
-  type: 'account' | 'connection'
-  id: string
-  currentName: string
-} | null>(null)
+const editingConnection = ref<Connection | null>(null)
+const editingAccount = ref<Account | null>(null)
 const deletingConnection = ref<Connection | null>(null)
 
 // Sync state - tracks which connections are currently syncing
@@ -207,51 +205,58 @@ function handleConnectionCreated(authUrl: string) {
 }
 
 function openEditConnectionModal(connection: Connection) {
-  editingEntity.value = {
-    type: 'connection',
-    id: connection.id,
-    currentName: connection.friendly_name,
-  }
-  showEditModal.value = true
+  editingConnection.value = connection
+  showEditConnectionModal.value = true
 }
 
 function openEditAccountModal(account: Account) {
-  editingEntity.value = {
-    type: 'account',
-    id: account.id,
-    currentName: account.display_name || account.name || '',
-  }
-  showEditModal.value = true
+  editingAccount.value = account
+  showAccountSettingsModal.value = true
 }
 
-function closeEditModal() {
-  showEditModal.value = false
-  editingEntity.value = null
+function closeEditConnectionModal() {
+  showEditConnectionModal.value = false
+  editingConnection.value = null
 }
 
-async function handleSaveEdit(id: string, newName: string) {
-  if (!editingEntity.value) return
+function closeAccountSettingsModal() {
+  showAccountSettingsModal.value = false
+  editingAccount.value = null
+}
 
+async function handleSaveConnectionName(id: string, newName: string) {
   try {
-    if (editingEntity.value.type === 'connection') {
-      const updated = await updateConnection(id, { friendly_name: newName })
-      // Update local state
-      const index = connections.value.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        connections.value[index] = updated
-      }
-    } else {
-      const updated = await updateAccount(id, { display_name: newName })
-      // Update local state
-      const index = accounts.value.findIndex((a) => a.id === id)
-      if (index !== -1) {
-        accounts.value[index] = updated
-      }
+    const updated = await updateConnection(id, { friendly_name: newName })
+    // Update local state
+    const index = connections.value.findIndex((c) => c.id === id)
+    if (index !== -1) {
+      connections.value[index] = updated
     }
-    closeEditModal()
+    closeEditConnectionModal()
   } catch (e) {
     console.error('Failed to save:', e)
-    // Error will be shown in modal
+    throw e
+  }
+}
+
+async function handleSaveAccountSettings(
+  id: string,
+  settings: {
+    display_name: string | null
+    category: AccountCategory | null
+    min_balance: number | null
+  },
+) {
+  try {
+    const updated = await updateAccount(id, settings)
+    // Update local state
+    const index = accounts.value.findIndex((a) => a.id === id)
+    if (index !== -1) {
+      accounts.value[index] = updated
+    }
+    closeAccountSettingsModal()
+  } catch (e) {
+    console.error('Failed to save:', e)
     throw e
   }
 }
@@ -530,15 +535,24 @@ async function pollJobStatus(
         @created="handleConnectionCreated"
       />
 
-      <!-- Edit Display Name Modal -->
+      <!-- Edit Connection Name Modal -->
       <AccountsEditDisplayNameModal
-        v-if="editingEntity"
-        :show="showEditModal"
-        :entity-type="editingEntity.type"
-        :entity-id="editingEntity.id"
-        :current-name="editingEntity.currentName"
-        @close="closeEditModal"
-        @save="handleSaveEdit"
+        v-if="editingConnection"
+        :show="showEditConnectionModal"
+        entity-type="connection"
+        :entity-id="editingConnection.id"
+        :current-name="editingConnection.friendly_name"
+        @close="closeEditConnectionModal"
+        @save="handleSaveConnectionName"
+      />
+
+      <!-- Account Settings Modal -->
+      <AccountsAccountSettingsModal
+        v-if="editingAccount"
+        :show="showAccountSettingsModal"
+        :account="editingAccount"
+        @close="closeAccountSettingsModal"
+        @save="handleSaveAccountSettings"
       />
 
       <!-- Delete Confirmation Modal -->

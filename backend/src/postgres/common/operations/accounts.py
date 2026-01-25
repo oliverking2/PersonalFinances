@@ -4,11 +4,12 @@ This module provides CRUD operations for Account entities.
 """
 
 import logging
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from src.postgres.common.enums import AccountStatus
+from src.postgres.common.enums import AccountCategory, AccountStatus
 from src.postgres.common.models import Account
 
 logger = logging.getLogger(__name__)
@@ -84,23 +85,49 @@ def create_account(  # noqa: PLR0913
     return account
 
 
-def update_account_display_name(
+def update_account(  # noqa: PLR0913
     session: Session,
     account_id: UUID,
-    display_name: str | None,
+    display_name: str | None = None,
+    category: AccountCategory | None = None,
+    min_balance: Decimal | None = None,
+    *,
+    clear_display_name: bool = False,
+    clear_category: bool = False,
+    clear_min_balance: bool = False,
 ) -> Account | None:
-    """Update an account's display name.
+    """Update an account's settings.
 
     :param session: SQLAlchemy session.
     :param account_id: Account's UUID.
-    :param display_name: New display name (can be None to clear).
+    :param display_name: New display name (only updates if not None).
+    :param category: New category (only updates if not None).
+    :param min_balance: New min balance (only updates if not None).
+    :param clear_display_name: Set to True to explicitly clear display_name.
+    :param clear_category: Set to True to explicitly clear category.
+    :param clear_min_balance: Set to True to explicitly clear min_balance.
     :return: Updated Account, or None if not found.
     """
     account = get_account_by_id(session, account_id)
     if account is None:
         return None
 
-    account.display_name = display_name
-    session.flush()
-    logger.info(f"Updated account display_name: id={account_id}")
+    updated_fields = []
+
+    if display_name is not None or clear_display_name:
+        account.display_name = display_name
+        updated_fields.append("display_name")
+
+    if category is not None or clear_category:
+        account.category = category.value if category else None
+        updated_fields.append("category")
+
+    if min_balance is not None or clear_min_balance:
+        account.min_balance = min_balance
+        updated_fields.append("min_balance")
+
+    if updated_fields:
+        session.flush()
+        logger.info(f"Updated account: id={account_id}, fields={updated_fields}")
+
     return account
