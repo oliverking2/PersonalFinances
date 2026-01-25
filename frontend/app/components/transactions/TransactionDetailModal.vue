@@ -14,7 +14,7 @@ import type { Tag } from '~/types/tags'
 const props = defineProps<{
   show: boolean
   transaction: Transaction | null
-  accountName: string // Display name of the account this transaction belongs to
+  accountName?: string // Display name of the account (optional)
   availableTags: Tag[] // All user's tags for the selector
 }>()
 

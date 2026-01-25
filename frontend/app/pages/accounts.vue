@@ -245,6 +245,7 @@ async function handleSaveAccountSettings(
     display_name: string | null
     category: AccountCategory | null
     min_balance: number | null
+    credit_limit: number | null
   },
 ) {
   try {

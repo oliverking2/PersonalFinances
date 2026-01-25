@@ -98,6 +98,22 @@ cd frontend && make check   # Frontend validation
    - `CLAUDE.md` files - If new patterns or structures established
 3. **Move completed PRDs** to `prds/complete/`
 
+## Analytics Architecture
+
+**All analytics logic belongs in dbt, not frontend.**
+
+- **dbt models** handle: aggregations, calculations, derived metrics, business logic
+- **Frontend** handles: formatting (currency, dates), display, user interaction
+- **API** handles: querying dbt marts with user-specified filters (date range, account, etc.)
+
+The pattern is:
+
+1. dbt produces pre-aggregated mart tables (e.g., `fct_monthly_trends`, `fct_daily_spending_by_tag`)
+2. Frontend queries these via the Analytics API with date/filter parameters
+3. Frontend displays the results with formatting only
+
+If the frontend needs to do aggregation beyond simple display formatting, consider whether that logic should be a new dbt model instead.
+
 ## See Also
 
 - `backend/CLAUDE.md` - Python/FastAPI patterns and commands

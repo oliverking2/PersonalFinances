@@ -1,6 +1,6 @@
 # PRD: Home Page & Navigation
 
-**Status**: Draft
+**Status**: Complete
 **Author**: Claude
 **Created**: 2026-01-25
 **Updated**: 2026-01-25
@@ -194,42 +194,44 @@ No new security considerations - uses existing authenticated endpoints.
 
 ## Implementation Plan
 
-### Phase 1: Navigation Bar
+### Phase 1: Navigation Bar ✅
 
-- [ ] Add nav links to `layouts/default.vue` header
-- [ ] Style active link state
-- [ ] Update "Personal Finances" title to link to `/`
-- [ ] Add Settings to nav (links to `/settings/tags`)
+- [x] Add nav links to `layouts/default.vue` header
+- [x] Style active link state
+- [x] Update "Personal Finances" title to link to `/`
+- [x] Add Settings to nav (links to `/settings/tags`)
 
-### Phase 2: Credit Card Balance Fix
+### Phase 2: Credit Card Balance Fix ✅
 
-- [ ] Investigate GoCardless balance data for credit cards
-- [ ] Determine correct calculation for owed amount
-- [ ] Update backend or frontend to show correct balance
-- [ ] Ensure net worth calculation treats credit cards as liabilities
+- [x] Investigate GoCardless balance data for credit cards
+- [x] Determine correct calculation for owed amount
+- [x] ~~Update backend or frontend to show correct balance~~ Deferred - needs credit limit storage
+- [x] Ensure net worth calculation treats credit cards as liabilities (excluded from net worth for now)
 
-### Phase 3: Analytics API Composable
+**Note**: Investigation found that GoCardless stores `credit_limit_included` flag but not the actual credit limit value. For accurate liability calculation, backend would need to store credit limit. MVP approach: exclude credit cards from net worth calculation.
 
-- [ ] Create `composables/useAnalyticsApi.ts`
-- [ ] Add functions: `fetchAnalyticsStatus()`, `queryDataset()`
-- [ ] Add types in `types/analytics.ts`
+### Phase 3: Analytics API Composable ✅
 
-### Phase 4: Home Page
+- [x] Create `composables/useAnalyticsApi.ts`
+- [x] Add functions: `fetchAnalyticsStatus()`, `queryDataset()`
+- [x] Add types in `types/analytics.ts`
 
-- [ ] Create metric card component (`components/home/MetricCard.vue`)
-- [ ] Replace `/` redirect with actual home page content
-- [ ] Implement net worth card (sum accounts, credit cards negative)
-- [ ] Implement spending metrics cards (query `fct_monthly_trends`)
-- [ ] Implement top category card (query `fct_daily_spending_by_tag`)
-- [ ] Implement recent transactions section
-- [ ] Add loading skeletons
-- [ ] Add empty states
-- [ ] Handle analytics unavailable state
+### Phase 4: Home Page ✅
 
-### Phase 5: Cleanup
+- [x] Create metric card component (`components/home/MetricCard.vue`)
+- [x] Replace `/` redirect with actual home page content
+- [x] Implement net worth card (sum accounts, credit cards excluded)
+- [x] Implement spending metrics cards (query `fct_monthly_trends`)
+- [x] Implement top category card (query `fct_daily_spending_by_tag`)
+- [x] Implement recent transactions section
+- [x] Add loading skeletons
+- [x] Add empty states
+- [x] Handle analytics unavailable state
 
-- [ ] Remove or repurpose `pages/dashboard.vue`
-- [ ] Update any links pointing to `/dashboard`
+### Phase 5: Cleanup ✅
+
+- [x] Remove `pages/dashboard.vue`
+- [x] Update `login.vue` to redirect to `/` instead of `/dashboard`
 
 ---
 

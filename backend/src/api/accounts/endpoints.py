@@ -93,7 +93,7 @@ def get_account(
     summary="Update account",
     responses=RESOURCE_WRITE_RESPONSES,
 )
-def patch_account(
+def patch_account(  # noqa: PLR0912
     account_id: UUID,
     request: AccountUpdateRequest,
     db: Session = Depends(get_db),
@@ -137,6 +137,15 @@ def patch_account(
         else:
             clear_min_balance = True
 
+    # Convert credit_limit to Decimal if provided
+    credit_limit = None
+    clear_credit_limit = False
+    if "credit_limit" in fields_set:
+        if request.credit_limit is not None:
+            credit_limit = Decimal(str(request.credit_limit))
+        else:
+            clear_credit_limit = True
+
     # Handle display_name
     display_name = request.display_name if "display_name" in fields_set else None
     clear_display_name = "display_name" in fields_set and request.display_name is None
@@ -147,9 +156,11 @@ def patch_account(
         display_name=display_name,
         category=category,
         min_balance=min_balance,
+        credit_limit=credit_limit,
         clear_display_name=clear_display_name,
         clear_category=clear_category,
         clear_min_balance=clear_min_balance,
+        clear_credit_limit=clear_credit_limit,
     )
     if not updated:
         raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
@@ -181,5 +192,6 @@ def _to_response(account: Account) -> AccountResponse:
         balance=balance,
         category=account.category,
         min_balance=float(account.min_balance) if account.min_balance is not None else None,
+        credit_limit=float(account.credit_limit) if account.credit_limit is not None else None,
         last_synced_at=account.last_synced_at,
     )

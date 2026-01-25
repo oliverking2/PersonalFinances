@@ -30,7 +30,7 @@ async function handleSubmit() {
 
   try {
     await authStore.login(username.value, password.value)
-    await navigateTo('/dashboard')
+    await navigateTo('/')
   } catch {
     errorMessage.value = 'Invalid username or password'
 

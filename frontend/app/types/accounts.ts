@@ -76,6 +76,7 @@ export interface Account {
   balance?: AccountBalance // Optional - not all providers give balance
   category: AccountCategory | null // User-selected account category
   min_balance: number | null // Minimum balance threshold for alerts
+  credit_limit: number | null // Credit limit for credit cards
   last_synced_at?: string // ISO timestamp
 }
 
@@ -120,6 +121,7 @@ export interface UpdateAccountRequest {
   display_name?: string | null
   category?: AccountCategory | null
   min_balance?: number | null
+  credit_limit?: number | null
 }
 
 export interface ReauthoriseResponse {

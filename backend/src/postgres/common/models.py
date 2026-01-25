@@ -168,6 +168,7 @@ class Account(Base):
     # User-configurable settings
     category: Mapped[str | None] = mapped_column(String(30), nullable=True)
     min_balance: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
 
     # Balance fields (synced from provider tables - bank accounts)
     balance_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)

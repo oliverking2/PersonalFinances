@@ -32,7 +32,8 @@
       "Bash(detect-secrets scan:*)",
       "Bash(find:*)",
       "Bash(git log:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(npx nuxi typecheck:*)"
     ]
   }
 }

@@ -11,12 +11,18 @@ import type { Tag } from '~/types/tags'
 // ---------------------------------------------------------------------------
 // Props & Emits
 // ---------------------------------------------------------------------------
-const props = defineProps<{
-  transaction: Transaction
-  accountName?: string // Display name of the account this transaction belongs to
-  availableTags?: Tag[] // All user's tags for the selector
-  selected?: boolean // Whether this row is selected (for bulk operations)
-}>()
+const props = withDefaults(
+  defineProps<{
+    transaction: Transaction
+    accountName?: string // Display name of the account this transaction belongs to
+    availableTags?: Tag[] // All user's tags for the selector
+    selected?: boolean // Whether this row is selected (for bulk operations)
+    selectable?: boolean // Show selection checkbox (default true, set false on home page)
+  }>(),
+  {
+    selectable: true,
+  },
+)
 
 const emit = defineEmits<{
   'toggle-select': []
@@ -92,6 +98,9 @@ const selectedTagIds = computed(() => {
 // ---------------------------------------------------------------------------
 
 function handleRowClick(event: MouseEvent) {
+  // Don't handle clicks when not selectable
+  if (!props.selectable) return
+
   // Don't toggle selection if clicking on interactive elements
   const target = event.target as HTMLElement
   if (
@@ -151,18 +160,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Transaction row - clickable for selection -->
+  <!-- Transaction row - clickable for selection when selectable -->
   <div
-    class="group flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 transition-colors"
-    :class="
+    class="group flex items-center gap-3 rounded-lg px-4 py-3 transition-colors"
+    :class="[
+      selectable ? 'cursor-pointer' : '',
       selected
         ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
-        : 'hover:bg-onyx/50'
-    "
+        : selectable
+          ? 'hover:bg-onyx/50'
+          : '',
+    ]"
     @click="handleRowClick"
   >
-    <!-- Selection indicator (checkmark when selected) -->
+    <!-- Selection indicator (checkmark when selected) - only shown when selectable -->
     <div
+      v-if="selectable"
       class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all"
       :class="
         selected
@@ -197,7 +210,7 @@ onUnmounted(() => {
     <div
       class="tag-selector-container relative ml-4 flex flex-shrink-0 items-center gap-1.5"
     >
-      <!-- Existing tag -->
+      <!-- Existing tags (always removable) -->
       <TagsTagChip
         v-for="tag in transaction.tags"
         :key="tag.id"
@@ -208,7 +221,7 @@ onUnmounted(() => {
         @remove="handleRemoveTag(tag.id)"
       />
 
-      <!-- Add tag button (only show if no tag yet - single tag only) -->
+      <!-- Add tag button (show if no tag yet) -->
       <button
         v-if="!transaction.tags || transaction.tags.length === 0"
         type="button"

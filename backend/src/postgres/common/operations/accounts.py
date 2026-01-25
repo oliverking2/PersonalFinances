@@ -91,10 +91,12 @@ def update_account(  # noqa: PLR0913
     display_name: str | None = None,
     category: AccountCategory | None = None,
     min_balance: Decimal | None = None,
+    credit_limit: Decimal | None = None,
     *,
     clear_display_name: bool = False,
     clear_category: bool = False,
     clear_min_balance: bool = False,
+    clear_credit_limit: bool = False,
 ) -> Account | None:
     """Update an account's settings.
 
@@ -103,9 +105,11 @@ def update_account(  # noqa: PLR0913
     :param display_name: New display name (only updates if not None).
     :param category: New category (only updates if not None).
     :param min_balance: New min balance (only updates if not None).
+    :param credit_limit: New credit limit (only updates if not None).
     :param clear_display_name: Set to True to explicitly clear display_name.
     :param clear_category: Set to True to explicitly clear category.
     :param clear_min_balance: Set to True to explicitly clear min_balance.
+    :param clear_credit_limit: Set to True to explicitly clear credit_limit.
     :return: Updated Account, or None if not found.
     """
     account = get_account_by_id(session, account_id)
@@ -125,6 +129,10 @@ def update_account(  # noqa: PLR0913
     if min_balance is not None or clear_min_balance:
         account.min_balance = min_balance
         updated_fields.append("min_balance")
+
+    if credit_limit is not None or clear_credit_limit:
+        account.credit_limit = credit_limit
+        updated_fields.append("credit_limit")
 
     if updated_fields:
         session.flush()

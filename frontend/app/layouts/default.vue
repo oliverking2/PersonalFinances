@@ -5,6 +5,26 @@ Used by all authenticated pages - provides header, footer, and content area
 
 <script setup lang="ts">
 const authStore = useAuthStore()
+const route = useRoute()
+
+// ---------------------------------------------------------------------------
+// Navigation links
+// ---------------------------------------------------------------------------
+const navLinks = [
+  { to: '/', label: 'Home' },
+  { to: '/accounts', label: 'Accounts' },
+  { to: '/transactions', label: 'Transactions' },
+  { to: '/settings/tags', label: 'Settings' },
+]
+
+// Check if a nav link is active
+// Home (/) only matches exactly, others match if route starts with the path
+function isActiveLink(to: string): boolean {
+  if (to === '/') {
+    return route.path === '/'
+  }
+  return route.path.startsWith(to)
+}
 
 // ---------------------------------------------------------------------------
 // Logout handler
@@ -32,20 +52,38 @@ function logout() {
     <header class="sticky top-0 z-[100] border-b border-border bg-surface">
       <!-- px-4 sm:px-6: more padding on larger screens -->
       <nav class="flex items-center justify-between px-4 py-3 sm:px-6">
-        <!-- App name - clickable to go home -->
-        <NuxtLink
-          to="/dashboard"
-          class="font-display text-xl font-bold sm:text-2xl"
-        >
-          Personal Finances
-        </NuxtLink>
+        <!-- Left side: App name + nav links -->
+        <div class="flex items-center gap-6">
+          <!-- App name - clickable to go home -->
+          <NuxtLink to="/" class="font-display text-xl font-bold sm:text-2xl">
+            Personal Finances
+          </NuxtLink>
 
-        <!-- User info and logout -->
+          <!-- Navigation links -->
+          <!-- gap-1: tight spacing, each link has its own padding -->
+          <div class="hidden items-center gap-1 sm:flex">
+            <NuxtLink
+              v-for="link in navLinks"
+              :key="link.to"
+              :to="link.to"
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="
+                isActiveLink(link.to)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted hover:bg-white/5 hover:text-foreground'
+              "
+            >
+              {{ link.label }}
+            </NuxtLink>
+          </div>
+        </div>
+
+        <!-- Right side: User info and logout -->
         <div class="flex items-center gap-4">
           <!-- Show user's name on larger screens -->
           <span
             v-if="authStore.displayName"
-            class="hidden text-muted sm:inline"
+            class="hidden text-muted md:inline"
           >
             {{ authStore.displayName }}
           </span>

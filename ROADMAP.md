@@ -142,6 +142,8 @@ Custom Tags (user-created)
 - Created by user for personal categorisation
 - Not used by auto-tagging rules (unless user creates a rule)
 - Can be deleted freely
+- Only possible through the settings page rather than easy add on the transaction list
+- Currently possible to create a tag with no colour
 
 Auto-Tagging Rules
 
@@ -208,25 +210,25 @@ Improve the user experience and visual design of the app.
 
 Home page overview and dedicated analytics section. Requires analytics backend (Phase 2.7).
 
-### Navigation & Structure
+### Navigation & Structure ✅
 
-- [ ] Rename "Dashboard" nav item to "Home" (becomes `/` index route)
-- [ ] Add "Analytics" as top-level nav item (`/analytics`)
+- [x] Rename "Dashboard" nav item to "Home" (becomes `/` index route)
+- [ ] Add "Analytics" as top-level nav item (`/analytics`) - see analytics PRD
 
-### Credit Card Balance Fix
+### Credit Card Balance Fix ✅
 
-- [ ] Investigate credit card balance data (credit limit showing as available funds)
-- [ ] Fix net worth calculation to treat credit cards as liabilities
+- [x] Investigate credit card balance data (credit limit showing as available funds)
+- [x] Fix net worth calculation to treat credit cards as liabilities (excluded for now - needs credit limit storage)
 
-### Home Page (`/`)
+### Home Page (`/`) ✅
 
-- [ ] Net worth summary card (assets minus liabilities)
-- [ ] Key metrics cards:
-  - [ ] Total spending this month
-  - [ ] Spending vs last month (% change)
-  - [ ] Top spending category this month
-  - [ ] Transaction count this month
-- [ ] Recent transactions list (5 items, links to full transactions page)
+- [x] Net worth summary card (assets, credit cards excluded)
+- [x] Key metrics cards:
+  - [x] Total spending this month
+  - [x] Spending vs last month (% change)
+  - [x] Top spending category this month
+  - [x] Transaction count this month
+- [x] Recent transactions list (10 items, links to full transactions page)
 
 ### Analytics Page (`/analytics`)
 
@@ -240,6 +242,9 @@ Home page overview and dedicated analytics section. Requires analytics backend (
 
 ### Future Work
 
+- [ ] Net worth trend indicator (sparkline or % change from previous month)
+- [ ] Metric cards click through to relevant analytics page sections
+- [ ] Exclude internal transfers from spending calculations (dbt model improvement)
 - [ ] Balance over time graphs (requires `fct_daily_balance_history` mart)
 - [ ] Upcoming bills/subscriptions widget (requires recurring transaction detection - see Phase 6)
 

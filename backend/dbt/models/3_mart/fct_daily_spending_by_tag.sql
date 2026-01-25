@@ -1,4 +1,4 @@
--- Pre-aggregated daily spending by tag
+-- Pre-aggregated daily spending by tag (including untagged transactions)
 -- Aggregates transaction amounts by date and tag for efficient trend analysis
 
 WITH TRANSACTIONS AS (
@@ -37,7 +37,7 @@ ACCOUNTS AS (
     FROM {{ ref('dim_accounts') }}
 ),
 
--- Join transactions with their tags
+-- Join transactions with their tags (LEFT JOIN to include untagged)
 TAGGED_TRANSACTIONS AS (
     SELECT
         TXN.TRANSACTION_ID,
@@ -48,25 +48,25 @@ TAGGED_TRANSACTIONS AS (
         TXN_TAGS.TAG_ID
     FROM TRANSACTIONS AS TXN
     INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
-    INNER JOIN TRANSACTION_TAGS AS TXN_TAGS ON TXN.TRANSACTION_ID = TXN_TAGS.TRANSACTION_ID
+    LEFT JOIN TRANSACTION_TAGS AS TXN_TAGS ON TXN.TRANSACTION_ID = TXN_TAGS.TRANSACTION_ID
 )
 
--- Aggregate by date, user, tag
+-- Aggregate by date, user, tag (NULL tag_id represents untagged transactions)
 SELECT
     TAGGED.SPENDING_DATE,
     TAGGED.USER_ID,
     TAGGED.TAG_ID,
-    TAG.TAG_NAME,
-    TAG.TAG_COLOUR,
+    COALESCE(TAG.TAG_NAME, 'Untagged')  AS TAG_NAME,
+    COALESCE(TAG.TAG_COLOUR, '#6b7280') AS TAG_COLOUR,
     TAGGED.CURRENCY,
-    SUM(TAGGED.SPENDING_AMOUNT) AS TOTAL_SPENDING,
-    COUNT(*)                    AS TRANSACTION_COUNT
+    SUM(TAGGED.SPENDING_AMOUNT)         AS TOTAL_SPENDING,
+    COUNT(*)                            AS TRANSACTION_COUNT
 FROM TAGGED_TRANSACTIONS AS TAGGED
-INNER JOIN TAGS AS TAG ON TAGGED.TAG_ID = TAG.TAG_ID
+LEFT JOIN TAGS AS TAG ON TAGGED.TAG_ID = TAG.TAG_ID
 GROUP BY
     TAGGED.SPENDING_DATE,
     TAGGED.USER_ID,
     TAGGED.TAG_ID,
-    TAG.TAG_NAME,
-    TAG.TAG_COLOUR,
+    COALESCE(TAG.TAG_NAME, 'Untagged'),
+    COALESCE(TAG.TAG_COLOUR, '#6b7280'),
     TAGGED.CURRENCY
