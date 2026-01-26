@@ -81,6 +81,7 @@ def _get_requisition_id_for_connection(
 
 @asset(
     key=AssetKey(["source", "gocardless", "extract", "transactions"]),
+    deps=[AssetKey(["source", "gocardless", "extract", "bank_accounts"])],
     group_name="gocardless",
     description="Extract transactions from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
@@ -135,6 +136,7 @@ def gocardless_extract_transactions(
 
 @asset(
     key=AssetKey(["source", "gocardless", "extract", "account_details"]),
+    deps=[AssetKey(["source", "gocardless", "extract", "bank_accounts"])],
     group_name="gocardless",
     description="Extract account details from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
@@ -168,6 +170,7 @@ def gocardless_extract_account_details(
 
 @asset(
     key=AssetKey(["source", "gocardless", "extract", "account_balances"]),
+    deps=[AssetKey(["source", "gocardless", "extract", "bank_accounts"])],
     group_name="gocardless",
     description="Extract account balances from GoCardless to Postgres.",
     required_resource_keys={"gocardless_api", "postgres_database"},
