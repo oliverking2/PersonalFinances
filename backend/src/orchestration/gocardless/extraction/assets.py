@@ -29,18 +29,23 @@ from src.postgres.gocardless.operations.bank_accounts import (
     get_transaction_watermark,
     update_transaction_watermark,
     upsert_bank_account_details,
+    upsert_bank_accounts,
 )
 from src.postgres.gocardless.operations.institutions import upsert_institutions
 from src.postgres.gocardless.operations.requisitions import upsert_requisitions
 from src.postgres.gocardless.operations.transactions import upsert_transactions
 from src.providers.gocardless.api.account import (
     get_account_details_by_id,
+    get_account_metadata_by_id,
     get_balance_data_by_id,
     get_transaction_data_by_id,
 )
 from src.providers.gocardless.api.core import GoCardlessCredentials, GoCardlessRateLimitError
 from src.providers.gocardless.api.institutions import get_institutions
-from src.providers.gocardless.api.requisition import get_all_requisition_data
+from src.providers.gocardless.api.requisition import (
+    get_all_requisition_data,
+    get_requisition_data_by_id,
+)
 
 
 class ConnectionScopeConfig(Config):
@@ -262,6 +267,87 @@ def gocardless_extract_requisitions(
         context.log.info(f"Updated {count} requisitions in gc_requisition_links")
 
 
+@asset(
+    key=AssetKey(["source", "gocardless", "extract", "bank_accounts"]),
+    group_name="gocardless",
+    description="Extract bank account metadata from GoCardless requisitions to Postgres.",
+    required_resource_keys={"gocardless_api", "postgres_database"},
+)
+def gocardless_extract_bank_accounts(
+    context: AssetExecutionContext, config: ConnectionScopeConfig
+) -> None:
+    """Extract bank account metadata from GoCardless requisitions to Postgres.
+
+    For each requisition, fetches the account IDs from the 'accounts' field,
+    then calls the account metadata endpoint to get status, IBAN, currency, etc.
+    This creates/updates BankAccount records in gc_bank_accounts.
+
+    This asset should run BEFORE account_details, balances, and transactions
+    extraction, as those assets require BankAccount records to already exist.
+    """
+    creds: GoCardlessCredentials = context.resources.gocardless_api
+    postgres_database: PostgresDatabase = context.resources.postgres_database
+
+    with postgres_database.get_session() as session:
+        # Determine requisition filter if scoped to a connection
+        requisition_id = None
+        if config.connection_id:
+            requisition_id = _get_requisition_id_for_connection(
+                session, config.connection_id, context
+            )
+            if requisition_id is None:
+                return  # Error already logged
+
+        # Fetch requisitions from GoCardless API
+        if requisition_id:
+            # Fetch specific requisition by ID
+            context.log.info(f"Fetching requisition {requisition_id} from GoCardless")
+            try:
+                requisition = get_requisition_data_by_id(creds, requisition_id)
+                requisitions = [requisition]
+            except Exception as e:
+                context.log.error(f"Failed to fetch requisition {requisition_id}: {e}")
+                return
+        else:
+            # Fetch all requisitions
+            context.log.info("Fetching all requisitions from GoCardless")
+            requisitions = get_all_requisition_data(creds)
+
+        context.log.info(f"Processing {len(requisitions)} requisitions for bank accounts")
+
+        total_accounts = 0
+        for req in requisitions:
+            req_id = req["id"]
+            account_ids = req.get("accounts", [])
+
+            if not account_ids:
+                context.log.debug(f"Requisition {req_id} has no linked accounts")
+                continue
+
+            context.log.info(f"Requisition {req_id} has {len(account_ids)} accounts")
+
+            # Fetch metadata for each account
+            accounts_data = []
+            for account_id in account_ids:
+                try:
+                    metadata = get_account_metadata_by_id(creds, account_id)
+                    accounts_data.append(metadata)
+                    context.log.debug(f"Fetched metadata for account {account_id}")
+                except GoCardlessRateLimitError:
+                    context.log.warning(f"Rate limit hit fetching account {account_id}")
+                    continue
+                except Exception as e:
+                    context.log.warning(f"Failed to fetch account {account_id}: {e}")
+                    continue
+
+            if accounts_data:
+                upsert_bank_accounts(session, req_id, accounts_data)
+                total_accounts += len(accounts_data)
+                context.log.info(f"Upserted {len(accounts_data)} accounts for requisition {req_id}")
+
+        context.log.info(f"Extracted {total_accounts} bank accounts total")
+
+
 extraction_asset_defs = Definitions(
     assets=[
         gocardless_extract_transactions,
@@ -269,5 +355,6 @@ extraction_asset_defs = Definitions(
         gocardless_extract_balances,
         gocardless_extract_institutions,
         gocardless_extract_requisitions,
+        gocardless_extract_bank_accounts,
     ]
 )

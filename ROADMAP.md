@@ -135,9 +135,9 @@ Provider-agnostic foundation for multiple data sources.
 
 Quick wins to improve analytics accuracy and home page usefulness.
 
-- [ ] Exclude internal transfers from spending calculations (dbt model improvement)
-- [ ] Net worth trend indicator (sparkline or % change from previous month)
-- [ ] Metric cards click through to relevant analytics page sections
+- [x] Exclude internal transfers from spending calculations (dbt model improvement)
+- [x] Net worth trend indicator (sparkline or % change from previous month)
+- [x] Metric cards click through to relevant analytics page sections
 
 ---
 
@@ -170,14 +170,11 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Split validation (amounts must sum to transaction total)
 - [x] UI for managing splits with percentage slider
 - [x] Analytics correctly handles split amounts per tag (dbt model)
-
-### In Progress
-
-- [ ] Unify tags and splits (all tagging via splits, default 100%)
+- [x] Unify tags and splits (all tagging via splits, default 100%)
 
 ### Future
 
-- [ ] Multi-rule match notifications (alert when transaction matches multiple rules)
+- [ ] Multi-rule match notifications (alert when transaction matches multiple rules, built-in notification system)
 - [ ] Smart tag suggestions (ML-based, learn from user corrections)
 
 ---

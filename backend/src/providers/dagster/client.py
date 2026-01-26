@@ -16,7 +16,9 @@ REQUEST_TIMEOUT = 30  # seconds
 DEFAULT_DAGSTER_URL = "http://localhost:3001"
 
 # GoCardless connection sync ops (excludes global assets like institutions/requisitions)
+# bank_accounts must be first to create BankAccount records before other assets can use them
 GOCARDLESS_CONNECTION_SYNC_OPS = [
+    "source__gocardless__extract__bank_accounts",
     "source__gocardless__extract__account_balances",
     "source__gocardless__extract__account_details",
     "source__gocardless__extract__transactions",

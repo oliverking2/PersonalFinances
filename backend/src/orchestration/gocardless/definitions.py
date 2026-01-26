@@ -25,6 +25,8 @@ gocardless_sync_job = define_asset_job(
 # Used for manual refresh and post-OAuth sync
 CONNECTION_SYNC_ASSETS = [
     # Extraction (from GoCardless API to raw tables)
+    # bank_accounts must run first to create BankAccount records before other assets can use them
+    AssetKey(["source", "gocardless", "extract", "bank_accounts"]),
     AssetKey(["source", "gocardless", "extract", "transactions"]),
     AssetKey(["source", "gocardless", "extract", "account_details"]),
     AssetKey(["source", "gocardless", "extract", "account_balances"]),

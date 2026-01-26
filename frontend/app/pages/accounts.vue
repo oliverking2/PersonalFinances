@@ -92,11 +92,16 @@ async function loadData() {
     connections.value = connectionsResponse.connections
     accounts.value = accountsResponse.accounts
 
-    // Initialize syncJobs from connection data (preserves failed status across refreshes)
+    // Initialize syncJobs from connection data and start polling for running jobs
     for (const conn of connections.value) {
       if (conn.latest_sync_job && !syncingConnections.value.has(conn.id)) {
-        // Only update if we're not currently syncing (don't overwrite in-progress state)
         syncJobs.value.set(conn.id, conn.latest_sync_job)
+
+        // If there's a running job (e.g., initial sync after OAuth), start polling
+        if (conn.latest_sync_job.status === 'running') {
+          syncingConnections.value.add(conn.id)
+          pollJobStatus(conn.latest_sync_job.id, conn.id)
+        }
       }
     }
   } catch (e) {

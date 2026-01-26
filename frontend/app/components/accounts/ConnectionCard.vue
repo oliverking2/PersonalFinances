@@ -47,6 +47,9 @@ const isActive = computed(() => props.connection.status === 'active')
 
 // Sync status
 const isSyncing = computed(() => props.syncing === true)
+const isInitialSync = computed(
+  () => isSyncing.value && props.accounts.length === 0,
+)
 const lastSyncFailed = computed(
   () => props.syncJob?.status === 'failed' && !isSyncing.value,
 )
@@ -145,7 +148,7 @@ function closeMenu() {
               clip-rule="evenodd"
             />
           </svg>
-          Syncing...
+          {{ isInitialSync ? 'Running initial sync...' : 'Syncing...' }}
         </span>
         <span
           v-else-if="lastSyncFailed"
@@ -318,7 +321,11 @@ function closeMenu() {
         v-if="accounts.length === 0"
         class="px-6 py-4 text-center text-sm text-muted"
       >
-        No accounts found for this connection.
+        {{
+          isInitialSync
+            ? 'Fetching your accounts from the bank...'
+            : 'No accounts found for this connection.'
+        }}
       </div>
     </div>
   </div>
