@@ -138,6 +138,7 @@ Quick wins to improve analytics accuracy and home page usefulness.
 - [x] Exclude internal transfers from spending calculations (dbt model improvement)
 - [x] Net worth trend indicator (sparkline or % change from previous month)
 - [x] Metric cards click through to relevant analytics page sections
+- [ ] Dynamic rounded x/y axis labels on charts (currently spending by category squashes labels too close together)
 
 ---
 
@@ -151,6 +152,7 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Seed standard tags on account creation (Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees)
 - [x] Standard tags cannot be deleted (only hidden)
 - [x] Backfill migration for existing users
+- [ ] Remove ability to add tags on the transactions view
 
 ### Auto-Tagging Rules ✅
 
@@ -163,6 +165,9 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Test rule endpoint (preview matching transactions)
 - [x] Bulk apply rules to untagged transactions
 - [x] Test conditions before saving rule
+- [ ] "From account" is a weird name on create rule modal?
+- [ ] Search box on Apply Tag button, close box after selecting tag on single select
+- [ ] Removal of min value doesn't work
 
 ### Split Transactions ✅
 
@@ -171,6 +176,7 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] UI for managing splits with percentage slider
 - [x] Analytics correctly handles split amounts per tag (dbt model)
 - [x] Unify tags and splits (all tagging via splits, default 100%)
+- [ ] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
 
 ### Future
 
