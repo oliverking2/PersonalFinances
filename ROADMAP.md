@@ -139,6 +139,11 @@ Quick wins to improve analytics accuracy and home page usefulness.
 - [x] Net worth trend indicator (sparkline or % change from previous month)
 - [x] Metric cards click through to relevant analytics page sections
 - [ ] Dynamic rounded x/y axis labels on charts (currently spending by category squashes labels too close together)
+- [ ] DBT throwing errors on dbt build in dagster for column lineage (id column)
+- [ ] Axis doing weird things when clicking "Compare to previous period"
+- [ ] Count not working on transactions table
+- [ ] Last sync time on account settings modal not working
+- [ ] Credit card balance varies from Amex to Nationwide (maybe based on if balance is negative?)
 
 ---
 
@@ -168,6 +173,7 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [ ] "From account" is a weird name on create rule modal?
 - [ ] Search box on Apply Tag button, close box after selecting tag on single select
 - [ ] Removal of min value doesn't work
+- [ ] Need to show "Auto tagged" on the transaction detail modal
 
 ### Split Transactions ✅
 
@@ -176,7 +182,6 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] UI for managing splits with percentage slider
 - [x] Analytics correctly handles split amounts per tag (dbt model)
 - [x] Unify tags and splits (all tagging via splits, default 100%)
-- [ ] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
 
 ### Future
 
@@ -194,6 +199,11 @@ Identify subscriptions and predict upcoming bills.
 - [ ] Upcoming bills/subscriptions widget on home page
 - [ ] Subscription management view (list all detected subscriptions)
 - [ ] Mark false positives / confirm recurring status
+
+### General Transport Improvements
+
+- [ ] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
+- [ ] Hold to multi select rather than just click, click opens the info - remove eye
 
 ---
 
