@@ -17,10 +17,11 @@ WITH TRANSACTIONS AS (
 ),
 
 TRANSACTION_TAGS AS (
-    SELECT
+    -- Get unique transaction-tag pairs from splits
+    SELECT DISTINCT
         TRANSACTION_ID,
         TAG_ID
-    FROM {{ ref("src_unified_transaction_tags") }}
+    FROM {{ ref("src_unified_transaction_splits") }}
 ),
 
 TAGS AS (

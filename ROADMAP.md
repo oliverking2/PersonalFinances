@@ -312,6 +312,10 @@ Items to tackle when core functionality is complete.
 ### Backlog
 
 - [ ] Historical data backfill tooling
+- [ ] Rate limiting for logging in, and add lock user after 10 failed attempts
+- [ ] Admin page
+  - [ ] See current jobs without going into Dagster UI
+  - [ ] Trigger manual syncs - remove from the front UI
 
 ---
 

@@ -63,13 +63,6 @@ SPENDING_TRANSACTIONS AS (
         AND SPENDING.TRANSACTION_ID NOT IN (SELECT ITR.TRANSACTION_ID FROM INTERNAL_TRANSFER_IDS AS ITR)
 ),
 
-TRANSACTION_TAGS AS (
-    SELECT
-        TRANSACTION_ID,
-        TAG_ID
-    FROM {{ ref("src_unified_transaction_tags") }}
-),
-
 TRANSACTION_SPLITS AS (
     SELECT
         TRANSACTION_ID,
@@ -87,18 +80,18 @@ TAGS AS (
     FROM {{ ref("src_unified_tags") }}
 ),
 
--- Identify transactions that have splits
+-- Identify transactions that have splits (i.e., are tagged)
 TRANSACTIONS_WITH_SPLITS AS (
     SELECT DISTINCT TRANSACTION_ID
     FROM TRANSACTION_SPLITS
 ),
 
--- For split transactions: use split amounts (each split becomes a row with its tag)
+-- For tagged transactions: use split amounts (each split becomes a row with its tag)
 SPLIT_TAGGED_TRANSACTIONS AS (
     SELECT
         TXN.TRANSACTION_ID,
         TXN.BOOKING_DATE::DATE AS SPENDING_DATE,
-        SPLIT.AMOUNT           AS SPENDING_AMOUNT,  -- Use split amount, not full transaction
+        SPLIT.AMOUNT           AS SPENDING_AMOUNT,  -- Use split amount
         TXN.CURRENCY,
         ACC.USER_ID,
         SPLIT.TAG_ID
@@ -107,26 +100,25 @@ SPLIT_TAGGED_TRANSACTIONS AS (
     INNER JOIN TRANSACTION_SPLITS AS SPLIT ON TXN.TRANSACTION_ID = SPLIT.TRANSACTION_ID
 ),
 
--- For non-split transactions: use full transaction amount with its tag(s)
-NON_SPLIT_TAGGED_TRANSACTIONS AS (
+-- For untagged transactions: use full transaction amount with NULL tag
+UNTAGGED_TRANSACTIONS AS (
     SELECT
         TXN.TRANSACTION_ID,
         TXN.BOOKING_DATE::DATE AS SPENDING_DATE,
         ABS(TXN.AMOUNT)        AS SPENDING_AMOUNT,
         TXN.CURRENCY,
         ACC.USER_ID,
-        TXN_TAGS.TAG_ID
+        NULL::UUID             AS TAG_ID
     FROM SPENDING_TRANSACTIONS AS TXN
     INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
-    LEFT JOIN TRANSACTION_TAGS AS TXN_TAGS ON TXN.TRANSACTION_ID = TXN_TAGS.TRANSACTION_ID
     WHERE TXN.TRANSACTION_ID NOT IN (SELECT TWS.TRANSACTION_ID FROM TRANSACTIONS_WITH_SPLITS AS TWS)
 ),
 
--- Combine split and non-split transactions
+-- Combine tagged and untagged transactions
 TAGGED_TRANSACTIONS AS (
     SELECT * FROM SPLIT_TAGGED_TRANSACTIONS
     UNION ALL
-    SELECT * FROM NON_SPLIT_TAGGED_TRANSACTIONS
+    SELECT * FROM UNTAGGED_TRANSACTIONS
 ),
 
 -- Aggregate actual spending by date, user, tag

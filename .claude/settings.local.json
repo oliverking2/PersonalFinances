@@ -37,7 +37,8 @@
       "Bash(npm run check:*)",
       "Bash(echo:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npx nuxi typecheck)"
+      "Bash(npx nuxi typecheck)",
+      "Bash(dbt compile:*)"
     ]
   }
 }

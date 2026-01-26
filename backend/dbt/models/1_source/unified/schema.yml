@@ -81,12 +81,6 @@ sources:
           - name: colour
           - name: created_at
           - name: updated_at
-      - name: transaction_tags
-        description: Junction table linking transactions to tags
-        columns:
-          - name: transaction_id
-          - name: tag_id
-          - name: created_at
       - name: transaction_splits
         description: Transaction amount allocations across multiple tags
         columns:
