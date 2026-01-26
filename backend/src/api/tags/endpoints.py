@@ -18,6 +18,7 @@ from src.postgres.auth.models import User
 from src.postgres.common.models import Tag
 from src.postgres.common.operations.tags import (
     MAX_TAGS_PER_USER,
+    StandardTagDeletionError,
     count_tags_by_user_id,
     create_tag,
     delete_tag,
@@ -25,6 +26,8 @@ from src.postgres.common.operations.tags import (
     get_tag_by_name,
     get_tag_usage_counts,
     get_tags_by_user_id,
+    hide_tag,
+    unhide_tag,
     update_tag,
 )
 
@@ -151,24 +154,86 @@ def update_existing_tag(
     "/{tag_id}",
     status_code=204,
     summary="Delete tag",
-    responses=RESOURCE_RESPONSES,
+    responses={**RESOURCE_RESPONSES, **BAD_REQUEST},
 )
 def delete_existing_tag(
     tag_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a tag, removing it from all associated transactions."""
+    """Delete a tag, removing it from all associated transactions.
+
+    Standard tags cannot be deleted; use the hide endpoint instead.
+    """
     tag = get_tag_by_id(db, tag_id)
     if not tag or tag.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
 
-    deleted = delete_tag(db, tag_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+    try:
+        deleted = delete_tag(db, tag_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+    except StandardTagDeletionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     db.commit()
     logger.info(f"Deleted tag: id={tag_id}")
+
+
+@router.put(
+    "/{tag_id}/hide",
+    response_model=TagResponse,
+    summary="Hide tag",
+    responses=RESOURCE_RESPONSES,
+)
+def hide_existing_tag(
+    tag_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TagResponse:
+    """Hide a tag from the UI (it will remain on existing transactions)."""
+    tag = get_tag_by_id(db, tag_id)
+    if not tag or tag.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+
+    updated = hide_tag(db, tag_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+
+    db.commit()
+    db.refresh(updated)
+    logger.info(f"Hid tag: id={tag_id}")
+
+    usage_counts = get_tag_usage_counts(db, current_user.id)
+    return _to_response(updated, usage_counts.get(updated.id, 0))
+
+
+@router.put(
+    "/{tag_id}/unhide",
+    response_model=TagResponse,
+    summary="Unhide tag",
+    responses=RESOURCE_RESPONSES,
+)
+def unhide_existing_tag(
+    tag_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TagResponse:
+    """Unhide a previously hidden tag."""
+    tag = get_tag_by_id(db, tag_id)
+    if not tag or tag.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+
+    updated = unhide_tag(db, tag_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Tag not found: {tag_id}")
+
+    db.commit()
+    db.refresh(updated)
+    logger.info(f"Unhid tag: id={tag_id}")
+
+    usage_counts = get_tag_usage_counts(db, current_user.id)
+    return _to_response(updated, usage_counts.get(updated.id, 0))
 
 
 def _to_response(tag: Tag, usage_count: int = 0) -> TagResponse:
@@ -177,6 +242,8 @@ def _to_response(tag: Tag, usage_count: int = 0) -> TagResponse:
         id=str(tag.id),
         name=tag.name,
         colour=tag.colour,
+        is_standard=tag.is_standard,
+        is_hidden=tag.is_hidden,
         usage_count=usage_count,
         created_at=tag.created_at,
         updated_at=tag.updated_at,

@@ -141,34 +141,43 @@ Quick wins to improve analytics accuracy and home page usefulness.
 
 ---
 
-## Phase 4: Smart Tagging
+## Phase 4: Smart Tagging ✅
 
 Automated categorisation and transaction splitting. Foundation for accurate budgeting.
 
-### Standard Tags
+### Standard Tags ✅
 
-- [ ] Add `is_standard` boolean to Tag model
-- [ ] Seed standard tags on account creation (Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees)
-- [ ] Standard tags cannot be deleted (only hidden/disabled)
-- [ ] Distinguish custom tags (user-created, deletable)
+- [x] Add `is_standard` and `is_hidden` booleans to Tag model
+- [x] Seed standard tags on account creation (Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees)
+- [x] Standard tags cannot be deleted (only hidden)
+- [x] Backfill migration for existing users
 
-### Auto-Tagging Rules
+### Auto-Tagging Rules ✅
 
-- [ ] `TagRule` model: id, user_id, name, conditions (JSON), tag_id, priority, enabled
-- [ ] Add `auto_tagged` boolean to TransactionTag
-- [ ] Rule conditions: merchant name pattern, MCC code, amount range, account
-- [ ] Priority ordering (first match wins)
-- [ ] User can override auto-assigned tags
-- [ ] Rules management UI
+- [x] `TagRule` model: id, user_id, name, conditions (JSON), tag_id, priority, enabled, account_id
+- [x] Add `is_auto` and `rule_id` to TransactionTag
+- [x] Rule conditions: business name pattern (contains/exact/not contains), description pattern, amount range, account filter
+- [x] Priority ordering (first match wins)
+- [x] User can override auto-assigned tags
+- [x] Rules management UI (`/settings/rules`)
+- [x] Test rule endpoint (preview matching transactions)
+- [x] Bulk apply rules to untagged transactions
+- [x] Test conditions before saving rule
 
-### Split Transactions
+### Split Transactions ✅
 
-- [ ] Split one transaction across multiple tags with amounts (e.g., £100 grocery shop: £80 Food, £20 Household)
-- [ ] UI for managing splits on transaction detail modal
-- [ ] Analytics correctly handles split amounts per tag
+- [x] `TransactionSplit` model for splitting amounts across tags
+- [x] Split validation (amounts must sum to transaction total)
+- [x] UI for managing splits with percentage slider
+- [x] Analytics correctly handles split amounts per tag (dbt model)
+
+### In Progress
+
+- [ ] Unify tags and splits (all tagging via splits, default 100%)
 
 ### Future
 
+- [ ] Multi-rule match notifications (alert when transaction matches multiple rules)
 - [ ] Smart tag suggestions (ML-based, learn from user corrections)
 
 ---

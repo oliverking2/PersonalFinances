@@ -12,6 +12,22 @@ class TransactionTagResponse(BaseModel):
     id: str = Field(..., description="Tag UUID")
     name: str = Field(..., description="Tag name")
     colour: str | None = Field(None, description="Hex colour code")
+    is_auto: bool = Field(False, description="Whether this tag was auto-applied by a rule")
+    rule_id: str | None = Field(None, description="ID of the rule that applied this tag")
+    rule_name: str | None = Field(None, description="Name of the rule that applied this tag")
+
+
+class TransactionSplitResponse(BaseModel):
+    """Response model for a transaction split."""
+
+    id: str = Field(..., description="Split UUID")
+    tag_id: str = Field(..., description="Tag UUID")
+    tag_name: str = Field(..., description="Tag name")
+    tag_colour: str | None = Field(None, description="Tag hex colour code")
+    amount: float = Field(..., description="Split amount (always positive)")
+    is_auto: bool = Field(False, description="Whether this was auto-applied by a rule")
+    rule_id: str | None = Field(None, description="ID of the rule that applied this tag")
+    rule_name: str | None = Field(None, description="Name of the rule that applied this tag")
 
 
 class TransactionResponse(BaseModel):
@@ -27,8 +43,12 @@ class TransactionResponse(BaseModel):
     description: str | None = Field(None, description="Transaction description")
     merchant_name: str | None = Field(None, description="Merchant name")
     category: str | None = Field(None, description="Transaction category")
+    user_note: str | None = Field(None, description="User-added note")
     tags: list[TransactionTagResponse] = Field(
         default_factory=list, description="User-defined tags"
+    )
+    splits: list[TransactionSplitResponse] = Field(
+        default_factory=list, description="Transaction splits for budgeting"
     )
 
 
@@ -83,3 +103,36 @@ class BulkTagResponse(BaseModel):
     """Response model for bulk tagging."""
 
     updated_count: int = Field(..., description="Number of transactions updated")
+
+
+# -----------------------------------------------------------------------------
+# Split Models
+# -----------------------------------------------------------------------------
+
+
+class SplitRequest(BaseModel):
+    """Request model for a single split."""
+
+    tag_id: str = Field(..., description="Tag UUID")
+    amount: float = Field(..., gt=0, description="Split amount (must be positive)")
+
+
+class SetSplitsRequest(BaseModel):
+    """Request model for setting transaction splits."""
+
+    splits: list[SplitRequest] = Field(
+        ..., min_length=1, description="List of splits (must sum to transaction amount)"
+    )
+
+
+class TransactionSplitsResponse(BaseModel):
+    """Response model for transaction splits."""
+
+    transaction_id: str = Field(..., description="Transaction UUID")
+    splits: list[TransactionSplitResponse] = Field(..., description="Transaction splits")
+
+
+class UpdateNoteRequest(BaseModel):
+    """Request model for updating transaction note."""
+
+    user_note: str | None = Field(None, max_length=512, description="User note (null to clear)")

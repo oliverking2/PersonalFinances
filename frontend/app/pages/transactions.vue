@@ -12,6 +12,7 @@ import type {
   Transaction,
   TransactionDayGroup,
   TransactionQueryParams,
+  SplitRequest,
 } from '~/types/transactions'
 import { useToastStore } from '~/stores/toast'
 
@@ -22,10 +23,10 @@ useHead({ title: 'Transactions | Finances' })
 // ---------------------------------------------------------------------------
 const route = useRoute()
 const router = useRouter()
-const { fetchTransactions } = useTransactionsApi()
+const { fetchTransactions, setSplits, clearSplits, updateNote } =
+  useTransactionsApi()
 const { fetchAccounts, fetchConnections } = useAccountsApi()
-const { fetchTags, createTag, addTagsToTransaction, removeTagFromTransaction } =
-  useTagsApi()
+const { fetchTags, createTag } = useTagsApi()
 const toast = useToastStore()
 
 // ---------------------------------------------------------------------------
@@ -247,17 +248,6 @@ function findTransaction(transactionId: string): Transaction | undefined {
   return allTransactions.value.find((t) => t.id === transactionId)
 }
 
-// Update transaction tags in local state
-function updateTransactionTags(
-  transactionId: string,
-  newTags: { id: string; name: string; colour: string | null }[],
-) {
-  const txn = findTransaction(transactionId)
-  if (txn) {
-    txn.tags = newTags
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Data Loading
 // ---------------------------------------------------------------------------
@@ -383,41 +373,51 @@ function syncFiltersToUrl() {
 }
 
 // ---------------------------------------------------------------------------
-// Tag Operations (single tag per transaction)
+// Tag Operations (single tag per transaction, via splits)
 // ---------------------------------------------------------------------------
 
-// Set a single tag on a transaction (removes any existing tag first)
+// Set a single tag on a transaction (creates 100% split)
 async function handleAddTag(transactionId: string, tagId: string) {
   try {
     const txn = findTransaction(transactionId)
+    if (!txn) return
 
-    // Remove existing tag first (single tag only)
-    if (txn?.tags && txn.tags.length > 0) {
-      for (const existingTag of txn.tags) {
-        await removeTagFromTransaction(transactionId, existingTag.id)
-      }
-    }
-
-    // Add the new tag
-    const response = await addTagsToTransaction(transactionId, {
-      tag_ids: [tagId],
+    // Create a 100% split for this tag
+    const response = await setSplits(transactionId, {
+      splits: [{ tag_id: tagId, amount: Math.abs(txn.amount) }],
     })
-    updateTransactionTags(transactionId, response.tags)
+
+    // Update local state (unified model: tags derived from splits)
+    txn.splits = response.splits
+    txn.tags = response.splits.map((s) => ({
+      id: s.tag_id,
+      name: s.tag_name,
+      colour: s.tag_colour,
+      is_auto: s.is_auto,
+      rule_id: s.rule_id,
+      rule_name: s.rule_name,
+    }))
   } catch {
     toast.error('Failed to set tag')
   }
 }
 
-async function handleRemoveTag(transactionId: string, tagId: string) {
+async function handleRemoveTag(transactionId: string, _tagId: string) {
   try {
-    const response = await removeTagFromTransaction(transactionId, tagId)
-    updateTransactionTags(transactionId, response.tags)
+    // In unified model, removing tag clears all splits
+    await clearSplits(transactionId)
+
+    const txn = findTransaction(transactionId)
+    if (txn) {
+      txn.splits = []
+      txn.tags = []
+    }
   } catch {
     toast.error('Failed to remove tag')
   }
 }
 
-// Create a new tag and set it on the transaction (removes any existing tag)
+// Create a new tag and set it on the transaction (creates 100% split)
 async function handleCreateTag(transactionId: string, name: string) {
   try {
     // Create the tag
@@ -426,19 +426,25 @@ async function handleCreateTag(transactionId: string, name: string) {
     tags.value.sort((a, b) => a.name.localeCompare(b.name))
 
     const txn = findTransaction(transactionId)
+    if (!txn) return
 
-    // Remove existing tag first (single tag only)
-    if (txn?.tags && txn.tags.length > 0) {
-      for (const existingTag of txn.tags) {
-        await removeTagFromTransaction(transactionId, existingTag.id)
-      }
-    }
-
-    // Add the new tag
-    const response = await addTagsToTransaction(transactionId, {
-      tag_ids: [newTag.id],
+    // Create a 100% split for this tag
+    const response = await setSplits(transactionId, {
+      splits: [{ tag_id: newTag.id, amount: Math.abs(txn.amount) }],
     })
-    updateTransactionTags(transactionId, response.tags)
+
+    // Update local state
+    txn.splits = response.splits
+    // Also update tags (derived from splits in unified model)
+    txn.tags = response.splits.map((s) => ({
+      id: s.tag_id,
+      name: s.tag_name,
+      colour: s.tag_colour,
+      is_auto: s.is_auto,
+      rule_id: s.rule_id,
+      rule_name: s.rule_name,
+    }))
+
     toast.success(`Tag "${name}" created`)
   } catch {
     toast.error('Failed to create tag')
@@ -475,30 +481,34 @@ function toggleBulkTagSelector() {
   showBulkTagSelector.value = !showBulkTagSelector.value
 }
 
-// Apply a tag to all selected transactions (replaces any existing tag)
+// Apply a tag to all selected transactions (creates 100% split)
 async function handleBulkAddTag(tagId: string) {
   const selectedIds = Array.from(selectedTransactionIds.value)
   if (selectedIds.length === 0) return
 
   showBulkTagSelector.value = false
 
-  // Tag each selected transaction (single tag only - removes existing first)
+  // Tag each selected transaction via splits
   const results = await Promise.allSettled(
     selectedIds.map(async (transactionId) => {
       const txn = findTransaction(transactionId)
+      if (!txn) return
 
-      // Remove existing tag first
-      if (txn?.tags && txn.tags.length > 0) {
-        for (const existingTag of txn.tags) {
-          await removeTagFromTransaction(transactionId, existingTag.id)
-        }
-      }
-
-      // Add the new tag
-      const response = await addTagsToTransaction(transactionId, {
-        tag_ids: [tagId],
+      // Create a 100% split for this tag
+      const response = await setSplits(transactionId, {
+        splits: [{ tag_id: tagId, amount: Math.abs(txn.amount) }],
       })
-      updateTransactionTags(transactionId, response.tags)
+
+      // Update local state
+      txn.splits = response.splits
+      txn.tags = response.splits.map((s) => ({
+        id: s.tag_id,
+        name: s.tag_name,
+        colour: s.tag_colour,
+        is_auto: s.is_auto,
+        rule_id: s.rule_id,
+        rule_name: s.rule_name,
+      }))
     }),
   )
 
@@ -517,7 +527,7 @@ async function handleBulkAddTag(tagId: string) {
   clearSelection()
 }
 
-// Create a new tag and apply it to all selected transactions (replaces any existing tag)
+// Create a new tag and apply it to all selected transactions (creates 100% split)
 async function handleBulkCreateTag(name: string) {
   const selectedIds = Array.from(selectedTransactionIds.value)
   if (selectedIds.length === 0) return
@@ -530,23 +540,27 @@ async function handleBulkCreateTag(name: string) {
     tags.value.push(newTag)
     tags.value.sort((a, b) => a.name.localeCompare(b.name))
 
-    // Apply to all selected transactions (single tag only - removes existing first)
+    // Apply to all selected transactions via splits
     const results = await Promise.allSettled(
       selectedIds.map(async (transactionId) => {
         const txn = findTransaction(transactionId)
+        if (!txn) return
 
-        // Remove existing tag first
-        if (txn?.tags && txn.tags.length > 0) {
-          for (const existingTag of txn.tags) {
-            await removeTagFromTransaction(transactionId, existingTag.id)
-          }
-        }
-
-        // Add the new tag
-        const response = await addTagsToTransaction(transactionId, {
-          tag_ids: [newTag.id],
+        // Create a 100% split for this tag
+        const response = await setSplits(transactionId, {
+          splits: [{ tag_id: newTag.id, amount: Math.abs(txn.amount) }],
         })
-        updateTransactionTags(transactionId, response.tags)
+
+        // Update local state
+        txn.splits = response.splits
+        txn.tags = response.splits.map((s) => ({
+          id: s.tag_id,
+          name: s.tag_name,
+          colour: s.tag_colour,
+          is_auto: s.is_auto,
+          rule_id: s.rule_id,
+          rule_name: s.rule_name,
+        }))
       }),
     )
 
@@ -561,23 +575,22 @@ async function handleBulkCreateTag(name: string) {
   clearSelection()
 }
 
-// Remove tags from all selected transactions
+// Remove tags from all selected transactions (clears splits)
 async function handleBulkUntag() {
   const selectedIds = Array.from(selectedTransactionIds.value)
   if (selectedIds.length === 0) return
 
   showBulkTagSelector.value = false
 
-  // Remove tags from each selected transaction
+  // Clear splits from each selected transaction
   const results = await Promise.allSettled(
     selectedIds.map(async (transactionId) => {
-      const txn = findTransaction(transactionId)
+      await clearSplits(transactionId)
 
-      if (txn?.tags && txn.tags.length > 0) {
-        for (const existingTag of txn.tags) {
-          await removeTagFromTransaction(transactionId, existingTag.id)
-        }
-        updateTransactionTags(transactionId, [])
+      const txn = findTransaction(transactionId)
+      if (txn) {
+        txn.splits = []
+        txn.tags = []
       }
     }),
   )
@@ -616,23 +629,72 @@ function handleCloseDetail() {
 }
 
 // Tag operations from within the detail modal
-// These reuse the existing handlers but need to handle the modal-specific flow
-async function handleDetailAddTag(transactionId: string, tagId: string) {
-  await handleAddTag(transactionId, tagId)
-  // Update the selected transaction ref to reflect the change
-  selectedDetailTransaction.value = findTransaction(transactionId) || null
-}
-
-async function handleDetailRemoveTag(transactionId: string, tagId: string) {
-  await handleRemoveTag(transactionId, tagId)
-  // Update the selected transaction ref to reflect the change
-  selectedDetailTransaction.value = findTransaction(transactionId) || null
-}
-
 async function handleDetailCreateTag(transactionId: string, name: string) {
   await handleCreateTag(transactionId, name)
   // Update the selected transaction ref to reflect the change
   selectedDetailTransaction.value = findTransaction(transactionId) || null
+}
+
+// Note operations from detail modal
+async function handleDetailUpdateNote(
+  transactionId: string,
+  note: string | null,
+) {
+  try {
+    const updatedTxn = await updateNote(transactionId, { user_note: note })
+    // Update local state
+    const txn = findTransaction(transactionId)
+    if (txn) {
+      txn.user_note = updatedTxn.user_note
+    }
+    selectedDetailTransaction.value = findTransaction(transactionId) || null
+    toast.success(note ? 'Note saved' : 'Note removed')
+  } catch {
+    toast.error('Failed to update note')
+  }
+}
+
+// Split operations from detail modal
+async function handleDetailUpdateSplits(
+  transactionId: string,
+  splits: SplitRequest[],
+) {
+  try {
+    const response = await setSplits(transactionId, { splits })
+    // Update local state (unified model: tags are derived from splits)
+    const txn = findTransaction(transactionId)
+    if (txn) {
+      txn.splits = response.splits
+      txn.tags = response.splits.map((s) => ({
+        id: s.tag_id,
+        name: s.tag_name,
+        colour: s.tag_colour,
+        is_auto: s.is_auto,
+        rule_id: s.rule_id,
+        rule_name: s.rule_name,
+      }))
+    }
+    selectedDetailTransaction.value = findTransaction(transactionId) || null
+    toast.success('Tag saved')
+  } catch {
+    toast.error('Failed to save tag')
+  }
+}
+
+async function handleDetailClearSplits(transactionId: string) {
+  try {
+    await clearSplits(transactionId)
+    // Update local state (unified model: tags are derived from splits)
+    const txn = findTransaction(transactionId)
+    if (txn) {
+      txn.splits = []
+      txn.tags = []
+    }
+    selectedDetailTransaction.value = findTransaction(transactionId) || null
+    toast.success('Tag removed')
+  } catch {
+    toast.error('Failed to remove tag')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -979,9 +1041,10 @@ onMounted(async () => {
       "
       :available-tags="tags"
       @close="handleCloseDetail"
-      @add-tag="handleDetailAddTag"
-      @remove-tag="handleDetailRemoveTag"
       @create-tag="handleDetailCreateTag"
+      @update-note="handleDetailUpdateNote"
+      @update-splits="handleDetailUpdateSplits"
+      @clear-splits="handleDetailClearSplits"
     />
   </div>
 </template>

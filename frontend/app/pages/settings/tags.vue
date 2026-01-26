@@ -12,7 +12,15 @@ useHead({ title: 'Tags | Finances' })
 // ---------------------------------------------------------------------------
 // Composables
 // ---------------------------------------------------------------------------
-const { fetchTags, createTag, updateTag, deleteTag, ApiError } = useTagsApi()
+const {
+  fetchTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  hideTag,
+  unhideTag,
+  ApiError,
+} = useTagsApi()
 const toast = useToastStore()
 
 // ---------------------------------------------------------------------------
@@ -22,6 +30,9 @@ const toast = useToastStore()
 const tags = ref<Tag[]>([])
 const loading = ref(true)
 const error = ref('')
+
+// Show hidden toggle
+const showHidden = ref(false)
 
 // Create form
 const newTagName = ref('')
@@ -37,6 +48,26 @@ const saving = ref(false)
 // Delete confirmation
 const deletingTag = ref<Tag | null>(null)
 const deleting = ref(false)
+
+// Hide/unhide state
+const hidingTagId = ref<string | null>(null)
+
+// ---------------------------------------------------------------------------
+// Computed
+// ---------------------------------------------------------------------------
+
+// Filter tags based on showHidden toggle
+const displayedTags = computed(() => {
+  if (showHidden.value) {
+    return tags.value
+  }
+  return tags.value.filter((tag) => !tag.is_hidden)
+})
+
+// Count of hidden tags for the toggle label
+const hiddenCount = computed(
+  () => tags.value.filter((tag) => tag.is_hidden).length,
+)
 
 // Predefined colours for quick selection
 const colourPresets = [
@@ -183,10 +214,66 @@ async function handleDelete() {
     deleting.value = false
   }
 }
+
+// ---------------------------------------------------------------------------
+// Hide/Unhide Tag
+// ---------------------------------------------------------------------------
+
+async function handleHide(tag: Tag) {
+  hidingTagId.value = tag.id
+
+  try {
+    const updated = await hideTag(tag.id)
+    const index = tags.value.findIndex((t) => t.id === updated.id)
+    if (index >= 0) {
+      tags.value[index] = updated
+    }
+    toast.success(`Tag "${tag.name}" hidden`)
+  } catch (e) {
+    if (e instanceof ApiError) {
+      toast.error(e.message)
+    } else {
+      toast.error('Failed to hide tag')
+    }
+  } finally {
+    hidingTagId.value = null
+  }
+}
+
+async function handleUnhide(tag: Tag) {
+  hidingTagId.value = tag.id
+
+  try {
+    const updated = await unhideTag(tag.id)
+    const index = tags.value.findIndex((t) => t.id === updated.id)
+    if (index >= 0) {
+      tags.value[index] = updated
+    }
+    toast.success(`Tag "${tag.name}" unhidden`)
+  } catch (e) {
+    if (e instanceof ApiError) {
+      toast.error(e.message)
+    } else {
+      toast.error('Failed to unhide tag')
+    }
+  } finally {
+    hidingTagId.value = null
+  }
+}
 </script>
 
 <template>
   <div class="page-container">
+    <!-- Settings navigation -->
+    <nav class="settings-nav">
+      <NuxtLink to="/settings/tags" class="settings-nav-link active">
+        Tags
+      </NuxtLink>
+      <NuxtLink to="/settings/rules" class="settings-nav-link">
+        Auto-Tagging Rules
+      </NuxtLink>
+    </nav>
+
     <!-- Header -->
     <header class="page-header">
       <div>
@@ -254,16 +341,43 @@ async function handleDelete() {
 
     <!-- Tags list -->
     <section v-else class="tags-section">
-      <h2 class="section-title">Your Tags ({{ tags.length }})</h2>
+      <!-- Header with count and toggle -->
+      <div class="section-header">
+        <h2 class="section-title">Your Tags ({{ tags.length }})</h2>
 
-      <div v-if="tags.length === 0" class="empty-state">
-        <p>No tags yet. Create your first tag above!</p>
+        <!-- Show hidden toggle -->
+        <label v-if="hiddenCount > 0" class="show-hidden-toggle">
+          <input v-model="showHidden" type="checkbox" class="toggle-input" />
+          <span class="toggle-label"> Show hidden ({{ hiddenCount }}) </span>
+        </label>
+      </div>
+
+      <div v-if="displayedTags.length === 0" class="empty-state">
+        <p v-if="tags.length === 0">
+          No tags yet. Create your first tag above!
+        </p>
+        <p v-else>All tags are hidden. Toggle "Show hidden" to see them.</p>
       </div>
 
       <div v-else class="tags-list">
-        <div v-for="tag in tags" :key="tag.id" class="tag-row">
-          <!-- Tag chip -->
-          <TagsTagChip :name="tag.name" :colour="tag.colour" />
+        <div
+          v-for="tag in displayedTags"
+          :key="tag.id"
+          class="tag-row"
+          :class="{ 'tag-row--hidden': tag.is_hidden }"
+        >
+          <!-- Tag chip and badges -->
+          <div class="tag-info">
+            <TagsTagChip :name="tag.name" :colour="tag.colour" />
+            <!-- Standard badge -->
+            <span v-if="tag.is_standard" class="badge badge--standard">
+              Standard
+            </span>
+            <!-- Hidden badge -->
+            <span v-if="tag.is_hidden" class="badge badge--hidden">
+              Hidden
+            </span>
+          </div>
 
           <!-- Usage count -->
           <span class="usage-count">
@@ -280,7 +394,30 @@ async function handleDelete() {
             >
               Edit
             </button>
+
+            <!-- Hide/Unhide for hidden or standard tags -->
             <button
+              v-if="tag.is_hidden"
+              type="button"
+              class="action-btn unhide"
+              :disabled="hidingTagId === tag.id"
+              @click="handleUnhide(tag)"
+            >
+              {{ hidingTagId === tag.id ? 'Unhiding...' : 'Unhide' }}
+            </button>
+            <button
+              v-else-if="tag.is_standard"
+              type="button"
+              class="action-btn hide"
+              :disabled="hidingTagId === tag.id"
+              @click="handleHide(tag)"
+            >
+              {{ hidingTagId === tag.id ? 'Hiding...' : 'Hide' }}
+            </button>
+
+            <!-- Delete only for non-standard tags -->
+            <button
+              v-if="!tag.is_standard"
               type="button"
               class="action-btn delete"
               @click="confirmDelete(tag)"
@@ -390,6 +527,22 @@ async function handleDelete() {
 </template>
 
 <style scoped>
+/* Settings navigation */
+.settings-nav {
+  @apply mb-6 flex gap-1 border-b border-border;
+}
+
+.settings-nav-link {
+  @apply px-4 py-2 text-sm font-medium text-muted;
+  @apply border-b-2 border-transparent transition-colors;
+  @apply hover:text-foreground;
+
+  &.active,
+  &.router-link-active {
+    @apply border-primary text-primary;
+  }
+}
+
 /* Page layout */
 .page-container {
   @apply mx-auto max-w-4xl px-4 py-8;
@@ -412,8 +565,26 @@ async function handleDelete() {
 }
 
 /* Sections */
+.section-header {
+  @apply mb-4 flex items-center justify-between;
+}
+
 .section-title {
-  @apply mb-4 text-lg font-semibold text-foreground;
+  @apply text-lg font-semibold text-foreground;
+}
+
+/* Show hidden toggle */
+.show-hidden-toggle {
+  @apply flex cursor-pointer items-center gap-2;
+}
+
+.toggle-input {
+  @apply h-4 w-4 cursor-pointer rounded border-gray-600 bg-gray-800;
+  @apply text-primary focus:ring-primary;
+}
+
+.toggle-label {
+  @apply text-sm text-muted;
 }
 
 .create-section {
@@ -463,6 +634,27 @@ async function handleDelete() {
 
 .tag-row {
   @apply flex items-center gap-4 rounded-md bg-gray-800/50 px-4 py-3;
+
+  &.tag-row--hidden {
+    @apply opacity-60;
+  }
+}
+
+.tag-info {
+  @apply flex items-center gap-2;
+}
+
+/* Badges */
+.badge {
+  @apply rounded-full px-2 py-0.5 text-xs font-medium;
+
+  &.badge--standard {
+    @apply bg-primary/20 text-primary;
+  }
+
+  &.badge--hidden {
+    @apply bg-gray-700 text-gray-400;
+  }
 }
 
 .usage-count {
@@ -476,6 +668,7 @@ async function handleDelete() {
 .action-btn {
   @apply rounded-md px-3 py-1 text-sm;
   @apply cursor-pointer border-none transition-colors;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
 
   &.edit {
     @apply bg-gray-700 text-foreground hover:bg-gray-600;
@@ -483,6 +676,14 @@ async function handleDelete() {
 
   &.delete {
     @apply bg-red-900/30 text-red-400 hover:bg-red-900/50;
+  }
+
+  &.hide {
+    @apply bg-amber-900/30 text-amber-400 hover:bg-amber-900/50;
+  }
+
+  &.unhide {
+    @apply bg-primary/20 text-sage hover:bg-primary/30;
   }
 }
 

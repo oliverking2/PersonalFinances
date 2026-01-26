@@ -30,6 +30,7 @@ from src.postgres.common.operations.sync import (
     sync_all_gocardless_transactions,
     sync_gocardless_connection,
 )
+from src.postgres.common.operations.tag_rules import bulk_apply_rules
 
 
 class ConnectionScopeConfig(Config):
@@ -251,13 +252,14 @@ def sync_gc_institutions(context: AssetExecutionContext, config: ConnectionScope
         AssetKey(["source", "gocardless", "extract", "transactions"]),
     ],
     group_name="gocardless",
-    description="Sync GoCardless transactions to unified transactions table.",
+    description="Sync GoCardless transactions to unified transactions table and apply auto-tagging rules.",
     required_resource_keys={"postgres_database"},
 )
 def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
     """Sync GoCardless transactions to the unified transactions table.
 
     This asset reads from gc_transactions and upserts to the transactions table.
+    After syncing, applies auto-tagging rules to any untagged transactions.
     Depends on account sync and transaction extraction to ensure all data is up to date.
     """
     postgres_database: PostgresDatabase = context.resources.postgres_database
@@ -291,6 +293,18 @@ def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScope
             context.log.info(
                 f"Synced {total_transactions} transactions for connection {connection.id}"
             )
+
+            # Apply auto-tagging rules to untagged transactions for this user
+            tagged_count = bulk_apply_rules(
+                session,
+                connection.user_id,
+                account_ids=[acc.id for acc in accounts],
+                untagged_only=True,
+            )
+            if tagged_count > 0:
+                context.log.info(
+                    f"Auto-tagged {tagged_count} transactions for user {connection.user_id}"
+                )
             return
 
         # Otherwise sync all active accounts from all active connections
@@ -321,6 +335,30 @@ def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScope
         context.log.info(
             f"Synced {total_transactions} transactions across {len(accounts)} accounts"
         )
+
+        # Apply auto-tagging rules for each user with synced accounts
+        # Group accounts by user to apply rules once per user
+        user_accounts: dict[UUID, list[UUID]] = {}
+        for account in accounts:
+            user_id = account.connection.user_id
+            if user_id not in user_accounts:
+                user_accounts[user_id] = []
+            user_accounts[user_id].append(account.id)
+
+        total_tagged = 0
+        for user_id, account_ids in user_accounts.items():
+            tagged_count = bulk_apply_rules(
+                session,
+                user_id,
+                account_ids=account_ids,
+                untagged_only=True,
+            )
+            total_tagged += tagged_count
+            if tagged_count > 0:
+                context.log.info(f"Auto-tagged {tagged_count} transactions for user {user_id}")
+
+        if total_tagged > 0:
+            context.log.info(f"Total auto-tagged: {total_tagged} transactions")
 
 
 sync_asset_defs = Definitions(

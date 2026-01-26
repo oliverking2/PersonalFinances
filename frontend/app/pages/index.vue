@@ -5,7 +5,7 @@ Main dashboard showing net worth, spending metrics, and recent transactions
 
 <script setup lang="ts">
 import type { Account } from '~/types/accounts'
-import type { Transaction } from '~/types/transactions'
+import type { Transaction, SplitRequest } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
 import type { Dataset, DatasetQueryResponse } from '~/types/analytics'
 
@@ -20,9 +20,9 @@ const {
   fetchJob,
   fetchJobs,
 } = useAccountsApi()
-const { fetchTransactions } = useTransactionsApi()
-const { fetchTags, createTag, addTagsToTransaction, removeTagFromTransaction } =
-  useTagsApi()
+const { fetchTransactions, setSplits, clearSplits, updateNote } =
+  useTransactionsApi()
+const { fetchTags, createTag } = useTagsApi()
 const { fetchDatasets, queryDataset, fetchAnalyticsStatus, triggerRefresh } =
   useAnalyticsApi()
 
@@ -420,34 +420,46 @@ async function loadTags() {
 
 async function handleAddTag(transactionId: string, tagId: string) {
   try {
-    const response = await addTagsToTransaction(transactionId, {
-      tag_ids: [tagId],
-    })
-    // Update the transaction's tags in our list
     const txn = recentTransactions.value.find((t) => t.id === transactionId)
-    if (txn) {
-      txn.tags = response.tags
-    }
+    if (!txn) return
+    // Create a 100% split for the tag
+    const response = await setSplits(transactionId, {
+      splits: [{ tag_id: tagId, amount: Math.abs(txn.amount) }],
+    })
+    // Update both splits and tags in local state
+    txn.splits = response.splits
+    txn.tags = response.splits.map((s) => ({
+      id: s.tag_id,
+      name: s.tag_name,
+      colour: s.tag_colour,
+      is_auto: s.is_auto,
+      rule_id: s.rule_id,
+      rule_name: s.rule_name,
+    }))
     // Also update detail modal if open
     if (detailModalTransaction.value?.id === transactionId) {
-      detailModalTransaction.value.tags = response.tags
+      detailModalTransaction.value.splits = response.splits
+      detailModalTransaction.value.tags = txn.tags
     }
   } catch (e) {
     console.error('Failed to add tag:', e)
   }
 }
 
-async function handleRemoveTag(transactionId: string, tagId: string) {
+async function handleRemoveTag(transactionId: string, _tagId: string) {
   try {
-    const response = await removeTagFromTransaction(transactionId, tagId)
-    // Update the transaction's tags in our list
+    // Clear all splits (removes the tag)
+    await clearSplits(transactionId)
+    // Update local state
     const txn = recentTransactions.value.find((t) => t.id === transactionId)
     if (txn) {
-      txn.tags = response.tags
+      txn.splits = []
+      txn.tags = []
     }
     // Also update detail modal if open
     if (detailModalTransaction.value?.id === transactionId) {
-      detailModalTransaction.value.tags = response.tags
+      detailModalTransaction.value.splits = []
+      detailModalTransaction.value.tags = []
     }
   } catch (e) {
     console.error('Failed to remove tag:', e)
@@ -463,6 +475,73 @@ async function handleCreateTag(transactionId: string, name: string) {
     await handleAddTag(transactionId, newTag.id)
   } catch (e) {
     console.error('Failed to create tag:', e)
+  }
+}
+
+async function handleUpdateNote(transactionId: string, note: string | null) {
+  try {
+    const updatedTxn = await updateNote(transactionId, { user_note: note })
+    // Update the transaction in our list
+    const txn = recentTransactions.value.find((t) => t.id === transactionId)
+    if (txn) {
+      txn.user_note = updatedTxn.user_note
+    }
+    // Also update detail modal if open
+    if (detailModalTransaction.value?.id === transactionId) {
+      detailModalTransaction.value.user_note = updatedTxn.user_note
+    }
+  } catch (e) {
+    console.error('Failed to update note:', e)
+  }
+}
+
+async function handleUpdateSplits(
+  transactionId: string,
+  splits: SplitRequest[],
+) {
+  try {
+    const response = await setSplits(transactionId, { splits })
+    // Derive tags from splits
+    const updatedTags = response.splits.map((s) => ({
+      id: s.tag_id,
+      name: s.tag_name,
+      colour: s.tag_colour,
+      is_auto: s.is_auto,
+      rule_id: s.rule_id,
+      rule_name: s.rule_name,
+    }))
+    // Update the transaction in our list
+    const txn = recentTransactions.value.find((t) => t.id === transactionId)
+    if (txn) {
+      txn.splits = response.splits
+      txn.tags = updatedTags
+    }
+    // Also update detail modal if open
+    if (detailModalTransaction.value?.id === transactionId) {
+      detailModalTransaction.value.splits = response.splits
+      detailModalTransaction.value.tags = updatedTags
+    }
+  } catch (e) {
+    console.error('Failed to update splits:', e)
+  }
+}
+
+async function handleClearSplits(transactionId: string) {
+  try {
+    await clearSplits(transactionId)
+    // Update the transaction in our list
+    const txn = recentTransactions.value.find((t) => t.id === transactionId)
+    if (txn) {
+      txn.splits = []
+      txn.tags = []
+    }
+    // Also update detail modal if open
+    if (detailModalTransaction.value?.id === transactionId) {
+      detailModalTransaction.value.splits = []
+      detailModalTransaction.value.tags = []
+    }
+  } catch (e) {
+    console.error('Failed to clear splits:', e)
   }
 }
 
@@ -898,9 +977,10 @@ onMounted(() => {
       :transaction="detailModalTransaction"
       :available-tags="tags"
       @close="handleCloseDetail"
-      @add-tag="(txnId, tagId) => handleAddTag(txnId, tagId)"
-      @remove-tag="(txnId, tagId) => handleRemoveTag(txnId, tagId)"
       @create-tag="(txnId, name) => handleCreateTag(txnId, name)"
+      @update-note="(txnId, note) => handleUpdateNote(txnId, note)"
+      @update-splits="(txnId, splits) => handleUpdateSplits(txnId, splits)"
+      @clear-splits="(txnId) => handleClearSplits(txnId)"
     />
   </div>
 </template>

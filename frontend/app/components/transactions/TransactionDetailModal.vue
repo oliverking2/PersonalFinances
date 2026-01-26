@@ -5,7 +5,7 @@ Opens from the "details" button on TransactionRow
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { Transaction } from '~/types/transactions'
+import type { Transaction, SplitRequest } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
 
 // ---------------------------------------------------------------------------
@@ -20,9 +20,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  'add-tag': [transactionId: string, tagId: string]
-  'remove-tag': [transactionId: string, tagId: string]
   'create-tag': [transactionId: string, name: string]
+  'update-note': [transactionId: string, note: string | null]
+  'update-splits': [transactionId: string, splits: SplitRequest[]]
+  'clear-splits': [transactionId: string]
 }>()
 
 // ---------------------------------------------------------------------------
@@ -30,6 +31,14 @@ const emit = defineEmits<{
 // ---------------------------------------------------------------------------
 
 const showTagSelector = ref(false)
+
+// Note editing state
+const isEditingNote = ref(false)
+const editedNote = ref('')
+
+// Split editing state
+const isEditingSplits = ref(false)
+const editedSplits = ref<{ tag_id: string; amount: number }[]>([])
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -93,12 +102,148 @@ const selectedTagIds = computed(() => {
   return props.transaction?.tags?.map((t) => t.id) || []
 })
 
+// Check if transaction has splits
+const hasSplits = computed(() => {
+  return (props.transaction?.splits?.length ?? 0) > 0
+})
+
+// Check if in "simple" mode (single tag at 100%) vs "split" mode
+const isSplitMode = computed(() => {
+  const splits = props.transaction?.splits ?? []
+  // Split mode if: editing splits, or has multiple splits, or single split not at 100%
+  if (isEditingSplits.value) return true
+  if (splits.length > 1) return true
+  const firstSplit = splits[0]
+  if (firstSplit) {
+    const txnAmount = Math.abs(props.transaction?.amount ?? 0)
+    // Not 100% if differs by more than 1 cent
+    if (Math.abs(firstSplit.amount - txnAmount) > 0.01) return true
+  }
+  return false
+})
+
+// Get the single tag (when in simple mode)
+const singleTag = computed(() => {
+  if (isSplitMode.value) return null
+  const splits = props.transaction?.splits ?? []
+  const firstSplit = splits[0]
+  if (firstSplit) {
+    return {
+      id: firstSplit.tag_id,
+      name: firstSplit.tag_name,
+      colour: firstSplit.tag_colour,
+      is_auto: firstSplit.is_auto,
+      rule_id: firstSplit.rule_id,
+      rule_name: firstSplit.rule_name,
+    }
+  }
+  return null
+})
+
+// Format currency amount
+function formatCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency,
+  }).format(amount)
+}
+
+// Total amount for splits validation
+const transactionAbsAmount = computed(() => {
+  return Math.abs(props.transaction?.amount ?? 0)
+})
+
+// Sum of current edited splits
+const editedSplitsTotal = computed(() => {
+  return editedSplits.value.reduce((sum, s) => sum + (s.amount || 0), 0)
+})
+
+// Remaining amount to allocate
+const remainingAmount = computed(() => {
+  return (
+    Math.round((transactionAbsAmount.value - editedSplitsTotal.value) * 100) /
+    100
+  )
+})
+
+// Check if splits are valid (sum equals transaction amount)
+const splitsValid = computed(() => {
+  if (editedSplits.value.length === 0) return false
+  return Math.abs(remainingAmount.value) < 0.02 // Allow small rounding error
+})
+
+// Available tags for split selection (exclude already used)
+const availableTagsForSplits = computed(() => {
+  const usedTagIds = new Set(editedSplits.value.map((s) => s.tag_id))
+  return props.availableTags.filter(
+    (t) => !t.is_hidden && !usedTagIds.has(t.id),
+  )
+})
+
+// Tag options for AppSelect (including currently selected if not in available)
+function getTagOptionsForSplit(currentTagId: string) {
+  const options = availableTagsForSplits.value.map((t) => ({
+    value: t.id,
+    label: t.name,
+  }))
+
+  // Include currently selected tag if not in available list
+  if (
+    currentTagId &&
+    !availableTagsForSplits.value.find((t) => t.id === currentTagId)
+  ) {
+    const currentTag = props.availableTags.find((t) => t.id === currentTagId)
+    if (currentTag) {
+      options.unshift({ value: currentTag.id, label: currentTag.name })
+    }
+  }
+
+  return options
+}
+
+// Get percentage for a split amount
+function getSplitPercentage(amount: number): number {
+  if (transactionAbsAmount.value === 0) return 0
+  return Math.round((amount / transactionAbsAmount.value) * 100)
+}
+
+// Get tag colour for a split (used for visual indicator)
+function getTagColour(tagId: string): string {
+  if (!tagId) return 'transparent'
+  const tag = props.availableTags.find((t) => t.id === tagId)
+  return tag?.colour || 'transparent'
+}
+
+// Update split amount from percentage slider
+function updateSplitFromPercentage(index: number, percentage: number) {
+  const split = editedSplits.value[index]
+  if (!split) return
+  split.amount =
+    Math.round((percentage / 100) * transactionAbsAmount.value * 100) / 100
+}
+
+// Currency symbol for display
+const currencySymbol = computed(() => {
+  const currency = props.transaction?.currency || 'GBP'
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency,
+  })
+    .format(0)
+    .replace(/[\d.,]/g, '')
+    .trim()
+})
+
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
 function handleClose() {
   showTagSelector.value = false
+  isEditingNote.value = false
+  isEditingSplits.value = false
+  editedNote.value = ''
+  editedSplits.value = []
   emit('close')
 }
 
@@ -109,14 +254,19 @@ function toggleTagSelector(event: MouseEvent) {
 
 function handleTagSelect(tagId: string) {
   if (props.transaction) {
-    emit('add-tag', props.transaction.id, tagId)
+    // Create a 100% split for the selected tag
+    const splits: SplitRequest[] = [
+      { tag_id: tagId, amount: Math.abs(props.transaction.amount) },
+    ]
+    emit('update-splits', props.transaction.id, splits)
   }
-  showTagSelector.value = false // Close after selecting (single tag only)
+  showTagSelector.value = false
 }
 
-function handleTagDeselect(tagId: string) {
+function handleTagDeselect(_tagId: string) {
+  // In unified model, deselecting clears splits
   if (props.transaction) {
-    emit('remove-tag', props.transaction.id, tagId)
+    emit('clear-splits', props.transaction.id)
   }
 }
 
@@ -127,10 +277,79 @@ function handleTagCreate(name: string) {
   showTagSelector.value = false
 }
 
-function handleRemoveTag(tagId: string) {
+function handleRemoveTag() {
+  // Remove the single tag by clearing splits
   if (props.transaction) {
-    emit('remove-tag', props.transaction.id, tagId)
+    emit('clear-splits', props.transaction.id)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Note Actions
+// ---------------------------------------------------------------------------
+
+function startEditingNote() {
+  editedNote.value = props.transaction?.user_note || ''
+  isEditingNote.value = true
+}
+
+function cancelEditingNote() {
+  isEditingNote.value = false
+  editedNote.value = ''
+}
+
+function saveNote() {
+  if (!props.transaction) return
+  const note = editedNote.value.trim() || null
+  emit('update-note', props.transaction.id, note)
+  isEditingNote.value = false
+}
+
+// ---------------------------------------------------------------------------
+// Split Actions
+// ---------------------------------------------------------------------------
+
+function startEditingSplits() {
+  // Initialize with existing splits or empty
+  if (props.transaction?.splits?.length) {
+    editedSplits.value = props.transaction.splits.map((s) => ({
+      tag_id: s.tag_id,
+      amount: s.amount,
+    }))
+  } else {
+    editedSplits.value = []
+  }
+  isEditingSplits.value = true
+}
+
+function cancelEditingSplits() {
+  isEditingSplits.value = false
+  editedSplits.value = []
+}
+
+function addSplit() {
+  editedSplits.value.push({ tag_id: '', amount: 0 })
+}
+
+function removeSplit(index: number) {
+  editedSplits.value.splice(index, 1)
+}
+
+function saveSplits() {
+  if (!props.transaction || !splitsValid.value) return
+
+  const splits: SplitRequest[] = editedSplits.value
+    .filter((s) => s.tag_id && s.amount > 0)
+    .map((s) => ({ tag_id: s.tag_id, amount: s.amount }))
+
+  emit('update-splits', props.transaction.id, splits)
+  isEditingSplits.value = false
+}
+
+function clearSplits() {
+  if (!props.transaction) return
+  emit('clear-splits', props.transaction.id)
+  isEditingSplits.value = false
 }
 
 // Close selector when clicking outside
@@ -168,12 +387,12 @@ onUnmounted(() => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
         @click.self="handleClose"
       >
-        <!-- Modal content -->
+        <!-- Modal content (scrollable with max height) -->
         <div
-          class="w-full max-w-md rounded-lg border border-border bg-surface p-6"
+          class="flex max-h-[80vh] w-full max-w-md flex-col rounded-lg border border-border bg-surface"
         >
-          <!-- Header -->
-          <div class="mb-4 flex items-start justify-between gap-4">
+          <!-- Fixed header -->
+          <div class="flex items-start justify-between gap-4 p-6 pb-0">
             <div class="min-w-0 flex-1">
               <!-- Merchant/Description as main title -->
               <h2 class="truncate text-lg font-semibold text-foreground">
@@ -207,104 +426,385 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- Details table -->
-          <div
-            class="mb-6 divide-y divide-border rounded-lg border border-border"
-          >
-            <!-- Booking Date -->
-            <div class="flex justify-between px-4 py-3">
-              <span class="text-sm text-muted">Booking Date</span>
-              <span class="text-sm font-medium text-foreground">
-                {{ formattedBookingDate }}
-              </span>
-            </div>
-
-            <!-- Value Date (only shown if different from booking date) -->
+          <!-- Scrollable content -->
+          <div class="overflow-y-auto p-6 pt-4">
+            <!-- Details table -->
             <div
-              v-if="formattedValueDate"
-              class="flex justify-between px-4 py-3"
+              class="mb-6 divide-y divide-border rounded-lg border border-border"
             >
-              <span class="text-sm text-muted">Value Date</span>
-              <span class="text-sm font-medium text-foreground">
-                {{ formattedValueDate }}
-              </span>
-            </div>
+              <!-- Booking Date -->
+              <div class="flex justify-between px-4 py-3">
+                <span class="text-sm text-muted">Booking Date</span>
+                <span class="text-sm font-medium text-foreground">
+                  {{ formattedBookingDate }}
+                </span>
+              </div>
 
-            <!-- Amount -->
-            <div class="flex justify-between px-4 py-3">
-              <span class="text-sm text-muted">Amount</span>
-              <span class="text-sm font-medium" :class="amountColorClass">
-                {{ formattedAmount }}
-              </span>
-            </div>
-
-            <!-- Account -->
-            <div class="flex justify-between px-4 py-3">
-              <span class="text-sm text-muted">Account</span>
-              <span class="text-sm font-medium text-foreground">
-                {{ accountName }}
-              </span>
-            </div>
-
-            <!-- Full Description (if different from merchant name) -->
-            <div
-              v-if="transaction.merchant_name && transaction.description"
-              class="px-4 py-3"
-            >
-              <span class="mb-1 block text-sm text-muted">Description</span>
-              <span class="block text-sm text-foreground">
-                {{ transaction.description }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Tags section -->
-          <div class="tag-selector-container relative">
-            <span class="mb-2 block text-sm text-muted">Tags</span>
-            <div class="flex flex-wrap items-center gap-2">
-              <!-- Existing tags -->
-              <TagsTagChip
-                v-for="tag in transaction.tags"
-                :key="tag.id"
-                :name="tag.name"
-                :colour="tag.colour"
-                removable
-                @remove="handleRemoveTag(tag.id)"
-              />
-
-              <!-- Add tag button (only show if no tag yet - single tag only) -->
-              <button
-                v-if="!transaction.tags || transaction.tags.length === 0"
-                type="button"
-                class="flex items-center gap-1 rounded-full border border-dashed border-gray-600 px-3 py-1 text-sm text-muted transition-colors hover:border-primary hover:text-primary"
-                @click="toggleTagSelector"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  class="h-4 w-4"
-                >
-                  <path
-                    d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
-                  />
-                </svg>
-                Add tag
-              </button>
-
-              <!-- Tag selector popover -->
+              <!-- Value Date (only shown if different from booking date) -->
               <div
-                v-if="showTagSelector && availableTags"
-                class="absolute left-0 top-full z-10 mt-1"
-                @click.stop
+                v-if="formattedValueDate"
+                class="flex justify-between px-4 py-3"
               >
-                <TagsTagSelector
-                  :available-tags="availableTags"
-                  :selected-tag-ids="selectedTagIds"
-                  @select="handleTagSelect"
-                  @deselect="handleTagDeselect"
-                  @create="handleTagCreate"
+                <span class="text-sm text-muted">Value Date</span>
+                <span class="text-sm font-medium text-foreground">
+                  {{ formattedValueDate }}
+                </span>
+              </div>
+
+              <!-- Amount -->
+              <div class="flex justify-between px-4 py-3">
+                <span class="text-sm text-muted">Amount</span>
+                <span class="text-sm font-medium" :class="amountColorClass">
+                  {{ formattedAmount }}
+                </span>
+              </div>
+
+              <!-- Account -->
+              <div class="flex justify-between px-4 py-3">
+                <span class="text-sm text-muted">Account</span>
+                <span class="text-sm font-medium text-foreground">
+                  {{ accountName }}
+                </span>
+              </div>
+
+              <!-- Full Description (if different from merchant name) -->
+              <div
+                v-if="transaction.merchant_name && transaction.description"
+                class="px-4 py-3"
+              >
+                <span class="mb-1 block text-sm text-muted">Description</span>
+                <span class="block text-sm text-foreground">
+                  {{ transaction.description }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Tag / Splits section (unified) -->
+            <div class="tag-selector-container relative">
+              <span class="mb-2 block text-sm text-muted">Tag</span>
+
+              <!-- Simple mode: no tag yet - show tag selector -->
+              <div v-if="!hasSplits && !isEditingSplits">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="flex items-center gap-1 rounded-full border border-dashed border-gray-600 px-3 py-1 text-sm text-muted transition-colors hover:border-primary hover:text-primary"
+                    @click="toggleTagSelector"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="h-4 w-4"
+                    >
+                      <path
+                        d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+                      />
+                    </svg>
+                    Add tag
+                  </button>
+
+                  <!-- Tag selector popover -->
+                  <div
+                    v-if="showTagSelector && availableTags"
+                    class="absolute left-0 top-full z-10 mt-1"
+                    @click.stop
+                  >
+                    <TagsTagSelector
+                      :available-tags="availableTags"
+                      :selected-tag-ids="selectedTagIds"
+                      @select="handleTagSelect"
+                      @deselect="handleTagDeselect"
+                      @create="handleTagCreate"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Simple mode: single tag at 100% - show tag chip + split button -->
+              <div v-else-if="singleTag && !isEditingSplits">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="tag-with-info">
+                    <TagsTagChip
+                      :name="singleTag.name"
+                      :colour="singleTag.colour"
+                      removable
+                      @remove="handleRemoveTag"
+                    />
+                    <!-- Auto-tag indicator -->
+                    <span v-if="singleTag.is_auto" class="auto-tag-indicator">
+                      Auto-tagged by
+                      <NuxtLink
+                        v-if="singleTag.rule_id"
+                        to="/settings/rules"
+                        class="rule-link"
+                        @click="handleClose"
+                      >
+                        {{ singleTag.rule_name || 'rule' }}
+                      </NuxtLink>
+                      <span v-else>rule</span>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Split transaction button -->
+                <button
+                  type="button"
+                  class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-600 py-2 text-sm text-muted hover:border-primary hover:text-primary"
+                  @click="startEditingSplits"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="h-4 w-4"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M4.25 2A2.25 2.25 0 0 0 2 4.25v11.5A2.25 2.25 0 0 0 4.25 18h11.5A2.25 2.25 0 0 0 18 15.75V4.25A2.25 2.25 0 0 0 15.75 2H4.25Zm4.03 6.28a.75.75 0 0 0-1.06-1.06L4.97 9.47a.75.75 0 0 0 0 1.06l2.25 2.25a.75.75 0 0 0 1.06-1.06l-.97-.97h5.69a.75.75 0 0 0 0-1.5H7.31l.97-.97Zm3.69-1.03a.75.75 0 0 1 0-1.5h2.25a.75.75 0 0 1 0 1.5h-2.25Zm0 6.5a.75.75 0 0 1 0-1.5h2.25a.75.75 0 0 1 0 1.5h-2.25Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Split transaction
+                </button>
+              </div>
+
+              <!-- Split mode: multiple splits or editing -->
+              <div v-else-if="isSplitMode && !isEditingSplits">
+                <!-- View mode: show existing splits -->
+                <div class="space-y-2">
+                  <div
+                    v-for="split in transaction.splits"
+                    :key="split.id"
+                    class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                  >
+                    <TagsTagChip
+                      :name="split.tag_name"
+                      :colour="split.tag_colour"
+                    />
+                    <span class="text-sm font-medium text-foreground">
+                      {{ formatCurrency(split.amount, transaction.currency) }}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="mt-2 text-xs text-primary hover:underline"
+                  @click="startEditingSplits"
+                >
+                  Edit splits
+                </button>
+              </div>
+
+              <!-- Split edit mode -->
+              <div v-else class="space-y-3">
+                <!-- Transaction total header -->
+                <div class="rounded-lg bg-onyx px-3 py-2 text-sm">
+                  <span class="text-muted">Transaction total: </span>
+                  <span class="font-medium text-foreground">
+                    {{
+                      formatCurrency(transactionAbsAmount, transaction.currency)
+                    }}
+                  </span>
+                </div>
+
+                <!-- Split rows -->
+                <div class="space-y-3">
+                  <div
+                    v-for="(split, index) in editedSplits"
+                    :key="index"
+                    class="rounded-lg border border-border p-3"
+                    :style="{
+                      borderLeftWidth: '4px',
+                      borderLeftColor: getTagColour(split.tag_id),
+                    }"
+                  >
+                    <!-- Row 1: Tag selector + remove button -->
+                    <div class="mb-3 flex items-center gap-2">
+                      <div class="flex-1">
+                        <AppSelect
+                          v-model="split.tag_id"
+                          :options="getTagOptionsForSplit(split.tag_id)"
+                          placeholder="Select tag..."
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        class="rounded p-1.5 text-muted hover:bg-border hover:text-foreground"
+                        @click="removeSplit(index)"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="h-4 w-4"
+                        >
+                          <path
+                            d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <!-- Row 2: Percentage slider + editable inputs -->
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        :value="getSplitPercentage(split.amount)"
+                        class="split-slider flex-1"
+                        @input="
+                          updateSplitFromPercentage(
+                            index,
+                            Number(($event.target as HTMLInputElement).value),
+                          )
+                        "
+                      />
+                      <div class="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          :value="getSplitPercentage(split.amount)"
+                          class="percent-input"
+                          @change="
+                            updateSplitFromPercentage(
+                              index,
+                              Math.min(
+                                100,
+                                Math.max(
+                                  0,
+                                  Number(
+                                    ($event.target as HTMLInputElement).value,
+                                  ),
+                                ),
+                              ),
+                            )
+                          "
+                        />
+                        <span class="text-sm text-muted">%</span>
+                      </div>
+                      <span
+                        class="w-20 text-right text-sm font-medium text-foreground"
+                      >
+                        {{ currencySymbol }}{{ split.amount.toFixed(2) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add split button -->
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-gray-600 py-2 text-sm text-muted hover:border-primary hover:text-primary"
+                  @click="addSplit"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="h-4 w-4"
+                  >
+                    <path
+                      d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+                    />
+                  </svg>
+                  Add split
+                </button>
+
+                <!-- Remaining amount -->
+                <div class="flex justify-between text-sm">
+                  <span class="text-muted">Remaining:</span>
+                  <span
+                    :class="
+                      remainingAmount === 0 ? 'text-positive' : 'text-negative'
+                    "
+                  >
+                    {{ formatCurrency(remainingAmount, transaction.currency) }}
+                  </span>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="flex-1 rounded-lg border border-border px-3 py-2 text-sm text-muted hover:bg-border"
+                    @click="cancelEditingSplits"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    v-if="hasSplits"
+                    type="button"
+                    class="rounded-lg border border-negative px-3 py-2 text-sm text-negative hover:bg-negative/10"
+                    @click="clearSplits"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    :disabled="!splitsValid"
+                    @click="saveSplits"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Note section -->
+            <div class="mt-6">
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm text-muted">Note</span>
+                <button
+                  v-if="!isEditingNote"
+                  type="button"
+                  class="text-xs text-primary hover:underline"
+                  @click="startEditingNote"
+                >
+                  {{ transaction.user_note ? 'Edit' : 'Add' }}
+                </button>
+              </div>
+
+              <!-- View mode -->
+              <p
+                v-if="!isEditingNote && transaction.user_note"
+                class="text-sm text-foreground"
+              >
+                {{ transaction.user_note }}
+              </p>
+              <p v-else-if="!isEditingNote" class="text-sm italic text-muted">
+                No note
+              </p>
+
+              <!-- Edit mode -->
+              <div v-if="isEditingNote" class="space-y-2">
+                <textarea
+                  v-model="editedNote"
+                  rows="3"
+                  maxlength="512"
+                  class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted"
+                  placeholder="Add a note about this transaction..."
                 />
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="flex-1 rounded-lg border border-border px-3 py-2 text-sm text-muted hover:bg-border"
+                    @click="cancelEditingNote"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white"
+                    @click="saveNote"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -324,5 +824,56 @@ onUnmounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Tag with auto-tag info */
+.tag-with-info {
+  @apply flex flex-col items-start gap-0.5;
+}
+
+.auto-tag-indicator {
+  @apply text-xs text-muted;
+}
+
+.rule-link {
+  @apply text-primary hover:underline;
+}
+
+/* Split percentage slider */
+.split-slider {
+  @apply h-2 cursor-pointer appearance-none rounded-full bg-gray-700;
+}
+
+.split-slider::-webkit-slider-thumb {
+  @apply h-4 w-4 cursor-pointer appearance-none rounded-full bg-primary;
+  @apply transition-transform hover:scale-110;
+}
+
+.split-slider::-moz-range-thumb {
+  @apply h-4 w-4 cursor-pointer appearance-none rounded-full border-0 bg-primary;
+  @apply transition-transform hover:scale-110;
+}
+
+.split-slider:focus {
+  @apply outline-none;
+}
+
+.split-slider:focus::-webkit-slider-thumb {
+  @apply ring-2 ring-primary/50;
+}
+
+/* Editable percentage input */
+.percent-input {
+  @apply w-12 rounded border border-border bg-surface px-1 py-0.5;
+  @apply text-right text-sm text-foreground;
+  @apply focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50;
+  /* Hide number spinners */
+  -moz-appearance: textfield;
+}
+
+.percent-input::-webkit-outer-spin-button,
+.percent-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 </style>

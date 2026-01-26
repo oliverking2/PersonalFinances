@@ -12,6 +12,20 @@ export interface TransactionTag {
   id: string
   name: string
   colour: string | null
+  is_auto: boolean // True if tag was applied by an auto-tagging rule
+  rule_id: string | null // ID of the rule that applied this tag (if auto)
+  rule_name: string | null // Name of the rule that applied this tag (if auto)
+}
+
+export interface TransactionSplit {
+  id: string
+  tag_id: string
+  tag_name: string
+  tag_colour: string | null
+  amount: number // Always positive
+  is_auto: boolean // True if split was created by an auto-tagging rule
+  rule_id: string | null // ID of the rule that created this split (if auto)
+  rule_name: string | null // Name of the rule that created this split (if auto)
 }
 
 export interface Transaction {
@@ -24,7 +38,9 @@ export interface Transaction {
   description: string | null
   merchant_name: string | null
   category: string | null // Provider category (read-only)
+  user_note: string | null // User-added note
   tags: TransactionTag[] // User-defined tags
+  splits: TransactionSplit[] // Transaction splits for budgeting
 }
 
 // -----------------------------------------------------------------------------
@@ -63,4 +79,26 @@ export interface TransactionDayGroup {
   dateDisplay: string // "Today", "Yesterday", "Mon 20 Jan"
   transactions: Transaction[]
   dayTotal: number // Sum of all transaction amounts for the day
+}
+
+// -----------------------------------------------------------------------------
+// Split Request/Response Types
+// -----------------------------------------------------------------------------
+
+export interface SplitRequest {
+  tag_id: string
+  amount: number // Must be positive
+}
+
+export interface SetSplitsRequest {
+  splits: SplitRequest[]
+}
+
+export interface TransactionSplitsResponse {
+  transaction_id: string
+  splits: TransactionSplit[]
+}
+
+export interface UpdateNoteRequest {
+  user_note: string | null
 }

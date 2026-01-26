@@ -10,6 +10,8 @@ export interface Tag {
   id: string
   name: string
   colour: string | null
+  is_standard: boolean
+  is_hidden: boolean
   usage_count: number
   created_at: string
   updated_at: string
@@ -57,6 +59,9 @@ export interface TransactionTagResponse {
   id: string
   name: string
   colour: string | null
+  is_auto: boolean
+  rule_id: string | null
+  rule_name: string | null
 }
 
 export interface BulkTagResponse {

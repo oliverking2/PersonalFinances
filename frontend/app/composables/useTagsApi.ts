@@ -62,6 +62,20 @@ export function useTagsApi() {
     })
   }
 
+  // Hide a tag from the UI (standard tags cannot be deleted, only hidden)
+  async function hideTag(tagId: string): Promise<Tag> {
+    return authFetch<Tag>(`/api/tags/${tagId}/hide`, {
+      method: 'PUT',
+    })
+  }
+
+  // Unhide a previously hidden tag
+  async function unhideTag(tagId: string): Promise<Tag> {
+    return authFetch<Tag>(`/api/tags/${tagId}/unhide`, {
+      method: 'PUT',
+    })
+  }
+
   // ---------------------------------------------------------------------------
   // Transaction Tagging
   // ---------------------------------------------------------------------------
@@ -113,6 +127,8 @@ export function useTagsApi() {
     fetchTag,
     updateTag,
     deleteTag,
+    hideTag,
+    unhideTag,
 
     // Transaction tagging
     addTagsToTransaction,

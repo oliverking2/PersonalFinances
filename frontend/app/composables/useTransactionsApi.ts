@@ -4,8 +4,12 @@
 // =============================================================================
 
 import type {
+  Transaction,
   TransactionListResponse,
   TransactionQueryParams,
+  TransactionSplitsResponse,
+  SetSplitsRequest,
+  UpdateNoteRequest,
 } from '~/types/transactions'
 import { useAuthenticatedFetch } from '~/composables/useAuthenticatedFetch'
 
@@ -75,9 +79,62 @@ export function useTransactionsApi() {
   }
 
   // ---------------------------------------------------------------------------
+  // Split Management
+  // ---------------------------------------------------------------------------
+
+  // Get splits for a transaction
+  async function getSplits(
+    transactionId: string,
+  ): Promise<TransactionSplitsResponse> {
+    return authFetch<TransactionSplitsResponse>(
+      `/api/transactions/${transactionId}/splits`,
+    )
+  }
+
+  // Set splits for a transaction (replaces all existing splits)
+  async function setSplits(
+    transactionId: string,
+    req: SetSplitsRequest,
+  ): Promise<TransactionSplitsResponse> {
+    return authFetch<TransactionSplitsResponse>(
+      `/api/transactions/${transactionId}/splits`,
+      {
+        method: 'PUT',
+        body: req,
+      },
+    )
+  }
+
+  // Clear all splits from a transaction
+  async function clearSplits(transactionId: string): Promise<void> {
+    await authFetch(`/api/transactions/${transactionId}/splits`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Note Management
+  // ---------------------------------------------------------------------------
+
+  // Update or clear the user note on a transaction
+  async function updateNote(
+    transactionId: string,
+    req: UpdateNoteRequest,
+  ): Promise<Transaction> {
+    return authFetch<Transaction>(`/api/transactions/${transactionId}/note`, {
+      method: 'PATCH',
+      body: req,
+    })
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
   return {
     fetchTransactions,
+    getSplits,
+    setSplits,
+    clearSplits,
+    updateNote,
   }
 }

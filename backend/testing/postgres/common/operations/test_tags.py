@@ -4,12 +4,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
 from src.postgres.common.models import Account, Transaction
 from src.postgres.common.operations.tags import (
-    MAX_TAGS_PER_TRANSACTION,
+    STANDARD_TAGS,
+    StandardTagDeletionError,
     add_tags_to_transaction,
     bulk_tag_transactions,
     count_tags_by_user_id,
@@ -19,7 +21,11 @@ from src.postgres.common.operations.tags import (
     get_tag_by_name,
     get_tag_usage_counts,
     get_tags_by_user_id,
+    get_visible_tags_by_user_id,
+    hide_tag,
     remove_tag_from_transaction,
+    seed_standard_tags,
+    unhide_tag,
     update_tag,
 )
 
@@ -154,6 +160,90 @@ class TestTagCRUD:
         result = delete_tag(db_session, uuid4())
         assert result is False
 
+    def test_delete_standard_tag_raises_error(self, db_session: Session, test_user: User) -> None:
+        """Should raise StandardTagDeletionError when deleting standard tag."""
+        seed_standard_tags(db_session, test_user.id)
+        db_session.commit()
+
+        tag = get_tag_by_name(db_session, test_user.id, "Groceries")
+        assert tag is not None
+        assert tag.is_standard is True
+
+        with pytest.raises(StandardTagDeletionError):
+            delete_tag(db_session, tag.id)
+
+
+class TestStandardTags:
+    """Tests for standard tag operations."""
+
+    def test_seed_standard_tags(self, db_session: Session, test_user: User) -> None:
+        """Should seed all standard tags for a user."""
+        tags = seed_standard_tags(db_session, test_user.id)
+        db_session.commit()
+
+        assert len(tags) == len(STANDARD_TAGS)
+        for tag in tags:
+            assert tag.is_standard is True
+            assert tag.is_hidden is False
+
+    def test_seed_standard_tags_is_idempotent(self, db_session: Session, test_user: User) -> None:
+        """Should not create duplicates when called twice."""
+        seed_standard_tags(db_session, test_user.id)
+        db_session.commit()
+
+        count_before = count_tags_by_user_id(db_session, test_user.id)
+
+        seed_standard_tags(db_session, test_user.id)
+        db_session.commit()
+
+        count_after = count_tags_by_user_id(db_session, test_user.id)
+        assert count_after == count_before
+
+    def test_hide_tag(self, db_session: Session, test_user: User) -> None:
+        """Should hide a tag."""
+        tag = create_tag(db_session, test_user.id, "Test")
+        db_session.commit()
+
+        result = hide_tag(db_session, tag.id)
+        db_session.commit()
+
+        assert result is not None
+        assert result.is_hidden is True
+
+    def test_hide_tag_not_found(self, db_session: Session) -> None:
+        """Should return None when hiding non-existent tag."""
+        result = hide_tag(db_session, uuid4())
+        assert result is None
+
+    def test_unhide_tag(self, db_session: Session, test_user: User) -> None:
+        """Should unhide a hidden tag."""
+        tag = create_tag(db_session, test_user.id, "Test")
+        tag.is_hidden = True
+        db_session.commit()
+
+        result = unhide_tag(db_session, tag.id)
+        db_session.commit()
+
+        assert result is not None
+        assert result.is_hidden is False
+
+    def test_unhide_tag_not_found(self, db_session: Session) -> None:
+        """Should return None when unhiding non-existent tag."""
+        result = unhide_tag(db_session, uuid4())
+        assert result is None
+
+    def test_get_visible_tags_excludes_hidden(self, db_session: Session, test_user: User) -> None:
+        """Should only return non-hidden tags."""
+        create_tag(db_session, test_user.id, "Visible")
+        hidden = create_tag(db_session, test_user.id, "Hidden")
+        hidden.is_hidden = True
+        db_session.commit()
+
+        tags = get_visible_tags_by_user_id(db_session, test_user.id)
+
+        assert len(tags) == 1
+        assert tags[0].name == "Visible"
+
 
 class TestTransactionTagging:
     """Tests for transaction tagging operations."""
@@ -161,7 +251,7 @@ class TestTransactionTagging:
     def test_add_tags_to_transaction(
         self, db_session: Session, test_user: User, test_account: Account
     ) -> None:
-        """Should add tags to a transaction."""
+        """Should add first tag to a transaction (unified model uses splits)."""
         tag1 = create_tag(db_session, test_user.id, "Tag1")
         tag2 = create_tag(db_session, test_user.id, "Tag2")
         txn = Transaction(
@@ -175,11 +265,12 @@ class TestTransactionTagging:
         db_session.add(txn)
         db_session.commit()
 
+        # In unified model, only the first tag is used (creates 100% split)
         tags = add_tags_to_transaction(db_session, txn.id, [tag1.id, tag2.id])
         db_session.commit()
 
-        assert len(tags) == 2
-        assert {t.name for t in tags} == {"Tag1", "Tag2"}
+        assert len(tags) == 1
+        assert tags[0].name == "Tag1"
 
     def test_add_tags_ignores_duplicates(
         self, db_session: Session, test_user: User, test_account: Account
@@ -202,11 +293,11 @@ class TestTransactionTagging:
 
         assert len(tags) == 1
 
-    def test_add_tags_respects_limit(
+    def test_add_tags_uses_first_only(
         self, db_session: Session, test_user: User, test_account: Account
     ) -> None:
-        """Should respect the maximum tags per transaction limit."""
-        tags = [create_tag(db_session, test_user.id, f"Tag{i}") for i in range(15)]
+        """In unified model, only first tag is used regardless of list size."""
+        tags = [create_tag(db_session, test_user.id, f"Tag{i}") for i in range(5)]
         txn = Transaction(
             account_id=test_account.id,
             provider_id="txn-001",
@@ -220,14 +311,15 @@ class TestTransactionTagging:
         result_tags = add_tags_to_transaction(db_session, txn.id, [t.id for t in tags])
         db_session.commit()
 
-        assert len(result_tags) == MAX_TAGS_PER_TRANSACTION
+        # Unified model: only first tag used, creates single 100% split
+        assert len(result_tags) == 1
+        assert result_tags[0].name == "Tag0"
 
     def test_remove_tag_from_transaction(
         self, db_session: Session, test_user: User, test_account: Account
     ) -> None:
-        """Should remove a tag from a transaction."""
+        """Should remove a tag from a transaction (removes the split)."""
         tag1 = create_tag(db_session, test_user.id, "Tag1")
-        tag2 = create_tag(db_session, test_user.id, "Tag2")
         txn = Transaction(
             account_id=test_account.id,
             provider_id="txn-001",
@@ -238,12 +330,11 @@ class TestTransactionTagging:
         db_session.add(txn)
         db_session.commit()
 
-        add_tags_to_transaction(db_session, txn.id, [tag1.id, tag2.id])
+        add_tags_to_transaction(db_session, txn.id, [tag1.id])
         tags = remove_tag_from_transaction(db_session, txn.id, tag1.id)
         db_session.commit()
 
-        assert len(tags) == 1
-        assert tags[0].name == "Tag2"
+        assert len(tags) == 0
 
     def test_bulk_tag_transactions(
         self, db_session: Session, test_user: User, test_account: Account
@@ -269,7 +360,7 @@ class TestTransactionTagging:
         assert count == 3
         for txn in txns:
             db_session.refresh(txn)
-            assert len(txn.tags) == 1
+            assert len(txn.splits) == 1
 
     def test_bulk_tag_removes_tags(
         self, db_session: Session, test_user: User, test_account: Account
@@ -301,7 +392,7 @@ class TestTransactionTagging:
         assert count == 2
         for txn in txns:
             db_session.refresh(txn)
-            assert len(txn.tags) == 0
+            assert len(txn.splits) == 0
 
 
 class TestTagUsageCounts:

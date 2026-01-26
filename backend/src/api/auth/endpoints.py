@@ -24,6 +24,7 @@ from src.postgres.auth.operations.refresh_tokens import (
     rotate_token,
 )
 from src.postgres.auth.operations.users import create_user, get_user_by_username
+from src.postgres.common.operations.tags import seed_standard_tags
 from src.utils.definitions import access_token_expire_minutes, cookie_domain, is_local_environment
 from src.utils.security import create_access_token, verify_password
 
@@ -162,6 +163,10 @@ def register(
         register_request.first_name,
         register_request.last_name,
     )
+
+    # Seed standard tags for the new user
+    seed_standard_tags(db, user.id)
+
     db.commit()
 
     logger.info(f"User registered: user_id={user.id}, username={user.username}")

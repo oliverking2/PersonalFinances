@@ -1,6 +1,7 @@
 """Transaction API endpoints."""
 
 import logging
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,16 +12,26 @@ from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES, UNAU
 from src.api.transactions.models import (
     BulkTagRequest,
     BulkTagResponse,
+    SetSplitsRequest,
     TransactionListResponse,
     TransactionQueryParams,
     TransactionResponse,
+    TransactionSplitResponse,
+    TransactionSplitsResponse,
     TransactionTagResponse,
     TransactionTagsRequest,
     TransactionTagsResponse,
+    UpdateNoteRequest,
 )
 from src.postgres.auth.models import User
 from src.postgres.common.models import Transaction
 from src.postgres.common.operations.connections import get_connections_by_user_id
+from src.postgres.common.operations.splits import (
+    SplitValidationError,
+    clear_transaction_splits,
+    get_splits_with_tags,
+    set_transaction_splits,
+)
 from src.postgres.common.operations.tags import (
     add_tags_to_transaction,
     bulk_tag_transactions,
@@ -106,15 +117,56 @@ def list_transactions(
     )
 
     return TransactionListResponse(
-        transactions=[_to_response(txn) for txn in result.transactions],
+        transactions=[_to_response(txn, db) for txn in result.transactions],
         total=result.total,
         page=result.page,
         page_size=result.page_size,
     )
 
 
-def _to_response(txn: Transaction) -> TransactionResponse:
-    """Convert a Transaction model to API response."""
+def _to_response(txn: Transaction, db: Session | None = None) -> TransactionResponse:
+    """Convert a Transaction model to API response.
+
+    In the unified model, all tagging is done via splits. The `tags` field is
+    populated from splits for backwards compatibility with the frontend.
+
+    :param txn: Transaction model.
+    :param db: Optional session (unused in unified model, kept for compatibility).
+    """
+    # Build tag responses from splits (unified model: tags = splits)
+    tag_responses = []
+    split_responses = []
+
+    for split in txn.splits:
+        # Get rule name if auto-tagged
+        rule_name = split.rule.name if split.rule else None
+
+        # Add to tags list (for backwards compatibility)
+        tag_responses.append(
+            TransactionTagResponse(
+                id=str(split.tag_id),
+                name=split.tag.name,
+                colour=split.tag.colour,
+                is_auto=split.is_auto,
+                rule_id=str(split.rule_id) if split.rule_id else None,
+                rule_name=rule_name,
+            )
+        )
+
+        # Add to splits list (with full split info)
+        split_responses.append(
+            TransactionSplitResponse(
+                id=str(split.id),
+                tag_id=str(split.tag_id),
+                tag_name=split.tag.name,
+                tag_colour=split.tag.colour,
+                amount=float(split.amount),
+                is_auto=split.is_auto,
+                rule_id=str(split.rule_id) if split.rule_id else None,
+                rule_name=rule_name,
+            )
+        )
+
     return TransactionResponse(
         id=str(txn.id),
         account_id=str(txn.account_id),
@@ -125,10 +177,9 @@ def _to_response(txn: Transaction) -> TransactionResponse:
         description=txn.description,
         merchant_name=txn.counterparty_name,
         category=txn.category,
-        tags=[
-            TransactionTagResponse(id=str(tag.id), name=tag.name, colour=tag.colour)
-            for tag in txn.tags
-        ],
+        user_note=txn.user_note,
+        tags=tag_responses,
+        splits=split_responses,
     )
 
 
@@ -183,7 +234,17 @@ def add_transaction_tags(
 
     return TransactionTagsResponse(
         transaction_id=str(transaction_id),
-        tags=[TransactionTagResponse(id=str(t.id), name=t.name, colour=t.colour) for t in tags],
+        tags=[
+            TransactionTagResponse(
+                id=str(t.id),
+                name=t.name,
+                colour=t.colour,
+                is_auto=False,  # Manually added tags are not auto
+                rule_id=None,
+                rule_name=None,
+            )
+            for t in tags
+        ],
     )
 
 
@@ -209,7 +270,17 @@ def remove_transaction_tag(
 
     return TransactionTagsResponse(
         transaction_id=str(transaction_id),
-        tags=[TransactionTagResponse(id=str(t.id), name=t.name, colour=t.colour) for t in tags],
+        tags=[
+            TransactionTagResponse(
+                id=str(t.id),
+                name=t.name,
+                colour=t.colour,
+                is_auto=False,
+                rule_id=None,
+                rule_name=None,
+            )
+            for t in tags
+        ],
     )
 
 
@@ -247,3 +318,150 @@ def bulk_tag(
     db.commit()
 
     return BulkTagResponse(updated_count=updated_count)
+
+
+# -----------------------------------------------------------------------------
+# Split Endpoints
+# -----------------------------------------------------------------------------
+
+
+@router.get(
+    "/{transaction_id}/splits",
+    response_model=TransactionSplitsResponse,
+    summary="Get transaction splits",
+    responses=RESOURCE_RESPONSES,
+)
+def get_transaction_splits_endpoint(
+    transaction_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TransactionSplitsResponse:
+    """Get all splits for a transaction."""
+    transaction = _verify_transaction_ownership(db, transaction_id, current_user)
+    if not transaction:
+        raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
+
+    splits_with_tags = get_splits_with_tags(db, transaction_id)
+
+    return TransactionSplitsResponse(
+        transaction_id=str(transaction_id),
+        splits=[
+            TransactionSplitResponse(
+                id=str(split.id),
+                tag_id=str(split.tag_id),
+                tag_name=tag.name,
+                tag_colour=tag.colour,
+                amount=float(split.amount),
+                is_auto=split.is_auto,
+                rule_id=str(split.rule_id) if split.rule_id else None,
+                rule_name=split.rule.name if split.rule else None,
+            )
+            for split, tag in splits_with_tags
+        ],
+    )
+
+
+@router.put(
+    "/{transaction_id}/splits",
+    response_model=TransactionSplitsResponse,
+    summary="Set transaction splits",
+    responses=RESOURCE_WRITE_RESPONSES,
+)
+def set_transaction_splits_endpoint(
+    transaction_id: UUID,
+    request: SetSplitsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TransactionSplitsResponse:
+    """Set splits for a transaction (replaces all existing splits).
+
+    The sum of all split amounts must equal the absolute transaction amount.
+    """
+    transaction = _verify_transaction_ownership(db, transaction_id, current_user)
+    if not transaction:
+        raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
+
+    # Verify all tags belong to user
+    splits = []
+    for split_req in request.splits:
+        tag_id = UUID(split_req.tag_id)
+        tag = get_tag_by_id(db, tag_id)
+        if not tag or tag.user_id != current_user.id:
+            raise HTTPException(status_code=400, detail=f"Invalid tag: {split_req.tag_id}")
+        splits.append((tag_id, Decimal(str(split_req.amount))))
+
+    try:
+        set_transaction_splits(db, transaction, splits)
+        db.commit()
+    except SplitValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Refresh to get updated splits with tag relationships
+    db.refresh(transaction)
+    splits_with_tags = get_splits_with_tags(db, transaction_id)
+
+    return TransactionSplitsResponse(
+        transaction_id=str(transaction_id),
+        splits=[
+            TransactionSplitResponse(
+                id=str(split.id),
+                tag_id=str(split.tag_id),
+                tag_name=tag.name,
+                tag_colour=tag.colour,
+                amount=float(split.amount),
+                is_auto=split.is_auto,
+                rule_id=str(split.rule_id) if split.rule_id else None,
+                rule_name=split.rule.name if split.rule else None,
+            )
+            for split, tag in splits_with_tags
+        ],
+    )
+
+
+@router.delete(
+    "/{transaction_id}/splits",
+    status_code=204,
+    summary="Clear transaction splits",
+    responses=RESOURCE_RESPONSES,
+)
+def clear_transaction_splits_endpoint(
+    transaction_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Remove all splits from a transaction."""
+    transaction = _verify_transaction_ownership(db, transaction_id, current_user)
+    if not transaction:
+        raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
+
+    clear_transaction_splits(db, transaction_id)
+    db.commit()
+
+
+# -----------------------------------------------------------------------------
+# Note Endpoint
+# -----------------------------------------------------------------------------
+
+
+@router.patch(
+    "/{transaction_id}/note",
+    response_model=TransactionResponse,
+    summary="Update transaction note",
+    responses=RESOURCE_WRITE_RESPONSES,
+)
+def update_transaction_note(
+    transaction_id: UUID,
+    request: UpdateNoteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TransactionResponse:
+    """Update or clear the user note on a transaction."""
+    transaction = _verify_transaction_ownership(db, transaction_id, current_user)
+    if not transaction:
+        raise HTTPException(status_code=404, detail=f"Transaction not found: {transaction_id}")
+
+    transaction.user_note = request.user_note
+    db.commit()
+    db.refresh(transaction)
+
+    return _to_response(transaction, db)

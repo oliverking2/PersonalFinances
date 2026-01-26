@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from src.postgres.common.models import Transaction, TransactionTag
+from src.postgres.common.models import Transaction, TransactionSplit
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -77,10 +77,10 @@ def get_transactions_for_user(  # noqa: PLR0913
 
     query = session.query(Transaction).filter(Transaction.account_id.in_(account_ids))
 
-    # Apply tag filter (join with transaction_tags if needed)
+    # Apply tag filter (join with transaction_splits if needed)
     # Uses OR logic: transactions with ANY of the specified tags
     if tag_ids:
-        query = query.join(TransactionTag).filter(TransactionTag.tag_id.in_(tag_ids)).distinct()
+        query = query.join(TransactionSplit).filter(TransactionSplit.tag_id.in_(tag_ids)).distinct()
 
     # Apply date filters (convert date to datetime for proper comparison)
     if start_date is not None:

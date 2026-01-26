@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
-from src.postgres.common.operations.tags import create_tag
+from src.postgres.common.models import Tag
+from src.postgres.common.operations.tags import create_tag, seed_standard_tags
 
 
 class TestListTags:
@@ -248,3 +249,143 @@ class TestDeleteTag:
         )
 
         assert response.status_code == 404
+
+    def test_rejects_standard_tag_deletion(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should return 400 when trying to delete a standard tag."""
+        seed_standard_tags(api_db_session, test_user_in_db.id)
+        api_db_session.commit()
+
+        # Find the Groceries standard tag
+        tag = (
+            api_db_session.query(Tag)
+            .filter(Tag.user_id == test_user_in_db.id, Tag.name == "Groceries")
+            .first()
+        )
+        assert tag is not None
+
+        response = client.delete(f"/api/tags/{tag.id}", headers=api_auth_headers)
+
+        assert response.status_code == 400
+        assert "Cannot delete standard tag" in response.json()["detail"]
+
+
+class TestHideTag:
+    """Tests for PUT /api/tags/{tag_id}/hide endpoint."""
+
+    def test_hides_tag(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should hide a tag."""
+        tag = create_tag(api_db_session, test_user_in_db.id, "Test")
+        api_db_session.commit()
+
+        response = client.put(f"/api/tags/{tag.id}/hide", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_hidden"] is True
+
+    def test_returns_404_for_not_found(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should return 404 for non-existent tag."""
+        response = client.put(
+            "/api/tags/00000000-0000-0000-0000-000000000000/hide",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 404
+
+
+class TestUnhideTag:
+    """Tests for PUT /api/tags/{tag_id}/unhide endpoint."""
+
+    def test_unhides_tag(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should unhide a tag."""
+        tag = create_tag(api_db_session, test_user_in_db.id, "Test")
+        tag.is_hidden = True
+        api_db_session.commit()
+
+        response = client.put(f"/api/tags/{tag.id}/unhide", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_hidden"] is False
+
+    def test_returns_404_for_not_found(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should return 404 for non-existent tag."""
+        response = client.put(
+            "/api/tags/00000000-0000-0000-0000-000000000000/unhide",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 404
+
+
+class TestTagResponseFields:
+    """Tests that tag responses include standard and hidden fields."""
+
+    def test_tag_response_includes_standard_fields(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should include is_standard and is_hidden in response."""
+        tag = create_tag(api_db_session, test_user_in_db.id, "Test")
+        api_db_session.commit()
+
+        response = client.get(f"/api/tags/{tag.id}", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "is_standard" in data
+        assert "is_hidden" in data
+        assert data["is_standard"] is False
+        assert data["is_hidden"] is False
+
+    def test_standard_tag_has_is_standard_true(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should have is_standard=True for standard tags."""
+        seed_standard_tags(api_db_session, test_user_in_db.id)
+        api_db_session.commit()
+
+        response = client.get("/api/tags", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        groceries_tag = next((t for t in data["tags"] if t["name"] == "Groceries"), None)
+        assert groceries_tag is not None
+        assert groceries_tag["is_standard"] is True

@@ -11,6 +11,8 @@ class TagResponse(BaseModel):
     id: str = Field(..., description="Tag UUID")
     name: str = Field(..., description="Tag name")
     colour: str | None = Field(None, description="Hex colour code (e.g., #10B981)")
+    is_standard: bool = Field(False, description="Whether this is a pre-defined standard tag")
+    is_hidden: bool = Field(False, description="Whether this tag is hidden from the UI")
     usage_count: int = Field(0, description="Number of transactions with this tag")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")

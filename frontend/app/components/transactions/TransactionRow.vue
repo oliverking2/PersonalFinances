@@ -96,6 +96,40 @@ const selectedTagIds = computed(() => {
   return props.transaction.tags?.map((t) => t.id) || []
 })
 
+// All tags to display (regular tags + split tags)
+const allDisplayTags = computed(() => {
+  const tags: {
+    id: string
+    name: string
+    colour: string | null
+    isSplit?: boolean
+  }[] = []
+
+  // Add regular tags
+  if (props.transaction.tags) {
+    for (const tag of props.transaction.tags) {
+      tags.push({ id: tag.id, name: tag.name, colour: tag.colour })
+    }
+  }
+
+  // Add split tags (if not already in regular tags)
+  if (props.transaction.splits) {
+    const existingIds = new Set(tags.map((t) => t.id))
+    for (const split of props.transaction.splits) {
+      if (!existingIds.has(split.tag_id)) {
+        tags.push({
+          id: split.tag_id,
+          name: split.tag_name,
+          colour: split.tag_colour,
+          isSplit: true,
+        })
+      }
+    }
+  }
+
+  return tags
+})
+
 // ---------------------------------------------------------------------------
 // Methods
 // ---------------------------------------------------------------------------
@@ -213,20 +247,20 @@ onUnmounted(() => {
     <div
       class="tag-selector-container relative ml-4 flex flex-shrink-0 items-center gap-1.5"
     >
-      <!-- Existing tags (always removable) -->
+      <!-- All tags (regular + split tags) -->
       <TagsTagChip
-        v-for="tag in transaction.tags"
+        v-for="tag in allDisplayTags"
         :key="tag.id"
         class="tag-chip"
         :name="tag.name"
         :colour="tag.colour"
-        removable
+        :removable="!tag.isSplit"
         @remove="handleRemoveTag(tag.id)"
       />
 
-      <!-- Add tag button (show if no tag yet) -->
+      <!-- Add tag button (show if no tags at all) -->
       <button
-        v-if="!transaction.tags || transaction.tags.length === 0"
+        v-if="allDisplayTags.length === 0"
         type="button"
         class="add-tag-btn"
         title="Add tag"

@@ -7,6 +7,7 @@ view for the frontend.
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, Text
@@ -298,6 +299,9 @@ class Transaction(Base):
     # Classification
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # User-added note (useful for split context or personal annotations)
+    user_note: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     # Metadata
     synced_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -307,10 +311,11 @@ class Transaction(Base):
 
     # Relationships
     account: Mapped[Account] = relationship("Account")
-    tags: Mapped[list["Tag"]] = relationship(
-        "Tag",
-        secondary="transaction_tags",
-        back_populates="transactions",
+    # All tagging is done via splits (unified model - default 100% for single tag)
+    splits: Mapped[list["TransactionSplit"]] = relationship(
+        "TransactionSplit",
+        back_populates="transaction",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -381,6 +386,9 @@ class Tag(Base):
 
     Tags are user-scoped labels for categorising transactions.
     Each user can create up to 100 tags with unique names.
+
+    Standard tags are pre-defined and seeded for each user on registration.
+    They cannot be deleted but can be hidden from the UI.
     """
 
     __tablename__ = "tags"
@@ -392,6 +400,57 @@ class Tag(Base):
     )
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     colour: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    is_standard: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_hidden: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    __table_args__ = (
+        Index("idx_tags_user_id", "user_id"),
+        Index("idx_tags_user_name", "user_id", "name", unique=True),
+    )
+
+
+class TagRule(Base):
+    """Database model for auto-tagging rules.
+
+    Rules define conditions for automatically tagging transactions.
+    They are evaluated in priority order (lowest number = highest priority).
+    """
+
+    __tablename__ = "tag_rules"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    tag_id: Mapped[UUID] = mapped_column(
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    priority: Mapped[int] = mapped_column(default=0, nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    # Filter conditions stored as JSON (see RuleConditions TypedDict in operations/tag_rules.py)
+    conditions: Mapped[dict[str, Any]] = mapped_column(_JSONType, nullable=False, default=dict)
+
+    # Account filter kept as FK for referential integrity
+    account_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -405,38 +464,71 @@ class Tag(Base):
     )
 
     # Relationships
-    transactions: Mapped[list["Transaction"]] = relationship(
-        "Transaction",
-        secondary="transaction_tags",
-        back_populates="tags",
-    )
+    tag: Mapped["Tag"] = relationship("Tag")
 
     __table_args__ = (
-        Index("idx_tags_user_id", "user_id"),
-        Index("idx_tags_user_name", "user_id", "name", unique=True),
+        Index("idx_tag_rules_user_id", "user_id"),
+        Index("idx_tag_rules_user_priority", "user_id", "priority"),
     )
 
 
-class TransactionTag(Base):
-    """Junction table for transaction-tag many-to-many relationship.
+class TransactionSplit(Base):
+    """Database model for transaction splits (unified tagging model).
 
-    Each transaction can have up to 10 tags.
+    All transaction tagging is done via splits. A simple tag is a 100% split.
+    Complex splits allocate amounts across multiple tags for accurate budgeting.
+
+    For example:
+    - Simple: £50 coffee -> 100% to Dining tag
+    - Split: £100 supermarket -> £60 Groceries + £40 Household
+
+    The sum of all splits should equal the transaction amount (absolute value).
+    This constraint is enforced at the application level, not in the database.
     """
 
-    __tablename__ = "transaction_tags"
+    __tablename__ = "transaction_splits"
 
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     transaction_id: Mapped[UUID] = mapped_column(
         ForeignKey("transactions.id", ondelete="CASCADE"),
-        primary_key=True,
+        nullable=False,
     )
     tag_id: Mapped[UUID] = mapped_column(
         ForeignKey("tags.id", ondelete="CASCADE"),
-        primary_key=True,
+        nullable=False,
     )
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+
+    # Auto-tagging metadata
+    is_auto: Mapped[bool] = mapped_column(default=False, nullable=False)
+    rule_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("tag_rules.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=_utc_now,
     )
 
-    __table_args__ = (Index("idx_transaction_tags_tag_id", "tag_id"),)
+    # Relationship to get rule details
+    rule: Mapped["TagRule | None"] = relationship("TagRule")
+
+    # Relationships
+    transaction: Mapped["Transaction"] = relationship(
+        "Transaction",
+        back_populates="splits",
+    )
+    tag: Mapped["Tag"] = relationship("Tag")
+
+    __table_args__ = (
+        Index("idx_transaction_splits_transaction", "transaction_id"),
+        Index("idx_transaction_splits_tag", "tag_id"),
+        Index(
+            "idx_transaction_splits_unique",
+            "transaction_id",
+            "tag_id",
+            unique=True,
+        ),
+    )
