@@ -103,7 +103,10 @@ ignore = [
     "E501"   # Line too long (handled by formatter)
 ]
 
-# UP045: Dagster Config requires Optional[] syntax, not X | None union
+# Per-file rule ignores (with explanations):
+# - __init__.py: D = docstrings not needed in module exports
+# - testing/: PLR2004 = magic values acceptable in test assertions (assert x == 42)
+# - orchestration/: UP045 = Dagster Config requires Optional[] syntax, not X | None union
 per-file-ignores = { "__init__.py" = ["D"], "testing/**/*.py" = ["PLR2004"], "src/orchestration/**/*.py" = ["UP045"] }
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"  # Regex for unused variables
