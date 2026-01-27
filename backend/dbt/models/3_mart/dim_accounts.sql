@@ -3,13 +3,15 @@
 
 WITH ACCOUNTS AS (
     SELECT
-        ID AS ACCOUNT_ID,
+        ID  AS ACCOUNT_ID,
         CONNECTION_ID,
         DISPLAY_NAME,
         NAME,
         IBAN,
         CURRENCY,
         ACCOUNT_TYPE,
+        CATEGORY,
+        CREDIT_LIMIT,
         STATUS,
         BALANCE_AMOUNT,
         BALANCE_CURRENCY,
@@ -17,7 +19,19 @@ WITH ACCOUNTS AS (
         BALANCE_UPDATED_AT,
         TOTAL_VALUE,
         UNREALISED_PNL,
-        PROVIDER_ID
+        PROVIDER_ID,
+        -- Normalize credit card balance to always represent amount owed
+        -- Positive raw balance on credit cards = available credit (Nationwide style)
+        -- Negative raw balance on credit cards = amount owed (Amex style)
+        CASE
+            WHEN CATEGORY = 'credit_card' AND CREDIT_LIMIT IS NOT NULL AND BALANCE_AMOUNT > 0
+                THEN GREATEST(0, CREDIT_LIMIT - BALANCE_AMOUNT)  -- Available credit -> owed
+            WHEN CATEGORY = 'credit_card' AND BALANCE_AMOUNT <= 0
+                THEN ABS(BALANCE_AMOUNT)  -- Already shows owed
+            WHEN CATEGORY = 'credit_card'
+                THEN ABS(BALANCE_AMOUNT)  -- No credit limit, use absolute value
+            ELSE BALANCE_AMOUNT  -- Non-credit cards: use raw balance
+        END AS NORMALIZED_BALANCE
     FROM {{ ref("src_unified_accounts") }}
 ),
 
@@ -47,8 +61,11 @@ SELECT
     COALESCE(ACC.DISPLAY_NAME, ACC.NAME, 'Unknown Account') AS DISPLAY_NAME,
     ACC.CURRENCY,
     ACC.ACCOUNT_TYPE,
+    ACC.CATEGORY,
+    ACC.CREDIT_LIMIT,
     ACC.STATUS                                              AS ACCOUNT_STATUS,
-    ACC.BALANCE_AMOUNT,
+    ACC.BALANCE_AMOUNT                                      AS RAW_BALANCE_AMOUNT,
+    ACC.NORMALIZED_BALANCE                                  AS BALANCE_AMOUNT,
     ACC.BALANCE_CURRENCY,
     ACC.BALANCE_TYPE,
     ACC.BALANCE_UPDATED_AT,

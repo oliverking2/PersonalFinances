@@ -29,12 +29,18 @@ models:
         description: Type of account (bank, investment, trading)
         data_tests:
           - not_null
+      - name: category
+        description: User-defined category (credit_card, bank_account, etc.)
+      - name: credit_limit
+        description: Credit limit for credit cards
       - name: account_status
         description: Current status of the account (active, inactive)
         data_tests:
           - not_null
+      - name: raw_balance_amount
+        description: Raw balance as reported by the bank (before normalization)
       - name: balance_amount
-        description: Current balance amount
+        description: Normalized balance (for credit cards, always represents amount owed)
       - name: balance_currency
         description: Currency of the balance
       - name: balance_type

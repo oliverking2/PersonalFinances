@@ -70,16 +70,36 @@ const colours = computed(() => {
   })
 })
 
-// Calculate max x-axis value - round up to next £100 with buffer for labels
+// Calculate dynamic tick interval based on max value to prevent label crowding
+function calculateTickInterval(maxValue: number): number {
+  if (maxValue <= 500) return 100
+  if (maxValue <= 2000) return 500
+  if (maxValue <= 10000) return 1000
+  if (maxValue <= 50000) return 5000
+  return 10000
+}
+
+// Calculate max x-axis value - consider ALL series and round to dynamic interval
 const xAxisMax = computed(() => {
-  const firstSeries = series.value[0]
-  if (!firstSeries || !firstSeries.data || firstSeries.data.length === 0) {
-    return undefined
-  }
-  const maxValue = Math.max(...firstSeries.data)
-  // Add 15% buffer then round up to next £100
+  // Get max from ALL series (current + previous if comparing)
+  const allData = series.value.flatMap((s) => s.data)
+  if (!allData.length) return undefined
+
+  const maxValue = Math.max(...allData)
+  if (maxValue === 0) return 100
+
+  // Add 15% buffer then round up to next tick interval
+  const tickInterval = calculateTickInterval(maxValue)
   const withBuffer = maxValue * 1.15
-  return Math.ceil(withBuffer / 100) * 100
+  return Math.ceil(withBuffer / tickInterval) * tickInterval
+})
+
+// Calculate tick amount to prevent label crowding
+const tickAmount = computed(() => {
+  if (!xAxisMax.value) return undefined
+  const maxValue = Math.max(...series.value.flatMap((s) => s.data), 0)
+  const tickInterval = calculateTickInterval(maxValue)
+  return Math.min(8, Math.ceil(xAxisMax.value / tickInterval))
 })
 
 // Chart options
@@ -125,7 +145,7 @@ const chartOptions = computed<ApexOptions>(() => ({
       // distributed: true means each bar gets its own colour from the colors array
       distributed: !props.compareEnabled,
       dataLabels: {
-        position: 'top',
+        position: 'top', // Places labels at end of bar for horizontal charts
       },
     },
   },
@@ -147,7 +167,7 @@ const chartOptions = computed<ApexOptions>(() => ({
       fontWeight: 500,
       colors: ['#e5e5e5'],
     },
-    offsetX: 5,
+    offsetX: 8,
     dropShadow: { enabled: false },
   },
   xaxis: {
@@ -162,9 +182,9 @@ const chartOptions = computed<ApexOptions>(() => ({
     axisBorder: { show: false },
     axisTicks: { show: false },
     min: 0,
-    // Round max up to next £100 with buffer for labels
+    // Dynamic max and tick amount based on data scale
     max: xAxisMax.value,
-    tickAmount: xAxisMax.value ? Math.ceil(xAxisMax.value / 100) : undefined,
+    tickAmount: tickAmount.value,
   },
   yaxis: {
     labels: {

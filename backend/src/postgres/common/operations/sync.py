@@ -149,6 +149,7 @@ def sync_gocardless_account(
         existing.iban = bank_account.iban
         existing.currency = bank_account.currency
         existing.synced_at = now
+        existing.last_synced_at = now  # Track when data was last synced
 
         if balance:
             existing.balance_amount = Decimal(str(balance.balance_amount))
@@ -174,6 +175,7 @@ def sync_gocardless_account(
         currency=bank_account.currency,
         status=status.value,
         synced_at=now,
+        last_synced_at=now,  # Track when data was last synced
     )
 
     if balance:

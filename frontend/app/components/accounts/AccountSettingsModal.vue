@@ -117,9 +117,24 @@ const isValidMinBalance = minBalanceField.isValid
 // Validate credit limit is a valid number if provided
 const isValidCreditLimit = creditLimitField.isValid
 
+// Credit limit is required for credit cards
+const creditLimitRequired = computed(() => {
+  if (!isCreditCard.value) return true // Not required for non-credit cards
+  return creditLimitField.value.value !== '' && isValidCreditLimit.value
+})
+
+// Category is required
+const categoryRequired = computed(() => category.value !== '')
+
 // Overall form validity
 const isValid = computed(() => {
-  return hasChanges.value && isValidMinBalance.value && isValidCreditLimit.value
+  return (
+    hasChanges.value &&
+    categoryRequired.value &&
+    isValidMinBalance.value &&
+    isValidCreditLimit.value &&
+    creditLimitRequired.value
+  )
 })
 
 // ---------------------------------------------------------------------------
@@ -248,13 +263,13 @@ function clearCreditLimit() {
               </p>
             </div>
 
-            <!-- Category dropdown -->
+            <!-- Category dropdown (required) -->
             <div class="mb-4">
               <label
                 for="category"
                 class="mb-2 block text-sm font-medium text-muted"
               >
-                Account Category
+                Account Category <span class="text-negative">*</span>
               </label>
               <AppSelect
                 id="category"
@@ -262,15 +277,21 @@ function clearCreditLimit() {
                 :options="categoryOptions"
                 placeholder="Select a category..."
               />
+              <p
+                v-if="!categoryRequired && hasChanges"
+                class="mt-1 text-xs text-negative"
+              >
+                Account category is required
+              </p>
             </div>
 
-            <!-- Credit Limit input (only for credit cards) -->
+            <!-- Credit Limit input (required for credit cards) -->
             <div v-if="isCreditCard" class="mb-4">
               <label
                 for="credit-limit"
                 class="mb-2 block text-sm font-medium text-muted"
               >
-                Credit Limit (non-negative)
+                Credit Limit <span class="text-negative">*</span>
               </label>
               <div class="relative">
                 <AppInput
@@ -308,6 +329,15 @@ function clearCreditLimit() {
                 class="mt-1 text-xs text-negative"
               >
                 Please enter a valid positive number
+              </p>
+              <p
+                v-else-if="!creditLimitRequired && hasChanges"
+                class="mt-1 text-xs text-negative"
+              >
+                Credit limit is required for credit cards
+              </p>
+              <p v-else class="mt-1 text-xs text-muted">
+                Required to accurately display balance owed
               </p>
             </div>
 

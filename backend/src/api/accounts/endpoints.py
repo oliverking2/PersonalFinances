@@ -171,12 +171,48 @@ def patch_account(  # noqa: PLR0912
     return _to_response(updated)
 
 
+def _normalize_credit_card_balance(
+    balance_amount: float,
+    credit_limit: float | None,
+) -> float:
+    """Normalize credit card balance to always represent amount owed.
+
+    Different banks report credit card balances differently:
+    - Some report negative values (amount owed, e.g., Amex)
+    - Some report positive values (available credit, e.g., Nationwide)
+
+    This function normalizes to: positive = amount owed, zero/negative = credit available.
+
+    :param balance_amount: Raw balance from bank.
+    :param credit_limit: User-configured credit limit.
+    :returns: Normalized balance (positive = owed).
+    """
+    if credit_limit is None:
+        # No credit limit set, can't normalize - return absolute value as "owed"
+        return abs(balance_amount)
+
+    if balance_amount <= 0:
+        # Negative or zero balance = amount owed (Amex style)
+        return abs(balance_amount)
+
+    # Positive balance = available credit (Nationwide style)
+    # Amount owed = credit_limit - available
+    return max(0, credit_limit - balance_amount)
+
+
 def _to_response(account: Account) -> AccountResponse:
     """Convert an Account model to response."""
     balance = None
     if account.balance_amount is not None and account.balance_currency is not None:
+        amount = float(account.balance_amount)
+
+        # Normalize credit card balances to always show "amount owed"
+        if account.category == AccountCategory.CREDIT_CARD.value:
+            credit_limit = float(account.credit_limit) if account.credit_limit is not None else None
+            amount = _normalize_credit_card_balance(amount, credit_limit)
+
         balance = AccountBalance(
-            amount=float(account.balance_amount),
+            amount=amount,
             currency=account.balance_currency,
             type=account.balance_type or "unknown",
         )

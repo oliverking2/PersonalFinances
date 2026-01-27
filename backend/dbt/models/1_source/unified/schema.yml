@@ -1,3 +1,37 @@
+# Model definitions for source layer (documents output columns for lineage)
+models:
+  - name: src_unified_accounts
+    description: Unified account data from all providers
+    columns:
+      - name: id
+      - name: connection_id
+      - name: provider_id
+      - name: account_type
+      - name: category
+      - name: credit_limit
+      - name: display_name
+      - name: name
+      - name: iban
+      - name: currency
+      - name: status
+      - name: last_synced_at
+      - name: synced_at
+      - name: balance_amount
+      - name: balance_currency
+      - name: balance_type
+      - name: balance_updated_at
+      - name: total_value
+      - name: unrealised_pnl
+
+  - name: src_unified_transaction_splits
+    description: Transaction amount allocations across multiple tags
+    columns:
+      - name: id
+      - name: transaction_id
+      - name: tag_id
+      - name: amount
+      - name: created_at
+
 sources:
   # Unified tables maintained by Dagster sync pipeline
   - name: unified
@@ -15,6 +49,8 @@ sources:
           - name: connection_id
           - name: provider_id
           - name: account_type
+          - name: category
+          - name: credit_limit
           - name: display_name
           - name: name
           - name: iban

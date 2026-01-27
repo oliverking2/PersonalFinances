@@ -81,7 +81,7 @@ function aggregateRows(rows: Record<string, unknown>[]): {
     const tag = rawTag || 'Untagged'
     const colour = rawTag ? (row.tag_colour as string) || '#10b981' : '#6b7280'
     const spending = (row.total_spending as number) || 0
-    const count = (row.total_transactions as number) || 0
+    const count = (row.transaction_count as number) || 0
 
     const key = `${date}|${tag}`
     const existing = byDateTag.get(key)
