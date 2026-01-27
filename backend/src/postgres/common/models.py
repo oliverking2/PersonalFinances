@@ -26,6 +26,8 @@ from src.postgres.common.enums import (
     JobStatus,
     JobType,
     Provider,
+    RecurringFrequency,
+    RecurringStatus,
 )
 from src.postgres.core import Base
 
@@ -317,6 +319,12 @@ class Transaction(Base):
         back_populates="transaction",
         cascade="all, delete-orphan",
     )
+    # Recurring pattern links (for subscription detection)
+    pattern_links: Mapped[list["RecurringPatternTransaction"]] = relationship(
+        "RecurringPatternTransaction",
+        back_populates="transaction",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("idx_transactions_account_id", "account_id"),
@@ -529,6 +537,162 @@ class TransactionSplit(Base):
             "idx_transaction_splits_unique",
             "transaction_id",
             "tag_id",
+            unique=True,
+        ),
+    )
+
+
+class RecurringPattern(Base):
+    """Database model for recurring payment patterns.
+
+    Stores detected and user-confirmed recurring payment patterns (subscriptions,
+    bills, regular payments). Patterns can be auto-detected from transaction
+    history or manually created by users.
+    """
+
+    __tablename__ = "recurring_patterns"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Pattern identification
+    merchant_pattern: Mapped[str] = mapped_column(String(256), nullable=False)
+    account_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Pattern characteristics
+    expected_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    amount_variance: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=Decimal("0")
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
+    frequency: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    # Timing
+    anchor_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    next_expected_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    last_occurrence_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Detection metadata
+    confidence_score: Mapped[Decimal] = mapped_column(
+        Numeric(3, 2), nullable=False, default=Decimal("0.5")
+    )
+    occurrence_count: Mapped[int] = mapped_column(default=0, nullable=False)
+
+    # Status
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=RecurringStatus.DETECTED.value
+    )
+
+    # User customisation
+    display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    # Relationships
+    account: Mapped[Account | None] = relationship("Account")
+    transactions: Mapped[list["RecurringPatternTransaction"]] = relationship(
+        "RecurringPatternTransaction",
+        back_populates="pattern",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("idx_recurring_patterns_user_id", "user_id"),
+        Index("idx_recurring_patterns_status", "status"),
+        Index("idx_recurring_patterns_next_date", "next_expected_date"),
+        Index(
+            "idx_recurring_patterns_user_merchant",
+            "user_id",
+            "merchant_pattern",
+            "account_id",
+            unique=True,
+        ),
+    )
+
+    @property
+    def frequency_enum(self) -> RecurringFrequency:
+        """Get frequency as RecurringFrequency enum."""
+        return RecurringFrequency(self.frequency)
+
+    @property
+    def status_enum(self) -> RecurringStatus:
+        """Get status as RecurringStatus enum."""
+        return RecurringStatus(self.status)
+
+
+class RecurringPatternTransaction(Base):
+    """Database model for pattern-transaction links.
+
+    Links detected recurring patterns to their matching transactions for
+    audit trail and transaction history display.
+    """
+
+    __tablename__ = "recurring_pattern_transactions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    pattern_id: Mapped[UUID] = mapped_column(
+        ForeignKey("recurring_patterns.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Match quality
+    amount_match: Mapped[bool] = mapped_column(default=True, nullable=False)
+    date_match: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+
+    # Relationships
+    pattern: Mapped["RecurringPattern"] = relationship(
+        "RecurringPattern",
+        back_populates="transactions",
+    )
+    transaction: Mapped["Transaction"] = relationship(
+        "Transaction",
+        back_populates="pattern_links",
+    )
+
+    __table_args__ = (
+        Index("idx_pattern_transactions_pattern", "pattern_id"),
+        Index("idx_pattern_transactions_transaction", "transaction_id"),
+        Index(
+            "idx_pattern_transaction_unique",
+            "pattern_id",
+            "transaction_id",
             unique=True,
         ),
     )

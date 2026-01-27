@@ -130,3 +130,39 @@ class JobStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class RecurringFrequency(StrEnum):
+    """Frequency of recurring transactions.
+
+    - WEEKLY: Every 7 days
+    - FORTNIGHTLY: Every 14 days
+    - MONTHLY: Once per month
+    - QUARTERLY: Every 3 months
+    - ANNUAL: Once per year
+    - IRREGULAR: Variable frequency that doesn't fit standard patterns
+    """
+
+    WEEKLY = "weekly"
+    FORTNIGHTLY = "fortnightly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    ANNUAL = "annual"
+    IRREGULAR = "irregular"
+
+
+class RecurringStatus(StrEnum):
+    """Status of a recurring payment pattern.
+
+    - DETECTED: Auto-detected, not yet confirmed by user
+    - CONFIRMED: User confirmed this is recurring
+    - DISMISSED: User marked as not recurring (false positive)
+    - PAUSED: User temporarily paused (e.g., cancelled subscription)
+    - MANUAL: Manually added by user
+    """
+
+    DETECTED = "detected"
+    CONFIRMED = "confirmed"
+    DISMISSED = "dismissed"
+    PAUSED = "paused"
+    MANUAL = "manual"

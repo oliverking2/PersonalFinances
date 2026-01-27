@@ -167,6 +167,18 @@ def _to_response(txn: Transaction, db: Session | None = None) -> TransactionResp
             )
         )
 
+    # Get recurring pattern info if linked
+    recurring_pattern_id = None
+    recurring_frequency = None
+    recurring_status = None
+    if txn.pattern_links:
+        # Use the first linked pattern (typically there's only one)
+        link = txn.pattern_links[0]
+        pattern = link.pattern
+        recurring_pattern_id = str(pattern.id)
+        recurring_frequency = pattern.frequency
+        recurring_status = pattern.status
+
     return TransactionResponse(
         id=str(txn.id),
         account_id=str(txn.account_id),
@@ -180,6 +192,9 @@ def _to_response(txn: Transaction, db: Session | None = None) -> TransactionResp
         user_note=txn.user_note,
         tags=tag_responses,
         splits=split_responses,
+        recurring_pattern_id=recurring_pattern_id,
+        recurring_frequency=recurring_frequency,
+        recurring_status=recurring_status,
     )
 
 

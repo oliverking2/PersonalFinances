@@ -15,6 +15,7 @@ const navLinks = [
   { to: '/analytics', label: 'Analytics' },
   { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
+  { to: '/subscriptions', label: 'Subscriptions' },
   { to: '/settings/tags', label: 'Settings' },
 ]
 

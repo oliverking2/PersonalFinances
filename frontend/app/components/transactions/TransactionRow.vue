@@ -7,6 +7,7 @@ Click to select for bulk operations
 <script setup lang="ts">
 import type { Transaction } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
+import type { RecurringFrequency, RecurringStatus } from '~/types/subscriptions'
 
 // ---------------------------------------------------------------------------
 // Props & Emits
@@ -235,7 +236,19 @@ onUnmounted(() => {
 
     <!-- Left side: merchant/description (no flex-1, only takes needed space) -->
     <div class="min-w-0 max-w-[50%] flex-shrink">
-      <p class="truncate font-medium text-foreground">{{ displayName }}</p>
+      <div class="flex items-center gap-2">
+        <p class="truncate font-medium text-foreground">{{ displayName }}</p>
+        <!-- Recurring badge (if this transaction is part of a recurring pattern) -->
+        <SubscriptionsRecurringBadge
+          v-if="
+            transaction.recurring_pattern_id &&
+            transaction.recurring_frequency &&
+            transaction.recurring_status
+          "
+          :frequency="transaction.recurring_frequency as RecurringFrequency"
+          :status="transaction.recurring_status as RecurringStatus"
+        />
+      </div>
       <p v-if="metadataText" class="mt-0.5 truncate text-sm text-muted">
         {{ metadataText }}
       </p>

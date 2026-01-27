@@ -9,6 +9,7 @@ from dagster import Definitions
 
 from src.orchestration.dbt.definitions import dbt_defs
 from src.orchestration.gocardless.definitions import gocardless_defs
+from src.orchestration.recurring_patterns.definitions import recurring_patterns_defs
 from src.orchestration.resources import resource_defs
 
-defs = Definitions.merge(resource_defs, gocardless_defs, dbt_defs)
+defs = Definitions.merge(resource_defs, gocardless_defs, dbt_defs, recurring_patterns_defs)

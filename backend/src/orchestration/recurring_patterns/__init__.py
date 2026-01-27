@@ -1,0 +1,1 @@
+"""Recurring patterns orchestration module."""

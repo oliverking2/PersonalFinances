@@ -8,6 +8,7 @@
 // Represents a single bank transaction
 // -----------------------------------------------------------------------------
 
+import type { RecurringFrequency, RecurringStatus } from './subscriptions'
 export interface TransactionTag {
   id: string
   name: string
@@ -41,7 +42,14 @@ export interface Transaction {
   user_note: string | null // User-added note
   tags: TransactionTag[] // User-defined tags
   splits: TransactionSplit[] // Transaction splits for budgeting
+  // Recurring pattern info (from detection)
+  recurring_pattern_id: string | null
+  recurring_frequency: RecurringFrequency | null
+  recurring_status: RecurringStatus | null
 }
+
+// Re-export recurring types from subscriptions (single source of truth)
+export type { RecurringFrequency, RecurringStatus } from './subscriptions'
 
 // -----------------------------------------------------------------------------
 // API Response Types

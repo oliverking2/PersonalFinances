@@ -12,6 +12,7 @@ from src.api.connections.endpoints import router as connections_router
 from src.api.institutions.endpoints import router as institutions_router
 from src.api.jobs.endpoints import router as jobs_router
 from src.api.middleware import RequestTimingMiddleware
+from src.api.subscriptions.endpoints import router as subscriptions_router
 from src.api.tag_rules.endpoints import router as tag_rules_router
 from src.api.tags.endpoints import router as tags_router
 from src.api.transactions.endpoints import router as transactions_router
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(connections_router, prefix="/api/connections", tags=["connections"])
     app.include_router(institutions_router, prefix="/api/institutions", tags=["institutions"])
     app.include_router(jobs_router, prefix="/api/jobs", tags=["jobs"])
+    app.include_router(subscriptions_router, prefix="/api/subscriptions", tags=["subscriptions"])
     app.include_router(tag_rules_router, prefix="/api/tag-rules", tags=["tag-rules"])
     app.include_router(tags_router, prefix="/api/tags", tags=["tags"])
     app.include_router(transactions_router, prefix="/api/transactions", tags=["transactions"])

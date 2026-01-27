@@ -190,15 +190,25 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 
 ---
 
-## Phase 5: Recurring Transactions
+## Phase 5: Recurring Transactions ✅
 
 Identify subscriptions and predict upcoming bills.
 
-- [ ] Recurring transaction detection algorithm
-- [ ] Visual indicators/badges for subscriptions on transaction list
-- [ ] Upcoming bills/subscriptions widget on home page
-- [ ] Subscription management view (list all detected subscriptions)
-- [ ] Mark false positives / confirm recurring status
+- [x] Recurring transaction detection algorithm (dbt model)
+- [x] Visual indicators/badges for subscriptions on transaction list
+- [x] Upcoming bills/subscriptions widget on home page
+- [x] Subscription management page (`/subscriptions`)
+- [x] Confirm/dismiss/pause/restore patterns
+- [x] Dagster sync job (auto-runs after dbt builds)
+
+### Detection Improvements (pending)
+
+- [ ] Improve confidence calculation (current formula too harsh for consistent payments)
+- [ ] Separate patterns by amount bucket (Apple £4.99 and £2.99 should be different)
+- [ ] Allow editing expected amount when subscription price changes
+- [ ] Subscription detail view with linked transactions and detection explanation
+- [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
+- [ ] Add pagination to subscription transactions endpoint (currently returns all)
 
 ### General Transport Improvements
 

@@ -205,6 +205,93 @@ models:
         data_tests:
           - not_null
 
+  - name: int_recurring_candidates
+    description: |
+      Intermediate model for recurring pattern detection.
+      Analyses transaction history to identify candidate recurring payments.
+    meta:
+      dataset: false
+      group: "intermediate"
+    columns:
+      - name: account_id
+        description: Account the transactions belong to
+      - name: user_id
+        description: Owner of the account
+      - name: merchant_key
+        description: Normalised merchant name (lowercase, trimmed)
+      - name: currency
+        description: Currency of the transactions
+      - name: occurrence_count
+        description: Number of matching transactions
+      - name: avg_amount
+        description: Average transaction amount
+      - name: avg_interval
+        description: Average days between transactions
+      - name: last_occurrence
+        description: Most recent transaction date
+      - name: detected_frequency
+        description: Detected payment frequency (weekly, monthly, etc.)
+      - name: confidence_score
+        description: Pattern detection confidence (0.0-1.0)
+
+  - name: fct_recurring_patterns
+    description: |
+      Fact table for recurring payment patterns (subscriptions, bills).
+      Merges auto-detected patterns with user-managed patterns from the database.
+    meta:
+      dataset: true
+      friendly_name: "Recurring Patterns"
+      group: "facts"
+      filters:
+        date_column: "next_expected_date"
+    columns:
+      - name: pattern_id
+        description: Unique identifier for the pattern
+        data_tests:
+          - not_null
+      - name: user_id
+        description: Owner of the pattern
+        data_tests:
+          - not_null
+      - name: account_id
+        description: Associated account (optional)
+      - name: merchant_pattern
+        description: Normalised merchant name/pattern
+        data_tests:
+          - not_null
+      - name: display_name
+        description: User-friendly display name
+      - name: expected_amount
+        description: Expected transaction amount
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the amount
+        data_tests:
+          - not_null
+      - name: frequency
+        description: Payment frequency (weekly, monthly, etc.)
+        data_tests:
+          - not_null
+      - name: status
+        description: Pattern status (detected, confirmed, dismissed, paused)
+        data_tests:
+          - not_null
+      - name: confidence_score
+        description: Detection confidence (0.0-1.0)
+      - name: occurrence_count
+        description: Number of matched transactions
+      - name: last_occurrence_date
+        description: Most recent matching transaction date
+      - name: next_expected_date
+        description: Calculated next expected payment date
+      - name: monthly_equivalent
+        description: Amount converted to monthly equivalent
+      - name: is_overdue
+        description: Whether the pattern is past expected date + grace period
+      - name: days_until_next
+        description: Days until next expected payment
+
   - name: fct_monthly_trends
     description: |
       Monthly income, spending, and net trends per user.

@@ -1,5 +1,27 @@
 # Model definitions for source layer (documents output columns for lineage)
 models:
+  - name: src_unified_recurring_patterns
+    description: Source model for recurring payment patterns from PostgreSQL
+    columns:
+      - name: id
+      - name: user_id
+      - name: merchant_pattern
+      - name: account_id
+      - name: expected_amount
+      - name: amount_variance
+      - name: currency
+      - name: frequency
+      - name: anchor_date
+      - name: next_expected_date
+      - name: last_occurrence_date
+      - name: confidence_score
+      - name: occurrence_count
+      - name: status
+      - name: display_name
+      - name: notes
+      - name: created_at
+      - name: updated_at
+
   - name: src_unified_accounts
     description: Unified account data from all providers
     columns:
@@ -125,3 +147,24 @@ sources:
           - name: tag_id
           - name: amount
           - name: created_at
+      - name: recurring_patterns
+        description: Detected and user-confirmed recurring payment patterns
+        columns:
+          - name: id
+          - name: user_id
+          - name: merchant_pattern
+          - name: account_id
+          - name: expected_amount
+          - name: amount_variance
+          - name: currency
+          - name: frequency
+          - name: anchor_date
+          - name: next_expected_date
+          - name: last_occurrence_date
+          - name: confidence_score
+          - name: occurrence_count
+          - name: status
+          - name: display_name
+          - name: notes
+          - name: created_at
+          - name: updated_at

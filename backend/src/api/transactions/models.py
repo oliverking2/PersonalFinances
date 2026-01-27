@@ -50,6 +50,10 @@ class TransactionResponse(BaseModel):
     splits: list[TransactionSplitResponse] = Field(
         default_factory=list, description="Transaction splits for budgeting"
     )
+    # Recurring pattern info (from detection)
+    recurring_pattern_id: str | None = Field(None, description="Linked recurring pattern ID")
+    recurring_frequency: str | None = Field(None, description="Recurring frequency if linked")
+    recurring_status: str | None = Field(None, description="Recurring pattern status if linked")
 
 
 class TransactionListResponse(BaseModel):

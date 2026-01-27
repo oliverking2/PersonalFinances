@@ -906,6 +906,9 @@ onMounted(() => {
       next data refresh.
     </div>
 
+    <!-- Upcoming Bills Widget -->
+    <SubscriptionsUpcomingBillsWidget v-if="hasAccounts" :days="7" />
+
     <!-- Recent Transactions Section -->
     <div v-if="hasAccounts || loadingAccounts" class="space-y-4">
       <!-- Section header -->
