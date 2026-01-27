@@ -170,10 +170,10 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Test rule endpoint (preview matching transactions)
 - [x] Bulk apply rules to untagged transactions
 - [x] Test conditions before saving rule
-- [ ] "From account" is a weird name on create rule modal?
-- [ ] Search box on Apply Tag button, close box after selecting tag on single select
-- [ ] Removal of min value doesn't work
-- [ ] Need to show "Auto tagged" on the transaction detail modal
+- [x] "From account" is a weird name on create rule modal?
+- [x] Search box on Apply Tag button, close box after selecting tag on single select
+- [x] Removal of min value doesn't work
+- [x] Need to show "Auto tagged" on the transaction detail modal
 
 ### Split Transactions ✅
 
@@ -202,8 +202,7 @@ Identify subscriptions and predict upcoming bills.
 
 ### General Transport Improvements
 
-- [ ] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
-- [ ] Hold to multi select rather than just click, click opens the info - remove eye
+- [x] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
 
 ---
 

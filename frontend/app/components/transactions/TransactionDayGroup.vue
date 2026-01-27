@@ -15,6 +15,7 @@ const props = defineProps<{
   accountNames: Record<string, string> // Map of account_id to display name
   availableTags?: Tag[] // All user's tags for the selector
   selectedTransactionIds?: Set<string> // IDs of selected transactions
+  selectable?: boolean // Whether transactions are selectable (selection mode)
 }>()
 
 const emit = defineEmits<{
@@ -85,6 +86,7 @@ function isSelected(transactionId: string): boolean {
         :account-name="accountNames[transaction.account_id]"
         :available-tags="availableTags"
         :selected="isSelected(transaction.id)"
+        :selectable="selectable"
         @toggle-select="emit('toggle-select', transaction.id)"
         @add-tag="emit('add-tag', transaction.id, $event)"
         @remove-tag="emit('remove-tag', transaction.id, $event)"

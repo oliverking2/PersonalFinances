@@ -57,6 +57,7 @@ const error = ref('')
 const sentinelRef = ref<HTMLDivElement | null>(null)
 
 // Selection state for bulk operations
+const isSelectionMode = ref(false)
 const selectedTransactionIds = ref<Set<string>>(new Set())
 const showBulkTagSelector = ref(false)
 
@@ -198,6 +199,42 @@ const hasActiveFilters = computed(() => {
     f.search
   )
 })
+
+// Minimum number of filtered results before auto-loading more
+const MIN_FILTERED_RESULTS = 20
+
+// Watch for sparse filtered results and auto-load more data
+// This ensures filters show enough results by loading more pages when needed
+watch(
+  () => [filteredTransactions.value.length, hasMore.value, loadingMore.value],
+  async () => {
+    // Only auto-load when:
+    // 1. Filters are active (sparse results matter)
+    // 2. Current filtered results are below threshold
+    // 3. More data is available to load
+    // 4. Not currently loading (prevent race conditions)
+    // 5. Not during initial load
+    if (
+      hasActiveFilters.value &&
+      filteredTransactions.value.length < MIN_FILTERED_RESULTS &&
+      hasMore.value &&
+      !loadingMore.value &&
+      !loading.value
+    ) {
+      // Small delay to batch rapid filter changes
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Re-check conditions after delay
+      if (
+        hasActiveFilters.value &&
+        filteredTransactions.value.length < MIN_FILTERED_RESULTS &&
+        hasMore.value &&
+        !loadingMore.value
+      ) {
+        loadMore()
+      }
+    }
+  },
+)
 
 // Number of selected transactions
 const selectedCount = computed(() => selectedTransactionIds.value.size)
@@ -469,6 +506,15 @@ function clearSelection() {
   selectedTransactionIds.value.clear()
   selectedTransactionIds.value = new Set(selectedTransactionIds.value)
   showBulkTagSelector.value = false
+}
+
+function enterSelectionMode() {
+  isSelectionMode.value = true
+}
+
+function exitSelectionMode() {
+  isSelectionMode.value = false
+  clearSelection()
 }
 
 function selectAll() {
@@ -939,12 +985,14 @@ onMounted(async () => {
         <span class="text-sm text-muted">
           {{ filteredTransactions.length }} transactions
         </span>
+        <!-- Select mode button (shown when not in selection mode) -->
         <button
+          v-if="!isSelectionMode"
           type="button"
           class="text-sm text-primary hover:underline"
-          @click="selectAll"
+          @click="enterSelectionMode"
         >
-          Select all
+          Select
         </button>
       </div>
 
@@ -955,6 +1003,7 @@ onMounted(async () => {
         :account-names="accountNames"
         :available-tags="tags"
         :selected-transaction-ids="selectedTransactionIds"
+        :selectable="isSelectionMode"
         @toggle-select="toggleSelection"
         @add-tag="handleAddTag"
         @remove-tag="handleRemoveTag"
@@ -976,21 +1025,22 @@ onMounted(async () => {
     </div>
 
     <!-- Floating selection toolbar (fixed at bottom of screen) -->
-    <!-- Transition: slides up when items selected, slides down when cleared -->
+    <!-- Transition: slides up when in selection mode, slides down when exited -->
     <Transition name="slide-up">
       <div
-        v-if="selectedCount > 0"
+        v-if="isSelectionMode"
         class="bulk-tag-container fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full border border-primary/50 bg-surface px-6 py-3 shadow-lg"
       >
         <span class="text-sm font-medium text-foreground">
           {{ selectedCount }} selected
         </span>
 
-        <!-- Bulk tag button with dropdown -->
+        <!-- Bulk tag button with dropdown (disabled when none selected) -->
         <div class="relative">
           <button
             type="button"
-            class="rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-primary/80"
+            class="rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-primary/80 disabled:opacity-50"
+            :disabled="selectedCount === 0"
             @click="toggleBulkTagSelector"
           >
             Tag
@@ -1014,18 +1064,29 @@ onMounted(async () => {
         <!-- Untag button -->
         <button
           type="button"
-          class="rounded-full border border-gray-600 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-gray-700"
+          class="rounded-full border border-gray-600 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-gray-700 disabled:opacity-50"
+          :disabled="selectedCount === 0"
           @click="handleBulkUntag"
         >
           Untag
         </button>
 
+        <!-- Select All button -->
         <button
           type="button"
-          class="text-sm text-muted hover:text-foreground"
-          @click="clearSelection"
+          class="text-sm text-primary hover:underline"
+          @click="selectAll"
         >
-          Clear
+          Select All
+        </button>
+
+        <!-- Done button to exit selection mode -->
+        <button
+          type="button"
+          class="rounded-full border border-primary px-4 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          @click="exitSelectionMode"
+        >
+          Done
         </button>
       </div>
     </Transition>

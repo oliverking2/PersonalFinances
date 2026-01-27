@@ -46,9 +46,12 @@ router = APIRouter()
 
 
 def _pydantic_to_dict(conditions: RuleConditions) -> RuleConditionsDict:
-    """Convert Pydantic RuleConditions to dict for storage."""
-    # Serialize to dict, excluding None values, converting Decimals to floats
-    return conditions.model_dump(exclude_none=True, mode="json")  # type: ignore[return-value]
+    """Convert Pydantic RuleConditions to dict for storage.
+
+    Note: We do NOT exclude_none here because None values signal "remove this condition".
+    The update_tag_rule operation handles None values by popping them from conditions.
+    """
+    return conditions.model_dump(mode="json")  # type: ignore[return-value]
 
 
 @router.get(

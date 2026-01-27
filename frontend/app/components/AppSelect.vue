@@ -24,6 +24,8 @@ const emit = defineEmits<{
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
+// Flag to prevent dropdown from re-opening immediately after selection
+const justClosed = ref(false)
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -45,22 +47,37 @@ const hasSelection = computed(() => {
 // ---------------------------------------------------------------------------
 
 function toggleDropdown() {
+  // Prevent re-opening immediately after selection
+  if (justClosed.value) {
+    justClosed.value = false
+    return
+  }
   isOpen.value = !isOpen.value
+}
+
+function closeDropdown() {
+  isOpen.value = false
+  justClosed.value = true
+  // Reset the flag after a short delay
+  setTimeout(() => {
+    justClosed.value = false
+  }, 100)
 }
 
 function selectOption(value: string) {
   emit('update:modelValue', value)
-  isOpen.value = false
+  closeDropdown()
 }
 
 function clearSelection() {
   emit('update:modelValue', '')
-  isOpen.value = false
+  closeDropdown()
 }
 
 // Close dropdown when clicking outside
 function handleClickOutside(event: MouseEvent) {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    // Don't set justClosed here - this is a genuine outside click, not a selection
     isOpen.value = false
   }
 }
@@ -117,7 +134,7 @@ onUnmounted(() => {
           type="button"
           class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors hover:bg-onyx"
           :class="!hasSelection ? 'text-primary' : 'text-muted'"
-          @click="clearSelection"
+          @click.stop="clearSelection"
         >
           <!-- Checkmark for selected state -->
           <svg
@@ -146,7 +163,7 @@ onUnmounted(() => {
           :class="
             modelValue === option.value ? 'text-primary' : 'text-foreground'
           "
-          @click="selectOption(option.value)"
+          @click.stop="selectOption(option.value)"
         >
           <!-- Checkmark for selected state -->
           <svg

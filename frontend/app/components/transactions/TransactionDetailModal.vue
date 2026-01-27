@@ -36,8 +36,7 @@ const showTagSelector = ref(false)
 const isEditingNote = ref(false)
 const editedNote = ref('')
 
-// Split editing state
-const isEditingSplits = ref(false)
+// Split editing state (always in edit mode, no toggle needed)
 const editedSplits = ref<{ tag_id: string; amount: number }[]>([])
 
 // ---------------------------------------------------------------------------
@@ -97,21 +96,16 @@ const amountColorClass = computed(() => {
   return props.transaction.amount >= 0 ? 'text-positive' : 'text-foreground'
 })
 
-// Get tag IDs for selector
-const selectedTagIds = computed(() => {
-  return props.transaction?.tags?.map((t) => t.id) || []
-})
-
 // Check if transaction has splits
 const hasSplits = computed(() => {
   return (props.transaction?.splits?.length ?? 0) > 0
 })
 
-// Check if in "simple" mode (single tag at 100%) vs "split" mode
+// Check if multiple splits exist (vs single tag at 100%)
+// Used to determine if we show auto-tag indicator (only for single tags)
 const isSplitMode = computed(() => {
   const splits = props.transaction?.splits ?? []
-  // Split mode if: editing splits, or has multiple splits, or single split not at 100%
-  if (isEditingSplits.value) return true
+  // Split mode if: has multiple splits, or single split not at 100%
   if (splits.length > 1) return true
   const firstSplit = splits[0]
   if (firstSplit) {
@@ -241,47 +235,9 @@ const currencySymbol = computed(() => {
 function handleClose() {
   showTagSelector.value = false
   isEditingNote.value = false
-  isEditingSplits.value = false
   editedNote.value = ''
   editedSplits.value = []
   emit('close')
-}
-
-function toggleTagSelector(event: MouseEvent) {
-  event.stopPropagation()
-  showTagSelector.value = !showTagSelector.value
-}
-
-function handleTagSelect(tagId: string) {
-  if (props.transaction) {
-    // Create a 100% split for the selected tag
-    const splits: SplitRequest[] = [
-      { tag_id: tagId, amount: Math.abs(props.transaction.amount) },
-    ]
-    emit('update-splits', props.transaction.id, splits)
-  }
-  showTagSelector.value = false
-}
-
-function handleTagDeselect(_tagId: string) {
-  // In unified model, deselecting clears splits
-  if (props.transaction) {
-    emit('clear-splits', props.transaction.id)
-  }
-}
-
-function handleTagCreate(name: string) {
-  if (props.transaction) {
-    emit('create-tag', props.transaction.id, name)
-  }
-  showTagSelector.value = false
-}
-
-function handleRemoveTag() {
-  // Remove the single tag by clearing splits
-  if (props.transaction) {
-    emit('clear-splits', props.transaction.id)
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -309,24 +265,6 @@ function saveNote() {
 // Split Actions
 // ---------------------------------------------------------------------------
 
-function startEditingSplits() {
-  // Initialize with existing splits or empty
-  if (props.transaction?.splits?.length) {
-    editedSplits.value = props.transaction.splits.map((s) => ({
-      tag_id: s.tag_id,
-      amount: s.amount,
-    }))
-  } else {
-    editedSplits.value = []
-  }
-  isEditingSplits.value = true
-}
-
-function cancelEditingSplits() {
-  isEditingSplits.value = false
-  editedSplits.value = []
-}
-
 function addSplit() {
   editedSplits.value.push({ tag_id: '', amount: 0 })
 }
@@ -343,13 +281,16 @@ function saveSplits() {
     .map((s) => ({ tag_id: s.tag_id, amount: s.amount }))
 
   emit('update-splits', props.transaction.id, splits)
-  isEditingSplits.value = false
+  // Note: The parent will update the transaction, and the watch on props.show
+  // won't re-initialize since show doesn't change. The parent should update
+  // the transaction prop which will trigger re-render with new values.
 }
 
-function clearSplits() {
+function handleClearSplits() {
   if (!props.transaction) return
   emit('clear-splits', props.transaction.id)
-  isEditingSplits.value = false
+  // Reset to empty state with one slot at 100%
+  editedSplits.value = [{ tag_id: '', amount: transactionAbsAmount.value }]
 }
 
 // Close selector when clicking outside
@@ -360,15 +301,41 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
-// Set up click outside listener when modal is shown
+// Set up click outside listener and initialize splits when modal is shown
 watch(
   () => props.show,
   (isOpen) => {
     if (isOpen) {
       document.addEventListener('click', handleClickOutside)
+      // Always initialize split editor when opening modal
+      initializeSplits()
     } else {
       document.removeEventListener('click', handleClickOutside)
       showTagSelector.value = false
+    }
+  },
+)
+
+// Initialize splits from transaction data (always show split editor)
+function initializeSplits() {
+  if (props.transaction?.splits?.length) {
+    // Populate from existing splits
+    editedSplits.value = props.transaction.splits.map((s) => ({
+      tag_id: s.tag_id,
+      amount: s.amount,
+    }))
+  } else {
+    // No splits - start with one empty slot at 100%
+    editedSplits.value = [{ tag_id: '', amount: transactionAbsAmount.value }]
+  }
+}
+
+// Re-initialize when transaction changes (e.g., after save updates the data)
+watch(
+  () => props.transaction,
+  () => {
+    if (props.show && props.transaction) {
+      initializeSplits()
     }
   },
 )
@@ -479,135 +446,29 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Tag / Splits section (unified) -->
+            <!-- Tag(s) / Splits section (always shows split editor) -->
             <div class="tag-selector-container relative">
-              <span class="mb-2 block text-sm text-muted">Tag</span>
+              <span class="mb-2 block text-sm text-muted">Tag(s)</span>
 
-              <!-- Simple mode: no tag yet - show tag selector -->
-              <div v-if="!hasSplits && !isEditingSplits">
-                <div class="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 rounded-full border border-dashed border-gray-600 px-3 py-1 text-sm text-muted transition-colors hover:border-primary hover:text-primary"
-                    @click="toggleTagSelector"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      class="h-4 w-4"
-                    >
-                      <path
-                        d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
-                      />
-                    </svg>
-                    Add tag
-                  </button>
-
-                  <!-- Tag selector popover -->
-                  <div
-                    v-if="showTagSelector && availableTags"
-                    class="absolute left-0 top-full z-10 mt-1"
-                    @click.stop
-                  >
-                    <TagsTagSelector
-                      :available-tags="availableTags"
-                      :selected-tag-ids="selectedTagIds"
-                      @select="handleTagSelect"
-                      @deselect="handleTagDeselect"
-                      @create="handleTagCreate"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Simple mode: single tag at 100% - show tag chip + split button -->
-              <div v-else-if="singleTag && !isEditingSplits">
-                <div class="flex flex-wrap items-center gap-2">
-                  <div class="tag-with-info">
-                    <TagsTagChip
-                      :name="singleTag.name"
-                      :colour="singleTag.colour"
-                      removable
-                      @remove="handleRemoveTag"
-                    />
-                    <!-- Auto-tag indicator -->
-                    <span v-if="singleTag.is_auto" class="auto-tag-indicator">
-                      Auto-tagged by
-                      <NuxtLink
-                        v-if="singleTag.rule_id"
-                        to="/settings/rules"
-                        class="rule-link"
-                        @click="handleClose"
-                      >
-                        {{ singleTag.rule_name || 'rule' }}
-                      </NuxtLink>
-                      <span v-else>rule</span>
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Split transaction button -->
-                <button
-                  type="button"
-                  class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-600 py-2 text-sm text-muted hover:border-primary hover:text-primary"
-                  @click="startEditingSplits"
+              <!-- Auto-tag indicator (shown above editor if applicable) -->
+              <div
+                v-if="singleTag?.is_auto"
+                class="mb-3 rounded-lg bg-onyx px-3 py-2 text-xs text-muted"
+              >
+                Auto-tagged by
+                <NuxtLink
+                  v-if="singleTag.rule_id"
+                  to="/settings/rules"
+                  class="text-primary hover:underline"
+                  @click="handleClose"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="h-4 w-4"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M4.25 2A2.25 2.25 0 0 0 2 4.25v11.5A2.25 2.25 0 0 0 4.25 18h11.5A2.25 2.25 0 0 0 18 15.75V4.25A2.25 2.25 0 0 0 15.75 2H4.25Zm4.03 6.28a.75.75 0 0 0-1.06-1.06L4.97 9.47a.75.75 0 0 0 0 1.06l2.25 2.25a.75.75 0 0 0 1.06-1.06l-.97-.97h5.69a.75.75 0 0 0 0-1.5H7.31l.97-.97Zm3.69-1.03a.75.75 0 0 1 0-1.5h2.25a.75.75 0 0 1 0 1.5h-2.25Zm0 6.5a.75.75 0 0 1 0-1.5h2.25a.75.75 0 0 1 0 1.5h-2.25Z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  Split transaction
-                </button>
+                  {{ singleTag.rule_name || 'rule' }}
+                </NuxtLink>
+                <span v-else>rule</span>
               </div>
 
-              <!-- Split mode: multiple splits or editing -->
-              <div v-else-if="isSplitMode && !isEditingSplits">
-                <!-- View mode: show existing splits -->
-                <div class="space-y-2">
-                  <div
-                    v-for="split in transaction.splits"
-                    :key="split.id"
-                    class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                  >
-                    <TagsTagChip
-                      :name="split.tag_name"
-                      :colour="split.tag_colour"
-                    />
-                    <span class="text-sm font-medium text-foreground">
-                      {{ formatCurrency(split.amount, transaction.currency) }}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="mt-2 text-xs text-primary hover:underline"
-                  @click="startEditingSplits"
-                >
-                  Edit splits
-                </button>
-              </div>
-
-              <!-- Split edit mode -->
-              <div v-else class="space-y-3">
-                <!-- Transaction total header -->
-                <div class="rounded-lg bg-onyx px-3 py-2 text-sm">
-                  <span class="text-muted">Transaction total: </span>
-                  <span class="font-medium text-foreground">
-                    {{
-                      formatCurrency(transactionAbsAmount, transaction.currency)
-                    }}
-                  </span>
-                </div>
-
+              <!-- Split editor (always visible) -->
+              <div class="space-y-3">
                 <!-- Split rows -->
                 <div class="space-y-3">
                   <div
@@ -731,15 +592,15 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="flex-1 rounded-lg border border-border px-3 py-2 text-sm text-muted hover:bg-border"
-                    @click="cancelEditingSplits"
+                    @click="initializeSplits"
                   >
-                    Cancel
+                    Reset
                   </button>
                   <button
                     v-if="hasSplits"
                     type="button"
                     class="rounded-lg border border-negative px-3 py-2 text-sm text-negative hover:bg-negative/10"
-                    @click="clearSplits"
+                    @click="handleClearSplits"
                   >
                     Clear
                   </button>

@@ -134,11 +134,9 @@ const allDisplayTags = computed(() => {
 // Methods
 // ---------------------------------------------------------------------------
 
+// Handle row click - behavior depends on selection mode
 function handleRowClick(event: MouseEvent) {
-  // Don't handle clicks when not selectable
-  if (!props.selectable) return
-
-  // Don't toggle selection if clicking on interactive elements
+  // Don't handle clicks on interactive elements
   const target = event.target as HTMLElement
   if (
     target.closest('button') ||
@@ -147,7 +145,14 @@ function handleRowClick(event: MouseEvent) {
   ) {
     return
   }
-  emit('toggle-select')
+
+  // In selection mode, click toggles selection
+  // Otherwise, click opens detail
+  if (props.selectable) {
+    emit('toggle-select')
+  } else {
+    emit('open-detail')
+  }
 }
 
 function toggleTagSelector(event: MouseEvent) {
@@ -173,11 +178,6 @@ function handleRemoveTag(tagId: string) {
   emit('remove-tag', tagId)
 }
 
-function handleOpenDetail(event: MouseEvent) {
-  event.stopPropagation()
-  emit('open-detail')
-}
-
 // Close selector when clicking outside
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
@@ -197,16 +197,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Transaction row - clickable for selection when selectable -->
+  <!-- Transaction row - click behavior depends on selection mode -->
   <div
     class="group flex items-center gap-3 rounded-lg px-4 py-3 transition-colors"
     :class="[
-      selectable ? 'cursor-pointer' : '',
+      'cursor-pointer',
       selected
         ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
-        : selectable
-          ? 'hover:bg-onyx/50'
-          : '',
+        : 'hover:bg-onyx/50',
     ]"
     @click="handleRowClick"
   >
@@ -295,29 +293,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Details button (eye icon) - shows on hover -->
-    <button
-      type="button"
-      class="details-btn"
-      title="View details"
-      @click="handleOpenDetail"
-    >
-      <!-- Eye icon -->
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        class="h-4 w-4"
-      >
-        <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-        <path
-          fill-rule="evenodd"
-          d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
-          clip-rule="evenodd"
-        />
-      </svg>
-    </button>
-
     <!-- Spacer to push amount to the right -->
     <div class="flex-1" />
 
@@ -356,26 +331,6 @@ onUnmounted(() => {
 
 /* Always show add button when row is selected */
 .group:has(.bg-primary\/10) .add-tag-btn {
-  @apply opacity-100;
-}
-
-.details-btn {
-  /* Layout: small button */
-  @apply flex h-6 w-6 flex-shrink-0 items-center justify-center rounded;
-
-  /* Colours */
-  @apply text-muted;
-
-  /* Interaction */
-  @apply cursor-pointer transition-colors;
-  @apply hover:bg-border hover:text-foreground;
-
-  /* Only show on hover */
-  @apply opacity-0 group-hover:opacity-100;
-}
-
-/* Always show details button when row is selected */
-.group:has(.bg-primary\/10) .details-btn {
   @apply opacity-100;
 }
 </style>

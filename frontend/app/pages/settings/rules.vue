@@ -57,8 +57,26 @@ const formEnabled = ref(true)
 const formMerchantContains = ref('')
 const formMerchantExact = ref('')
 const formDescriptionContains = ref('')
-const formMinAmount = ref<number | null>(null)
-const formMaxAmount = ref<number | null>(null)
+const formMinAmountRaw = ref<string>('')
+const formMinAmount = computed({
+  get: () => {
+    const val = parseFloat(formMinAmountRaw.value)
+    return Number.isFinite(val) && val > 0 ? val : null
+  },
+  set: (val: number | null) => {
+    formMinAmountRaw.value = val !== null && val > 0 ? String(val) : ''
+  },
+})
+const formMaxAmountRaw = ref<string>('')
+const formMaxAmount = computed({
+  get: () => {
+    const val = parseFloat(formMaxAmountRaw.value)
+    return Number.isFinite(val) && val > 0 ? val : null
+  },
+  set: (val: number | null) => {
+    formMaxAmountRaw.value = val !== null && val > 0 ? String(val) : ''
+  },
+})
 const formAccountId = ref('')
 const formMerchantNotContains = ref('')
 const formDescriptionNotContains = ref('')
@@ -114,12 +132,23 @@ const hasCondition = computed(() => {
     formMerchantContains.value.trim() ||
     formMerchantExact.value.trim() ||
     formDescriptionContains.value.trim() ||
-    formMinAmount.value ||
-    formMaxAmount.value ||
+    isValidAmount(formMinAmount.value) ||
+    isValidAmount(formMaxAmount.value) ||
     formMerchantNotContains.value.trim() ||
     formDescriptionNotContains.value.trim()
   )
 })
+
+// Helper to check if an amount value is valid (not null, undefined, NaN, or empty)
+// v-model.number can produce NaN when input is cleared
+function isValidAmount(value: number | null): boolean {
+  return value !== null && Number.isFinite(value) && value > 0
+}
+
+// Helper to convert form amount to API value (null if invalid)
+function toAmountOrNull(value: number | null): number | null {
+  return isValidAmount(value) ? value : null
+}
 
 // Form validation
 const canSave = computed(() => {
@@ -222,8 +251,8 @@ async function handleSave() {
       merchant_contains: formMerchantContains.value.trim() || null,
       merchant_exact: formMerchantExact.value.trim() || null,
       description_contains: formDescriptionContains.value.trim() || null,
-      min_amount: formMinAmount.value || null,
-      max_amount: formMaxAmount.value || null,
+      min_amount: toAmountOrNull(formMinAmount.value),
+      max_amount: toAmountOrNull(formMaxAmount.value),
       merchant_not_contains: formMerchantNotContains.value.trim() || null,
       description_not_contains: formDescriptionNotContains.value.trim() || null,
     }
@@ -283,8 +312,8 @@ async function handleTest() {
       merchant_contains: formMerchantContains.value.trim() || null,
       merchant_exact: formMerchantExact.value.trim() || null,
       description_contains: formDescriptionContains.value.trim() || null,
-      min_amount: formMinAmount.value || null,
-      max_amount: formMaxAmount.value || null,
+      min_amount: toAmountOrNull(formMinAmount.value),
+      max_amount: toAmountOrNull(formMaxAmount.value),
       merchant_not_contains: formMerchantNotContains.value.trim() || null,
       description_not_contains: formDescriptionNotContains.value.trim() || null,
     }
@@ -720,7 +749,7 @@ function formatAmount(amount: number, currency: string): string {
 
                 <!-- Account -->
                 <label class="form-label">
-                  <span>From account</span>
+                  <span>Account</span>
                   <AppSelect
                     v-model="formAccountId"
                     :options="accountOptions"
@@ -732,7 +761,7 @@ function formatAmount(amount: number, currency: string): string {
                 <label class="form-label">
                   <span>Min amount (absolute)</span>
                   <input
-                    v-model.number="formMinAmount"
+                    v-model="formMinAmountRaw"
                     type="number"
                     class="form-input"
                     placeholder="0.00"
@@ -744,7 +773,7 @@ function formatAmount(amount: number, currency: string): string {
                 <label class="form-label">
                   <span>Max amount (absolute)</span>
                   <input
-                    v-model.number="formMaxAmount"
+                    v-model="formMaxAmountRaw"
                     type="number"
                     class="form-input"
                     placeholder="1000.00"
