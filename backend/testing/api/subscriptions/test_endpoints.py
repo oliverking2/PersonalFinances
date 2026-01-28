@@ -11,7 +11,7 @@ from src.postgres.common.enums import RecurringFrequency, RecurringStatus
 from src.postgres.common.models import RecurringPattern
 
 
-def _create_pattern(  # noqa: PLR0913
+def _create_pattern(
     session: Session,
     user: User,
     merchant: str = "netflix_£15",

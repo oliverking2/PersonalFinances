@@ -22,7 +22,7 @@ from src.utils.security import (
 logger = logging.getLogger(__name__)
 
 
-def create_refresh_token(  # noqa: PLR0913
+def create_refresh_token(
     session: Session,
     user: User,
     expires_days: int | None = None,

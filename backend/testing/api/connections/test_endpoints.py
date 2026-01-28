@@ -357,7 +357,7 @@ class TestDeleteConnection:
         assert api_db_session.get(Connection, test_connection_in_db.id) is None
 
     @patch("src.api.connections.endpoints.delete_requisition_data_by_id")
-    def test_delete_cascades_to_accounts(  # noqa: PLR0913
+    def test_delete_cascades_to_accounts(
         self,
         mock_delete_requisition: MagicMock,
         client: TestClient,

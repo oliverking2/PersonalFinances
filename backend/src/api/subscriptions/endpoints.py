@@ -49,7 +49,7 @@ router = APIRouter()
     summary="List subscriptions",
     responses=UNAUTHORIZED,
 )
-def list_subscriptions(  # noqa: PLR0913
+def list_subscriptions(
     status: RecurringStatus | None = Query(None, description="Filter by status"),
     frequency: RecurringFrequency | None = Query(None, description="Filter by frequency"),
     min_confidence: float | None = Query(

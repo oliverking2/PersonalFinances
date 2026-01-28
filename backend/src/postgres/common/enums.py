@@ -166,3 +166,64 @@ class RecurringStatus(StrEnum):
     DISMISSED = "dismissed"
     PAUSED = "paused"
     MANUAL = "manual"
+
+
+class BudgetPeriod(StrEnum):
+    """Budget time period.
+
+    - MONTHLY: Budget resets each calendar month
+    """
+
+    MONTHLY = "monthly"
+
+
+class GoalStatus(StrEnum):
+    """Status of a savings goal.
+
+    - ACTIVE: Goal is being tracked
+    - PAUSED: Goal is temporarily paused
+    - COMPLETED: Goal has been achieved
+    - CANCELLED: Goal was abandoned
+    """
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class GoalTrackingMode(StrEnum):
+    """Tracking mode for savings goals.
+
+    - MANUAL: User adds contributions manually
+    - BALANCE: Mirrors linked account balance directly
+    - DELTA: Progress = current balance - starting balance (savings since goal creation)
+    - TARGET_BALANCE: Goal completes when account reaches target balance
+    """
+
+    MANUAL = "manual"
+    BALANCE = "balance"
+    DELTA = "delta"
+    TARGET_BALANCE = "target_balance"
+
+
+class AlertType(StrEnum):
+    """Type of spending alert.
+
+    - BUDGET_WARNING: Budget approaching limit (default 80%)
+    - BUDGET_EXCEEDED: Budget has been exceeded
+    """
+
+    BUDGET_WARNING = "budget_warning"
+    BUDGET_EXCEEDED = "budget_exceeded"
+
+
+class AlertStatus(StrEnum):
+    """Status of a spending alert.
+
+    - PENDING: Alert has not been acknowledged
+    - ACKNOWLEDGED: User has seen/dismissed the alert
+    """
+
+    PENDING = "pending"
+    ACKNOWLEDGED = "acknowledged"

@@ -67,7 +67,7 @@ def get_connections_by_user_id(
     return query.order_by(Connection.created_at.desc()).all()
 
 
-def create_connection(  # noqa: PLR0913
+def create_connection(
     session: Session,
     user_id: UUID,
     provider: Provider,

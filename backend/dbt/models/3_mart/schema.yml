@@ -342,3 +342,144 @@ models:
         description: Number of spending transactions
         data_tests:
           - not_null
+
+  - name: fct_budget_vs_actual
+    description: |
+      Budget vs actual spending comparison for the current month.
+      Compares monthly budgets against actual spending by tag category.
+    meta:
+      dataset: true
+      friendly_name: "Budget vs Actual"
+      group: "budgets"
+      filters:
+        tag_id_column: "tag_id"
+    columns:
+      - name: budget_id
+        description: Budget UUID
+        data_tests:
+          - not_null
+      - name: user_id
+        description: Owner of the budget (UUID)
+        data_tests:
+          - not_null
+      - name: tag_id
+        description: Tag UUID for budget category
+        data_tests:
+          - not_null
+      - name: tag_name
+        description: Tag name
+        data_tests:
+          - not_null
+      - name: tag_colour
+        description: Tag colour (hex)
+      - name: budget_amount
+        description: Monthly budget limit
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency code
+        data_tests:
+          - not_null
+      - name: warning_threshold
+        description: Warning threshold (0.0-1.0)
+      - name: spent_amount
+        description: Amount spent in current period
+        data_tests:
+          - not_null
+      - name: transaction_count
+        description: Number of transactions
+        data_tests:
+          - not_null
+      - name: remaining_amount
+        description: Remaining budget
+        data_tests:
+          - not_null
+      - name: percentage_used
+        description: Percentage of budget used
+        data_tests:
+          - not_null
+      - name: budget_status
+        description: Status - ok, warning, or exceeded
+        data_tests:
+          - not_null
+      - name: period_start
+        description: Start of budget period
+        data_tests:
+          - not_null
+      - name: period_end
+        description: End of budget period
+        data_tests:
+          - not_null
+      - name: period_key
+        description: Period key (YYYY-MM)
+        data_tests:
+          - not_null
+
+  - name: fct_goal_progress
+    description: |
+      Savings goal progress tracking.
+      Includes calculated metrics for progress, remaining amount, and deadline tracking.
+    meta:
+      dataset: true
+      friendly_name: "Goal Progress"
+      group: "goals"
+    columns:
+      - name: goal_id
+        description: Goal UUID
+        data_tests:
+          - not_null
+          - unique
+      - name: user_id
+        description: Owner of the goal (UUID)
+        data_tests:
+          - not_null
+      - name: goal_name
+        description: Goal name
+        data_tests:
+          - not_null
+      - name: target_amount
+        description: Target savings amount
+        data_tests:
+          - not_null
+      - name: current_amount
+        description: Current saved amount (from manual entry or linked account)
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency code
+        data_tests:
+          - not_null
+      - name: deadline
+        description: Target deadline
+      - name: account_id
+        description: Linked account UUID (if auto-tracking)
+      - name: account_name
+        description: Linked account name
+      - name: status
+        description: Goal status (active, paused, completed, cancelled)
+        data_tests:
+          - not_null
+      - name: notes
+        description: User notes
+      - name: progress_percentage
+        description: Progress percentage (0-100)
+        data_tests:
+          - not_null
+      - name: remaining_amount
+        description: Amount remaining to reach target
+        data_tests:
+          - not_null
+      - name: days_remaining
+        description: Days until deadline (null if no deadline)
+      - name: is_overdue
+        description: Whether goal is past deadline
+      - name: is_on_track
+        description: Whether current progress rate will reach target by deadline
+      - name: created_at
+        description: When goal was created
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: When goal was last updated
+        data_tests:
+          - not_null

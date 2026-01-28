@@ -45,7 +45,7 @@ def get_accounts_by_connection_id(
     return query.order_by(Account.name).all()
 
 
-def create_account(  # noqa: PLR0913
+def create_account(
     session: Session,
     connection_id: UUID,
     provider_id: str,
@@ -85,7 +85,7 @@ def create_account(  # noqa: PLR0913
     return account
 
 
-def update_account(  # noqa: PLR0913
+def update_account(
     session: Session,
     account_id: UUID,
     display_name: str | None = None,

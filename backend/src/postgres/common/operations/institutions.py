@@ -50,7 +50,7 @@ def list_institutions(
     return query.order_by(Institution.name).all()
 
 
-def create_institution(  # noqa: PLR0913
+def create_institution(
     session: Session,
     institution_id: str,
     provider: Provider,
@@ -81,7 +81,7 @@ def create_institution(  # noqa: PLR0913
     return institution
 
 
-def upsert_institution(  # noqa: PLR0913
+def upsert_institution(
     session: Session,
     institution_id: str,
     provider: Provider,

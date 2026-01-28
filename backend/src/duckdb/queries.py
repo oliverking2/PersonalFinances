@@ -22,7 +22,7 @@ def _format_uuid_list(uuids: list[UUID]) -> str:
     return ", ".join(f"'{u!s}'" for u in uuids)
 
 
-def build_dataset_query(  # noqa: PLR0913
+def build_dataset_query(
     dataset: Dataset,
     user_id: UUID,
     start_date: date | None = None,

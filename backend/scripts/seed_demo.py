@@ -215,7 +215,7 @@ def main() -> None:  # noqa: PLR0915
         session.close()
 
 
-def _create_connection_and_account(  # noqa: PLR0913
+def _create_connection_and_account(
     session: Session,
     user_id: UUID,
     institution_id: str,

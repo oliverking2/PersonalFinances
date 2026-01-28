@@ -8,6 +8,8 @@ import type { Account } from '~/types/accounts'
 import type { Transaction, SplitRequest } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
 import type { Dataset, DatasetQueryResponse } from '~/types/analytics'
+import type { BudgetSummaryResponse } from '~/types/budgets'
+import type { GoalSummaryResponse } from '~/types/goals'
 
 useHead({ title: 'Home | Finances' })
 
@@ -25,6 +27,8 @@ const { fetchTransactions, setSplits, clearSplits, updateNote } =
 const { fetchTags, createTag } = useTagsApi()
 const { fetchDatasets, queryDataset, fetchAnalyticsStatus, triggerRefresh } =
   useAnalyticsApi()
+const { fetchBudgetSummary } = useBudgetsApi()
+const { fetchGoalSummary } = useGoalsApi()
 
 // ---------------------------------------------------------------------------
 // State
@@ -36,6 +40,8 @@ const recentTransactions = ref<Transaction[]>([])
 const tags = ref<Tag[]>([])
 const monthlyTrends = ref<DatasetQueryResponse | null>(null)
 const dailySpendingByTag = ref<DatasetQueryResponse | null>(null)
+const budgetSummary = ref<BudgetSummaryResponse | null>(null)
+const goalSummary = ref<GoalSummaryResponse | null>(null)
 
 // Detail modal state
 const detailModalTransaction = ref<Transaction | null>(null)
@@ -45,6 +51,8 @@ const showDetailModal = computed(() => detailModalTransaction.value !== null)
 const loadingAccounts = ref(true)
 const loadingTransactions = ref(true)
 const loadingAnalytics = ref(true)
+const loadingBudgets = ref(true)
+const loadingGoals = ref(true)
 
 // Error states
 const errorAccounts = ref('')
@@ -414,6 +422,28 @@ async function loadTags() {
   }
 }
 
+async function loadBudgetSummary() {
+  loadingBudgets.value = true
+  try {
+    budgetSummary.value = await fetchBudgetSummary()
+  } catch (e) {
+    console.error('Failed to load budget summary:', e)
+  } finally {
+    loadingBudgets.value = false
+  }
+}
+
+async function loadGoalSummary() {
+  loadingGoals.value = true
+  try {
+    goalSummary.value = await fetchGoalSummary()
+  } catch (e) {
+    console.error('Failed to load goal summary:', e)
+  } finally {
+    loadingGoals.value = false
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Transaction tag handlers
 // ---------------------------------------------------------------------------
@@ -677,6 +707,8 @@ onMounted(() => {
   loadRecentTransactions()
   loadTags()
   loadAnalytics()
+  loadBudgetSummary()
+  loadGoalSummary()
 })
 </script>
 
@@ -908,6 +940,18 @@ onMounted(() => {
 
     <!-- Upcoming Bills Widget -->
     <SubscriptionsUpcomingBillsWidget v-if="hasAccounts" :days="7" />
+
+    <!-- Budget & Goals Widgets -->
+    <div v-if="hasAccounts" class="grid gap-4 sm:grid-cols-2">
+      <BudgetsBudgetSummaryWidget
+        :summary="budgetSummary"
+        :loading="loadingBudgets"
+      />
+      <GoalsGoalsProgressWidget
+        :summary="goalSummary"
+        :loading="loadingGoals"
+      />
+    </div>
 
     <!-- Recent Transactions Section -->
     <div v-if="hasAccounts || loadingAccounts" class="space-y-4">

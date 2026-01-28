@@ -138,12 +138,12 @@ Quick wins to improve analytics accuracy and home page usefulness.
 - [x] Exclude internal transfers from spending calculations (dbt model improvement)
 - [x] Net worth trend indicator (sparkline or % change from previous month)
 - [x] Metric cards click through to relevant analytics page sections
-- [ ] Dynamic rounded x/y axis labels on charts (currently spending by category squashes labels too close together)
-- [ ] DBT throwing errors on dbt build in dagster for column lineage (id column)
-- [ ] Axis doing weird things when clicking "Compare to previous period"
-- [ ] Count not working on transactions table
-- [ ] Last sync time on account settings modal not working
-- [ ] Credit card balance varies from Amex to Nationwide (maybe based on if balance is negative?)
+- [x] Dynamic rounded x/y axis labels on charts (currently spending by category squashes labels too close together)
+- [x] DBT throwing errors on dbt build in dagster for column lineage (id column)
+- [x] Axis doing weird things when clicking "Compare to previous period"
+- [x] Count not working on transactions table
+- [x] Last sync time on account settings modal not working
+- [x] Credit card balance varies from Amex to Nationwide (maybe based on if balance is negative?)
 
 ---
 
@@ -214,30 +214,41 @@ Identify subscriptions and predict upcoming bills.
 
 - [x] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
 
----
-
-## Phase 6: Budgeting & Goals
+### Phase 6: Budgeting & Goals ✅
 
 Financial planning features for tracking progress and controlling spending.
 
-### Budget Tracking
+### Budget Tracking ✅
 
-- [ ] Monthly budget by category (tag)
-- [ ] Spending vs budget dashboard
+- [x] Monthly budget by category (tag)
+- [x] Spending vs budget progress bar
+- [x] Budget summary widget on home page
+- [x] Warning thresholds (configurable, default 80%)
+- [x] In-app alerts for warning/exceeded budgets
+
+### Savings Goals ✅
+
+- [x] Target amount + deadline
+- [x] Progress tracking with ring indicator
+- [x] Manual contributions
+- [x] Link goals to specific accounts (optional)
+- [x] Goal states (active, paused, completed, cancelled)
+- [x] Goals summary widget on home page
+
+### Spending Alerts ✅
+
+- [x] `SpendingAlert` model with deduplication per budget/period
+- [x] Alert types: budget_warning, budget_exceeded
+- [x] Alert badge in header with pending count
+- [x] Alert dropdown with acknowledge actions
+- [x] Dagster job to check budgets and generate alerts
+
+### Deferred to Phase 7
+
+- [ ] Telegram notifications
 - [ ] Rollover/flexible budgets
-- [ ] Income tracking
-
-### Savings Goals
-
-- [ ] Target amount + deadline
-- [ ] Progress tracking with projections
-- [ ] Link goals to specific accounts
-
-### Spending Limits & Alerts
-
-- [ ] Category-based limits (e.g., dining £200/month)
-- [ ] Warning thresholds (80%, 100%)
-- [ ] Notification when approaching/exceeding (via Telegram)
+- [ ] Weekly/annual budget periods
+- [ ] Income tracking (existing "Income" tag suffices for now)
 
 ---
 
@@ -381,6 +392,8 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260125-frontend-transaction-detail-modal.md` - Transaction detail modal with tag management
 - `20260125-frontend-transaction-filters.md` - Date presets and value filter dropdowns
 - `20260125-frontend-analytics-page.md` - Analytics page with charts, filters, and comparison view
+- `20260127-fullstack-budgeting-goals.md` - Budgets, savings goals, and spending alerts
+- `20260127-fullstack-recurring-transactions.md` - Recurring transaction detection and subscription management
 
 ### Implemented Without PRD
 

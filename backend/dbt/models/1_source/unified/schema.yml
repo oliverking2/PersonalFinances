@@ -1,5 +1,35 @@
 # Model definitions for source layer (documents output columns for lineage)
 models:
+  - name: src_unified_budgets
+    description: Source model for monthly spending budgets from PostgreSQL
+    columns:
+      - name: id
+      - name: user_id
+      - name: tag_id
+      - name: amount
+      - name: currency
+      - name: period
+      - name: warning_threshold
+      - name: enabled
+      - name: created_at
+      - name: updated_at
+
+  - name: src_unified_savings_goals
+    description: Source model for savings goals from PostgreSQL
+    columns:
+      - name: id
+      - name: user_id
+      - name: name
+      - name: target_amount
+      - name: current_amount
+      - name: currency
+      - name: deadline
+      - name: account_id
+      - name: status
+      - name: notes
+      - name: created_at
+      - name: updated_at
+
   - name: src_unified_recurring_patterns
     description: Source model for recurring payment patterns from PostgreSQL
     columns:
@@ -165,6 +195,34 @@ sources:
           - name: occurrence_count
           - name: status
           - name: display_name
+          - name: notes
+          - name: created_at
+          - name: updated_at
+      - name: budgets
+        description: Monthly spending budgets per tag category
+        columns:
+          - name: id
+          - name: user_id
+          - name: tag_id
+          - name: amount
+          - name: currency
+          - name: period
+          - name: warning_threshold
+          - name: enabled
+          - name: created_at
+          - name: updated_at
+      - name: savings_goals
+        description: User savings goals with optional account linking
+        columns:
+          - name: id
+          - name: user_id
+          - name: name
+          - name: target_amount
+          - name: current_amount
+          - name: currency
+          - name: deadline
+          - name: account_id
+          - name: status
           - name: notes
           - name: created_at
           - name: updated_at

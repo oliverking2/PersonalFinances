@@ -207,7 +207,7 @@ def get_dataset_schema_endpoint(
     summary="Query a dataset",
     responses={**RESOURCE_RESPONSES, **INTERNAL_ERROR},
 )
-def query_dataset(  # noqa: PLR0913
+def query_dataset(
     dataset_id: UUID,
     start_date: date | None = Query(None, description="Start date filter"),
     end_date: date | None = Query(None, description="End date filter"),

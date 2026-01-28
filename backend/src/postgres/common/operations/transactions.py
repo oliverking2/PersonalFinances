@@ -40,7 +40,7 @@ class TransactionQueryResult:
     page_size: int
 
 
-def get_transactions_for_user(  # noqa: PLR0913
+def get_transactions_for_user(
     session: Session,
     account_ids: list[UUID],
     *,

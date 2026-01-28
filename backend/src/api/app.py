@@ -6,9 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.accounts.endpoints import router as accounts_router
+from src.api.alerts.endpoints import router as alerts_router
 from src.api.analytics.endpoints import router as analytics_router
 from src.api.auth.endpoints import router as auth_router
+from src.api.budgets.endpoints import router as budgets_router
 from src.api.connections.endpoints import router as connections_router
+from src.api.goals.endpoints import router as goals_router
 from src.api.institutions.endpoints import router as institutions_router
 from src.api.jobs.endpoints import router as jobs_router
 from src.api.middleware import RequestTimingMiddleware
@@ -77,8 +80,11 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(accounts_router, prefix="/api/accounts", tags=["accounts"])
+    app.include_router(alerts_router, prefix="/api/alerts", tags=["alerts"])
     app.include_router(analytics_router, prefix="/api/analytics", tags=["analytics"])
+    app.include_router(budgets_router, prefix="/api/budgets", tags=["budgets"])
     app.include_router(connections_router, prefix="/api/connections", tags=["connections"])
+    app.include_router(goals_router, prefix="/api/goals", tags=["goals"])
     app.include_router(institutions_router, prefix="/api/institutions", tags=["institutions"])
     app.include_router(jobs_router, prefix="/api/jobs", tags=["jobs"])
     app.include_router(subscriptions_router, prefix="/api/subscriptions", tags=["subscriptions"])

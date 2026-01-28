@@ -13,6 +13,8 @@ const route = useRoute()
 const navLinks = [
   { to: '/', label: 'Home' },
   { to: '/analytics', label: 'Analytics' },
+  { to: '/budgets', label: 'Budgets' },
+  { to: '/goals', label: 'Goals' },
   { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/subscriptions', label: 'Subscriptions' },

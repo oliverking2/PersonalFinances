@@ -33,7 +33,7 @@ def get_pattern_by_id(session: Session, pattern_id: UUID) -> RecurringPattern | 
     return session.get(RecurringPattern, pattern_id)
 
 
-def get_patterns_by_user_id(  # noqa: PLR0913
+def get_patterns_by_user_id(
     session: Session,
     user_id: UUID,
     *,
@@ -143,7 +143,7 @@ def _to_monthly_equivalent(amount: Decimal, frequency: RecurringFrequency) -> De
     return amount * multipliers.get(frequency, Decimal("1"))
 
 
-def create_pattern(  # noqa: PLR0913
+def create_pattern(
     session: Session,
     user_id: UUID,
     merchant_pattern: str,
@@ -249,7 +249,7 @@ def _calculate_next_expected_date(
 _NOT_SET = object()
 
 
-def update_pattern(  # noqa: PLR0913
+def update_pattern(
     session: Session,
     pattern_id: UUID,
     *,
@@ -486,7 +486,7 @@ def count_patterns_by_status(session: Session, user_id: UUID) -> dict[RecurringS
     return {RecurringStatus(status): count for status, count in results}
 
 
-def sync_detected_pattern(  # noqa: PLR0913
+def sync_detected_pattern(
     session: Session,
     user_id: UUID,
     account_id: UUID,

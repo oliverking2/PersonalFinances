@@ -76,7 +76,7 @@ def get_tag_rules_by_user_id(
     return query.order_by(TagRule.priority).all()
 
 
-def create_tag_rule(  # noqa: PLR0913
+def create_tag_rule(
     session: Session,
     user_id: UUID,
     name: str,
@@ -124,7 +124,7 @@ def create_tag_rule(  # noqa: PLR0913
 _NOT_PROVIDED: object = object()
 
 
-def update_tag_rule(  # noqa: PLR0913
+def update_tag_rule(
     session: Session,
     rule_id: UUID,
     name: str | None = None,
@@ -303,7 +303,7 @@ def transaction_matches_conditions(
     return all(include_checks) and all(exclude_checks)
 
 
-def test_conditions_against_transactions(  # noqa: PLR0913
+def test_conditions_against_transactions(
     session: Session,
     user_id: UUID,
     conditions: RuleConditions,

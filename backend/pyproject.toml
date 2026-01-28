@@ -100,7 +100,8 @@ select = [
 ignore = [
     "D213",  # Multi-line docstring summary should start at the second line
     "D203",  # One blank line required before class docstring
-    "E501"   # Line too long (handled by formatter)
+    "E501",  # Line too long (handled by formatter)
+    "PLR0913"  # Too many arguments - database operations often need multiple params
 ]
 
 # Per-file rule ignores (with explanations):

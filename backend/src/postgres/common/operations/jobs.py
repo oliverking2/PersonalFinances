@@ -125,7 +125,7 @@ def get_latest_job_for_entity(
     return query.order_by(desc(Job.created_at)).first()
 
 
-def get_jobs_by_user(  # noqa: PLR0913
+def get_jobs_by_user(
     session: Session,
     user_id: UUID,
     job_type: JobType | None = None,

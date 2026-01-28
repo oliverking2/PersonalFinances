@@ -26,6 +26,8 @@ Claude writes code directly with clear comments explaining the how and why. Chan
 - Text/number inputs: `<AppInput v-model="value" />`
 - Dropdowns: `<AppSelect v-model="value" :options="options" placeholder="Select..." />`
 
+**IMPORTANT - Never use native `<select>` elements.** Always use `<AppSelect>` for dropdowns. This applies to all select/dropdown inputs throughout the application. The AppSelect component provides consistent styling and a better UX than native selects.
+
 ## Stack
 
 | Technology   | What It Is                        | Docs                                   |

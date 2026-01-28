@@ -90,7 +90,7 @@ def get_job(
     summary="List jobs",
     responses=UNAUTHORIZED,
 )
-def list_jobs(  # noqa: PLR0913
+def list_jobs(
     entity_type: str | None = Query(None, description="Filter by entity type"),
     entity_id: UUID | None = Query(None, description="Filter by entity ID"),
     job_type: JobType | None = Query(None, description="Filter by job type"),
