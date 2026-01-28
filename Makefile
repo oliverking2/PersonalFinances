@@ -1,4 +1,4 @@
-.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster down reset check logs
+.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  make up-backend   Start API server (hot reload)"
 	@echo "  make up-frontend  Start frontend (hot reload)"
 	@echo "  make up-dagster   Start Dagster UI"
+	@echo "  make up-telegram  Start Telegram bot (polling mode)"
 	@echo ""
 	@echo "Server:"
 	@echo "  make up           Start all services (docker-compose)"
@@ -156,6 +157,9 @@ up-frontend:
 
 up-dagster:
 	@cd backend && poetry run dagster dev --port 3001
+
+up-telegram:
+	@cd backend && poetry run python -m src.telegram
 
 # =============================================================================
 # Other

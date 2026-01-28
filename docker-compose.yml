@@ -108,6 +108,22 @@ services:
       dagster-webserver:
         condition: service_started
 
+  # ----------------------------
+  # Telegram Bot (polling)
+  # ----------------------------
+  telegram:
+    build: .
+    container_name: personal_automation_telegram
+    restart: unless-stopped
+    command: [ "python", "-m", "src.telegram" ]
+    env_file: .env
+    environment:
+      - DATABASE_HOST=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
 volumes:
   postgres_data:
     driver: local

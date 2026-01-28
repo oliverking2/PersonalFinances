@@ -538,6 +538,7 @@ class TransactionSplit(Base):
     __table_args__ = (
         Index("idx_transaction_splits_transaction", "transaction_id"),
         Index("idx_transaction_splits_tag", "tag_id"),
+        Index("idx_transaction_splits_rule_id", "rule_id"),
         Index(
             "idx_transaction_splits_unique",
             "transaction_id",

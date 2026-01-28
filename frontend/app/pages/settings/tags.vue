@@ -266,6 +266,9 @@ async function handleUnhide(tag: Tag) {
   <div class="page-container">
     <!-- Settings navigation -->
     <nav class="settings-nav">
+      <NuxtLink to="/settings/account" class="settings-nav-link">
+        Account
+      </NuxtLink>
       <NuxtLink to="/settings/tags" class="settings-nav-link active">
         Tags
       </NuxtLink>

@@ -19,6 +19,7 @@ from src.api.subscriptions.endpoints import router as subscriptions_router
 from src.api.tag_rules.endpoints import router as tag_rules_router
 from src.api.tags.endpoints import router as tags_router
 from src.api.transactions.endpoints import router as transactions_router
+from src.api.user.endpoints import router as user_router
 from src.utils.definitions import is_api_docs_disabled
 from src.utils.logging import configure_logging
 
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(tag_rules_router, prefix="/api/tag-rules", tags=["tag-rules"])
     app.include_router(tags_router, prefix="/api/tags", tags=["tags"])
     app.include_router(transactions_router, prefix="/api/transactions", tags=["transactions"])
+    app.include_router(user_router, prefix="/api/user", tags=["user"])
 
     @app.get("/health", tags=["health"])
     def health_check() -> dict[str, str]:

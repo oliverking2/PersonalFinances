@@ -66,3 +66,49 @@ def create_user(
     session.flush()
     logger.info(f"Created user: id={user.id}, username={normalised_username}")
     return user
+
+
+def get_user_by_telegram_chat_id(session: Session, chat_id: str) -> User | None:
+    """Get a user by their linked Telegram chat ID.
+
+    :param session: SQLAlchemy session.
+    :param chat_id: Telegram chat ID.
+    :return: User if found, None otherwise.
+    """
+    return session.query(User).filter(User.telegram_chat_id == chat_id).first()
+
+
+def link_telegram(session: Session, user_id: UUID, chat_id: str) -> User | None:
+    """Link a Telegram chat ID to a user account.
+
+    :param session: SQLAlchemy session.
+    :param user_id: User's UUID.
+    :param chat_id: Telegram chat ID to link.
+    :return: Updated User if found, None otherwise.
+    """
+    user = session.get(User, user_id)
+    if user is None:
+        return None
+
+    user.telegram_chat_id = chat_id
+    session.flush()
+    logger.info(f"Linked Telegram: user_id={user_id}, chat_id={chat_id}")
+    return user
+
+
+def unlink_telegram(session: Session, user_id: UUID) -> User | None:
+    """Unlink Telegram from a user account.
+
+    :param session: SQLAlchemy session.
+    :param user_id: User's UUID.
+    :return: Updated User if found, None otherwise.
+    """
+    user = session.get(User, user_id)
+    if user is None:
+        return None
+
+    old_chat_id = user.telegram_chat_id
+    user.telegram_chat_id = None
+    session.flush()
+    logger.info(f"Unlinked Telegram: user_id={user_id}, old_chat_id={old_chat_id}")
+    return user

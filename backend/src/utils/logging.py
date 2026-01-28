@@ -3,8 +3,19 @@
 import logging
 import os
 import sys
+from collections.abc import Iterable
 
 from dagster import get_dagster_logger
+
+
+def _set_logger_levels(names: Iterable[str], level: int) -> None:
+    """Set multiple loggers to the same level.
+
+    :param names: Logger names to configure.
+    :param level: Log level to set.
+    """
+    for name in names:
+        logging.getLogger(name).setLevel(level)
 
 
 def configure_logging() -> None:
@@ -15,7 +26,7 @@ def configure_logging() -> None:
     2. DEBUG for local environment (ENVIRONMENT=local)
     3. INFO otherwise (container/production)
 
-    Configures the root logger and sets uvicorn loggers to match.
+    Configures the root logger and silences noisy third-party loggers.
     """
     # Determine log level
     log_level_str = os.getenv("LOG_LEVEL")
@@ -38,25 +49,30 @@ def configure_logging() -> None:
         force=True,  # Override any existing configuration
     )
 
-    # Apply same format to uvicorn loggers
-    formatter = logging.Formatter(log_format, datefmt=date_format)
-    for uvicorn_logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
-        uvicorn_logger = logging.getLogger(uvicorn_logger_name)
-        uvicorn_logger.handlers = []  # Remove default handlers
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(formatter)
-        uvicorn_logger.addHandler(handler)
-        uvicorn_logger.propagate = False
+    # Ensure uvicorn loggers propagate to root (don't attach their own handlers)
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        lib_logger = logging.getLogger(name)
+        lib_logger.handlers.clear()
+        lib_logger.propagate = True
 
-    # Keep uvicorn access logs at INFO to avoid noise
-    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+    # Uvicorn access logs (optional via env var)
+    access_enabled = os.getenv("LOG_UVICORN_ACCESS", "false").strip().lower() == "true"
+    if not access_enabled:
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+    # HTTP client noise (httpx/httpcore spam DEBUG on every request)
+    _set_logger_levels(
+        ("httpx", "httpcore", "httpcore.http11", "httpcore.connection"),
+        logging.WARNING,
+    )
 
     # Set our application loggers to the configured level
     logging.getLogger("src").setLevel(log_level)
 
     # Log the configuration
-    logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured: level={logging.getLevelName(log_level)}")
+    logging.getLogger(__name__).info(
+        "Logging configured: level=%s", logging.getLevelName(log_level)
+    )
 
 
 def setup_dagster_logger(name: str) -> logging.Logger:

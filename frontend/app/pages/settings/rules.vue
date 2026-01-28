@@ -524,6 +524,9 @@ function formatAmount(amount: number, currency: string): string {
   <div class="page-container">
     <!-- Settings navigation -->
     <nav class="settings-nav">
+      <NuxtLink to="/settings/account" class="settings-nav-link">
+        Account
+      </NuxtLink>
       <NuxtLink to="/settings/tags" class="settings-nav-link"> Tags </NuxtLink>
       <NuxtLink to="/settings/rules" class="settings-nav-link active">
         Auto-Tagging Rules

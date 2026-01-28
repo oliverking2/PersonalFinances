@@ -31,6 +31,10 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Telegram integration - stores the user's Telegram chat ID for notifications/2FA
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

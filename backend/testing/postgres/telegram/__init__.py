@@ -1,0 +1,1 @@
+"""Telegram database tests."""

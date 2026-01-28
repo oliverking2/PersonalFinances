@@ -5,7 +5,14 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
-from src.postgres.auth.operations.users import create_user, get_user_by_id, get_user_by_username
+from src.postgres.auth.operations.users import (
+    create_user,
+    get_user_by_id,
+    get_user_by_telegram_chat_id,
+    get_user_by_username,
+    link_telegram,
+    unlink_telegram,
+)
 from src.utils.security import verify_password
 
 
@@ -114,3 +121,62 @@ class TestCreateUser:
         # but the columns should at least exist
         assert hasattr(user, "created_at")
         assert hasattr(user, "updated_at")
+
+
+class TestGetUserByTelegramChatId:
+    """Tests for get_user_by_telegram_chat_id operation."""
+
+    def test_returns_user_when_found(self, db_session: Session, test_user: User) -> None:
+        """Should return user when chat ID is linked."""
+        test_user.telegram_chat_id = "123456789"
+        db_session.commit()
+
+        result = get_user_by_telegram_chat_id(db_session, "123456789")
+
+        assert result is not None
+        assert result.id == test_user.id
+
+    def test_returns_none_when_not_found(self, db_session: Session) -> None:
+        """Should return None when chat ID is not linked."""
+        result = get_user_by_telegram_chat_id(db_session, "nonexistent")
+
+        assert result is None
+
+
+class TestLinkTelegram:
+    """Tests for link_telegram operation."""
+
+    def test_links_chat_id_to_user(self, db_session: Session, test_user: User) -> None:
+        """Should link the chat ID to the user."""
+        result = link_telegram(db_session, test_user.id, "123456789")
+        db_session.commit()
+
+        assert result is not None
+        assert result.telegram_chat_id == "123456789"
+
+    def test_returns_none_when_user_not_found(self, db_session: Session) -> None:
+        """Should return None when user doesn't exist."""
+        result = link_telegram(db_session, uuid4(), "123456789")
+
+        assert result is None
+
+
+class TestUnlinkTelegram:
+    """Tests for unlink_telegram operation."""
+
+    def test_unlinks_chat_id_from_user(self, db_session: Session, test_user: User) -> None:
+        """Should remove the chat ID from the user."""
+        test_user.telegram_chat_id = "123456789"
+        db_session.commit()
+
+        result = unlink_telegram(db_session, test_user.id)
+        db_session.commit()
+
+        assert result is not None
+        assert result.telegram_chat_id is None
+
+    def test_returns_none_when_user_not_found(self, db_session: Session) -> None:
+        """Should return None when user doesn't exist."""
+        result = unlink_telegram(db_session, uuid4())
+
+        assert result is None

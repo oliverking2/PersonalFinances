@@ -256,17 +256,31 @@ Financial planning features for tracking progress and controlling spending.
 
 Proactive alerts and two-way communication. Required for Vanguard MFA.
 
-### Bot Setup
+### Core Infrastructure
 
-- [ ] Bot configuration (leverage existing personal assistant project)
-- [ ] MFA code relay for Vanguard/other integrations
+- [x] Telegram client module (send messages, receive updates)
+- [x] Telegram config via pydantic-settings (`TELEGRAM_BOT_TOKEN`, etc.)
+- [x] Polling runner for receiving messages
+- [x] `wait_for_reply()` helper for 2FA flows
+- [x] Polling cursor persistence in database
+- [x] Migration for telegram_polling_cursor table
+- [x] Convert telegram tests to pytest style
+- [x] Add `telegram_chat_id` to User model (multi-user support)
+- [x] API endpoints to link/verify/unlink Telegram account (`/api/user/telegram`)
+- [x] Bot command handlers (`/start`, `/link`, `/status`, `/help`)
+- [x] User settings page for linking Telegram account (`/settings/account`)
 
 ### Notifications
 
 - [ ] Balance alerts (low balance, large deposits)
 - [ ] Transaction alerts (configurable thresholds)
 - [ ] Weekly summary reports
-- [ ] Budget/spending limit warnings
+- [ ] Budget/spending limit warnings (integrate with existing alerts)
+
+### MFA Support
+
+- [ ] MFA code relay for Vanguard/other integrations
+- [ ] Timeout handling and retry prompts
 
 ### Interactive Features
 
