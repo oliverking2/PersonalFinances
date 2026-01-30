@@ -29,6 +29,10 @@ const error = ref('')
 // Track which exports are currently being downloaded (to show loading state)
 const downloadingIds = ref<Set<string>>(new Set())
 
+// Auto-polling for pending/running exports
+const pollInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const POLL_INTERVAL_MS = 5000
+
 // ---------------------------------------------------------------------------
 // Data Loading
 // ---------------------------------------------------------------------------
@@ -40,6 +44,9 @@ async function loadData() {
   try {
     const response = await listExports()
     exports.value = response.exports
+
+    // Start polling if there are pending exports
+    startPollingIfNeeded()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load exports'
   } finally {
@@ -151,11 +158,53 @@ async function handleDownload(jobId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Auto-Polling
+// ---------------------------------------------------------------------------
+
+// Check if any exports are still pending or running
+function hasPendingExports(): boolean {
+  return exports.value.some(
+    (e) => e.status === 'pending' || e.status === 'running',
+  )
+}
+
+// Start polling if there are pending exports
+function startPollingIfNeeded() {
+  if (hasPendingExports() && !pollInterval.value) {
+    pollInterval.value = setInterval(async () => {
+      // Silent refresh (don't show loading state)
+      try {
+        const response = await listExports()
+        exports.value = response.exports
+
+        // Stop polling if no more pending exports
+        if (!hasPendingExports()) {
+          stopPolling()
+        }
+      } catch {
+        // Silently ignore polling errors to avoid spamming user
+      }
+    }, POLL_INTERVAL_MS)
+  }
+}
+
+function stopPolling() {
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value)
+    pollInterval.value = null
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
 onMounted(() => {
   loadData()
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>
 
@@ -184,10 +233,37 @@ onMounted(() => {
       Back to Datasets
     </NuxtLink>
 
-    <!-- Page header -->
-    <div>
-      <h1 class="text-2xl font-bold sm:text-3xl">Export History</h1>
-      <p class="mt-1 text-muted">View and download your past exports</p>
+    <!-- Page header with refresh button -->
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Export History</h1>
+        <p class="mt-1 text-muted">View and download your past exports</p>
+      </div>
+
+      <!-- Refresh button -->
+      <button
+        class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-border disabled:opacity-50"
+        :disabled="loading"
+        @click="loadData"
+      >
+        <!-- Refresh icon (spins when loading) -->
+        <svg
+          class="h-4 w-4"
+          :class="{ 'animate-spin': loading }"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
     </div>
 
     <!-- Error state -->
