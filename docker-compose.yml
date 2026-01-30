@@ -112,13 +112,17 @@ services:
   # Telegram Bot (polling)
   # ----------------------------
   telegram:
-    build: .
-    container_name: personal_automation_telegram
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: telegram
     restart: unless-stopped
-    command: [ "python", "-m", "src.telegram" ]
-    env_file: .env
+    command: ["python", "-m", "src.telegram"]
+    env_file:
+      - backend/.env
     environment:
-      - DATABASE_HOST=postgres
+      POSTGRES_HOSTNAME: postgres
+      POSTGRES_PORT: 5432
     depends_on:
       postgres:
         condition: service_healthy
