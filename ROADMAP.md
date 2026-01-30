@@ -270,12 +270,22 @@ Proactive alerts and two-way communication. Required for Vanguard MFA.
 - [x] Bot command handlers (`/start`, `/link`, `/status`, `/help`)
 - [x] User settings page for linking Telegram account (`/settings/account`)
 
-### Notifications
+### Telegram Notifications
 
 - [ ] Balance alerts (low balance, large deposits)
 - [ ] Transaction alerts (configurable thresholds)
 - [ ] Weekly summary reports
 - [ ] Budget/spending limit warnings (integrate with existing alerts)
+- [ ] Export completion notifications (in export engine PRD)
+
+### In-App Notification System
+
+- [ ] `Notification` model (type, title, message, read, created_at, metadata)
+- [ ] Notifications API (list, mark read, mark all read)
+- [ ] Notification bell icon in header with unread count
+- [ ] Notification dropdown/panel
+- [ ] Auto-create notifications for: export complete, sync complete, budget warnings
+- [ ] Replace current alert system with unified notifications
 
 ### MFA Support
 
@@ -340,8 +350,11 @@ Items to tackle when core functionality is complete.
 
 ### Export Engine
 
-- [ ] Dagster job for CSV/Parquet exports
+- [ ] Dagster job for CSV/Parquet exports (S3 storage, signed URLs)
 - [ ] Parameterised filters (date range, accounts, tags)
+- [ ] Telegram notification on completion
+- [ ] Datasets page UI with export modal
+- PRD: `prds/20260125-fullstack-analytics-export-engine.md`
 
 ### Manual Assets & Liabilities
 
