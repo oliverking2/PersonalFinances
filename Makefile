@@ -148,6 +148,7 @@ up-db:
 	@$(COMPOSE) up -d --wait postgres
 	@echo "Postgres ready."
 	@cd backend && poetry run alembic upgrade head
+	@cd backend && make dbt
 
 up-backend:
 	@cd backend && poetry run uvicorn src.api.app:app --reload --port 8000

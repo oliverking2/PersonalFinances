@@ -36,3 +36,9 @@ RUN poetry install --no-interaction --no-ansi --only-root
 
 # Parse dbt project to generate manifest.json (required by dagster-dbt)
 RUN poetry run dbt parse --project-dir ./dbt --profiles-dir ./dbt
+
+# Copy and set up entrypoint script
+COPY backend/setup/dagster/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
