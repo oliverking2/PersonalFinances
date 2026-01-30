@@ -284,6 +284,9 @@ Track financial progress over time.
 - [ ] Net worth tracking over time
 - [ ] Set milestone targets
 - [ ] Forecasting (project future balances based on recurring income/expenses)
+- [ ] Recurring income detection (salary, regular transfers - like subscriptions but positive)
+- [ ] Manual income entry (for irregular/variable income)
+- [ ] Cash flow projections UI (when will balance cross thresholds, best day for big purchases)
 - [ ] "What if" scenarios
 - [ ] Runway calculations
 
@@ -366,6 +369,12 @@ Items to tackle when higher priority work is complete.
 - [ ] Property valuations (manual entry with date)
 - [ ] Vehicle values
 - [ ] Other assets/liabilities
+
+### Proactive Insights
+
+- [ ] Spending velocity alerts ("You've spent £X in the first 10 days, Y% higher than usual")
+- [ ] Category trend detection ("Groceries spending up 15% over 3 months")
+- [ ] Financial calendar (visual month view of expected bills, subscriptions, income dates)
 
 ### Backlog
 
