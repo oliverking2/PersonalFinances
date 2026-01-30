@@ -22,14 +22,13 @@ from src.postgres.common.enums import (
     AccountCategory,
     AccountStatus,
     AccountType,
-    AlertStatus,
-    AlertType,
     BudgetPeriod,
     ConnectionStatus,
     GoalStatus,
     GoalTrackingMode,
     JobStatus,
     JobType,
+    NotificationType,
     Provider,
     RecurringFrequency,
     RecurringStatus,
@@ -831,66 +830,47 @@ class SavingsGoal(Base):
         return GoalTrackingMode(self.tracking_mode)
 
 
-class SpendingAlert(Base):
-    """Database model for spending alerts.
+class Notification(Base):
+    """Database model for in-app notifications.
 
-    Alerts are created when a budget threshold is crossed.
-    Deduplication is done by (user_id, budget_id, alert_type, period_key).
+    A unified notification model that supports multiple notification types:
+    budget warnings/exceeded, export complete/failed, sync complete/failed.
+    Type-specific data is stored in the extra_data JSONB field.
+
+    Deduplication for budget notifications is done by checking extra_data for
+    matching (budget_id, period_key). Other notification types don't need
+    deduplication.
     """
 
-    __tablename__ = "spending_alerts"
+    __tablename__ = "notifications"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    budget_id: Mapped[UUID] = mapped_column(
-        ForeignKey("budgets.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    alert_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=AlertStatus.PENDING.value
-    )
-    # Period key for deduplication (e.g., "2026-01" for monthly)
-    period_key: Mapped[str] = mapped_column(String(20), nullable=False)
-    # Snapshot of budget state when alert was created
-    budget_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    spent_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    notification_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    read: Mapped[bool] = mapped_column(default=False, nullable=False)
+    extra_data: Mapped[dict[str, Any]] = mapped_column(_JSONType, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=_utc_now,
     )
-    acknowledged_at: Mapped[datetime | None] = mapped_column(
+    read_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
-    # Relationships
-    budget: Mapped["Budget"] = relationship("Budget")
-
     __table_args__ = (
-        Index("idx_spending_alerts_user_id", "user_id"),
-        Index("idx_spending_alerts_status", "status"),
-        Index(
-            "idx_spending_alerts_unique",
-            "user_id",
-            "budget_id",
-            "alert_type",
-            "period_key",
-            unique=True,
-        ),
+        Index("idx_notifications_user_id", "user_id"),
+        Index("idx_notifications_user_read", "user_id", "read"),
+        Index("idx_notifications_created_at", "created_at"),
     )
 
     @property
-    def alert_type_enum(self) -> AlertType:
-        """Get alert_type as AlertType enum."""
-        return AlertType(self.alert_type)
-
-    @property
-    def status_enum(self) -> AlertStatus:
-        """Get status as AlertStatus enum."""
-        return AlertStatus(self.status)
+    def notification_type_enum(self) -> NotificationType:
+        """Get notification_type as NotificationType enum."""
+        return NotificationType(self.notification_type)

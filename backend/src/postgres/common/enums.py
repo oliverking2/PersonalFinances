@@ -207,23 +207,25 @@ class GoalTrackingMode(StrEnum):
     TARGET_BALANCE = "target_balance"
 
 
-class AlertType(StrEnum):
-    """Type of spending alert.
+class NotificationType(StrEnum):
+    """Type of in-app notification.
 
+    Budget notifications:
     - BUDGET_WARNING: Budget approaching limit (default 80%)
     - BUDGET_EXCEEDED: Budget has been exceeded
+
+    Export notifications:
+    - EXPORT_COMPLETE: Data export finished successfully
+    - EXPORT_FAILED: Data export failed with an error
+
+    Sync notifications:
+    - SYNC_COMPLETE: Data sync finished successfully
+    - SYNC_FAILED: Data sync failed with an error
     """
 
     BUDGET_WARNING = "budget_warning"
     BUDGET_EXCEEDED = "budget_exceeded"
-
-
-class AlertStatus(StrEnum):
-    """Status of a spending alert.
-
-    - PENDING: Alert has not been acknowledged
-    - ACKNOWLEDGED: User has seen/dismissed the alert
-    """
-
-    PENDING = "pending"
-    ACKNOWLEDGED = "acknowledged"
+    EXPORT_COMPLETE = "export_complete"
+    EXPORT_FAILED = "export_failed"
+    SYNC_COMPLETE = "sync_complete"
+    SYNC_FAILED = "sync_failed"

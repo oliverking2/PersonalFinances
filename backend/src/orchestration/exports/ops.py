@@ -19,8 +19,9 @@ from src.duckdb.client import execute_query
 from src.duckdb.manifest import get_dataset_schema
 from src.duckdb.queries import build_dataset_query
 from src.postgres.auth.models import User
-from src.postgres.common.enums import JobStatus
+from src.postgres.common.enums import JobStatus, NotificationType
 from src.postgres.common.operations.jobs import update_job_status
+from src.postgres.common.operations.notifications import create_notification
 from src.providers.s3 import generate_download_url, upload_export
 from src.telegram.client import TelegramClient
 from src.telegram.utils.config import get_telegram_settings
@@ -153,7 +154,7 @@ def _send_telegram_notification(
 
 
 @op(required_resource_keys={"postgres_database"})
-def export_dataset(context: OpExecutionContext, config: DatasetExportConfig) -> None:
+def export_dataset(context: OpExecutionContext, config: DatasetExportConfig) -> None:  # noqa: PLR0915
     """Export a dataset to S3.
 
     1. Mark job as RUNNING
@@ -282,6 +283,21 @@ def export_dataset(context: OpExecutionContext, config: DatasetExportConfig) -> 
                     download_url=download_url,
                 )
 
+            # Create in-app notification for export completion
+            create_notification(
+                session,
+                user_id,
+                NotificationType.EXPORT_COMPLETE,
+                title="Export Complete",
+                message=f"Your {dataset.friendly_name} export is ready ({row_count:,} rows).",
+                metadata={
+                    "job_id": str(job_id),
+                    "dataset_name": dataset.friendly_name,
+                    "download_url": download_url,
+                    "row_count": row_count,
+                },
+            )
+
         context.log.info(f"Export completed: job_id={job_id}, rows={row_count}")
 
     except Exception as e:
@@ -294,6 +310,19 @@ def export_dataset(context: OpExecutionContext, config: DatasetExportConfig) -> 
                 job_id,
                 JobStatus.FAILED,
                 error_message="Export failed. Please try again or contact support.",
+            )
+
+            # Create in-app notification for export failure
+            create_notification(
+                session,
+                user_id,
+                NotificationType.EXPORT_FAILED,
+                title="Export Failed",
+                message="Your export failed. Please try again or contact support.",
+                metadata={
+                    "job_id": str(job_id),
+                    "error_message": str(e),
+                },
             )
 
         raise

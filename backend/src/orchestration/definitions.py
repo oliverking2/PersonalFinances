@@ -10,6 +10,7 @@ from dagster import Definitions
 from src.orchestration.dbt.definitions import dbt_defs
 from src.orchestration.exports.definitions import export_defs
 from src.orchestration.gocardless.definitions import gocardless_defs
+from src.orchestration.maintenance import maintenance_defs
 from src.orchestration.recurring_patterns.definitions import recurring_patterns_defs
 from src.orchestration.resources import resource_defs
 from src.orchestration.trading212.definitions import trading212_defs
@@ -23,4 +24,5 @@ defs = Definitions.merge(
     dbt_defs,
     recurring_patterns_defs,
     export_defs,
+    maintenance_defs,
 )

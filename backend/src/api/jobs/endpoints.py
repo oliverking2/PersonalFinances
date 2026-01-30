@@ -10,18 +10,67 @@ from src.api.dependencies import get_current_user, get_db
 from src.api.jobs.models import JobListResponse, JobResponse
 from src.api.responses import RESOURCE_RESPONSES, UNAUTHORIZED
 from src.postgres.auth.models import User
-from src.postgres.common.enums import JobStatus, JobType
-from src.postgres.common.models import Job
+from src.postgres.common.enums import JobStatus, JobType, NotificationType
+from src.postgres.common.models import Connection, Job
 from src.postgres.common.operations.jobs import (
     get_job_by_id,
     get_jobs_by_user,
     update_job_status,
 )
+from src.postgres.common.operations.notifications import create_notification
 from src.providers.dagster import get_run_status
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _create_sync_notification(
+    db: Session,
+    job: Job,
+    *,
+    success: bool,
+    error_message: str | None = None,
+) -> None:
+    """Create a notification for sync job completion/failure.
+
+    :param db: Database session.
+    :param job: Job entity.
+    :param success: Whether the sync succeeded.
+    :param error_message: Error message if sync failed.
+    """
+    # Get connection name if this is a connection sync
+    connection_name = "Unknown"
+    if job.entity_type == "connection" and job.entity_id:
+        connection = db.get(Connection, job.entity_id)
+        if connection:
+            connection_name = connection.friendly_name
+
+    if success:
+        create_notification(
+            db,
+            job.user_id,
+            NotificationType.SYNC_COMPLETE,
+            title="Sync Complete",
+            message=f"Your {connection_name} sync completed successfully.",
+            metadata={
+                "job_id": str(job.id),
+                "connection_name": connection_name,
+            },
+        )
+    else:
+        create_notification(
+            db,
+            job.user_id,
+            NotificationType.SYNC_FAILED,
+            title="Sync Failed",
+            message=f"Your {connection_name} sync failed. Please try again.",
+            metadata={
+                "job_id": str(job.id),
+                "connection_name": connection_name,
+                "error_message": error_message,
+            },
+        )
 
 
 def _to_response(job: Job) -> JobResponse:
@@ -67,16 +116,27 @@ def get_job(
         dagster_status = get_run_status(job.dagster_run_id)
         if dagster_status == "SUCCESS":
             update_job_status(db, job.id, JobStatus.COMPLETED)
+
+            # Create sync complete notification for sync jobs
+            if job.job_type == JobType.SYNC.value:
+                _create_sync_notification(db, job, success=True)
+
             db.commit()
             db.refresh(job)
             logger.info(f"Job {job_id} completed (Dagster status: SUCCESS)")
         elif dagster_status in ("FAILURE", "CANCELED"):
+            error_msg = f"Dagster run {dagster_status.lower()}"
             update_job_status(
                 db,
                 job.id,
                 JobStatus.FAILED,
-                error_message=f"Dagster run {dagster_status.lower()}",
+                error_message=error_msg,
             )
+
+            # Create sync failed notification for sync jobs
+            if job.job_type == JobType.SYNC.value:
+                _create_sync_notification(db, job, success=False, error_message=error_msg)
+
             db.commit()
             db.refresh(job)
             logger.info(f"Job {job_id} failed (Dagster status: {dagster_status})")

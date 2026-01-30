@@ -82,7 +82,7 @@ function logout() {
           </div>
         </div>
 
-        <!-- Right side: User info and logout -->
+        <!-- Right side: User info, notifications, and logout -->
         <div class="flex items-center gap-4">
           <!-- Show user's name on larger screens -->
           <span
@@ -91,6 +91,10 @@ function logout() {
           >
             {{ authStore.displayName }}
           </span>
+
+          <!-- Notification bell with dropdown -->
+          <NotificationsNotificationBell />
+
           <AppButton type="button" @click="logout">Logout</AppButton>
         </div>
       </nav>

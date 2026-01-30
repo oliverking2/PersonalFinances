@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from src.orchestration.resources import PostgresDatabase
 from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection
+from src.postgres.common.operations.notifications import check_budgets_and_notify
 from src.postgres.common.operations.sync import (
     mark_missing_accounts_inactive,
     sync_all_gocardless_accounts,
@@ -255,7 +256,7 @@ def sync_gc_institutions(context: AssetExecutionContext, config: ConnectionScope
     description="Sync GoCardless transactions to unified transactions table and apply auto-tagging rules.",
     required_resource_keys={"postgres_database"},
 )
-def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:
+def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScopeConfig) -> None:  # noqa: PLR0912
     """Sync GoCardless transactions to the unified transactions table.
 
     This asset reads from gc_transactions and upserts to the transactions table.
@@ -305,6 +306,13 @@ def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScope
                 context.log.info(
                     f"Auto-tagged {tagged_count} transactions for user {connection.user_id}"
                 )
+
+            # Check budgets and create notifications if thresholds are exceeded
+            notifications_created = check_budgets_and_notify(session, connection.user_id)
+            if notifications_created > 0:
+                context.log.info(
+                    f"Created {notifications_created} budget notifications for user {connection.user_id}"
+                )
             return
 
         # Otherwise sync all active accounts from all active connections
@@ -346,6 +354,7 @@ def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScope
             user_accounts[user_id].append(account.id)
 
         total_tagged = 0
+        total_notifications = 0
         for user_id, account_ids in user_accounts.items():
             tagged_count = bulk_apply_rules(
                 session,
@@ -357,8 +366,19 @@ def sync_gc_transactions(context: AssetExecutionContext, config: ConnectionScope
             if tagged_count > 0:
                 context.log.info(f"Auto-tagged {tagged_count} transactions for user {user_id}")
 
+            # Check budgets and create notifications for each user
+            notifications_created = check_budgets_and_notify(session, user_id)
+            total_notifications += notifications_created
+            if notifications_created > 0:
+                context.log.info(
+                    f"Created {notifications_created} budget notifications for user {user_id}"
+                )
+
         if total_tagged > 0:
             context.log.info(f"Total auto-tagged: {total_tagged} transactions")
+
+        if total_notifications > 0:
+            context.log.info(f"Total budget notifications created: {total_notifications}")
 
 
 sync_asset_defs = Definitions(
