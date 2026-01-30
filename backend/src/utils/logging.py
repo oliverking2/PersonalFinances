@@ -66,6 +66,12 @@ def configure_logging() -> None:
         logging.WARNING,
     )
 
+    # AWS SDK noise (botocore logs every request detail at DEBUG)
+    _set_logger_levels(
+        ("botocore", "boto3", "urllib3"),
+        logging.WARNING,
+    )
+
     # Set our application loggers to the configured level
     logging.getLogger("src").setLevel(log_level)
 

@@ -313,10 +313,10 @@ Expand beyond bank accounts to see full investment portfolio.
 
 ### Trading212 Integration
 
-- [ ] Research API availability
-- [ ] Extract holdings and positions
-- [ ] Extract transaction/trade history
-- [ ] dbt models for trading data
+- [x] Research API availability
+- [x] Extract holdings and positions
+- [x] Extract transaction/trade history
+- [x] dbt models for trading data
 
 ---
 
@@ -350,11 +350,10 @@ Items to tackle when core functionality is complete.
 
 ### Export Engine
 
-- [ ] Dagster job for CSV/Parquet exports (S3 storage, signed URLs)
-- [ ] Parameterised filters (date range, accounts, tags)
-- [ ] Telegram notification on completion
-- [ ] Datasets page UI with export modal
-- PRD: `prds/20260125-fullstack-analytics-export-engine.md`
+- [x] Dagster job for CSV/Parquet exports (S3 storage, signed URLs)
+- [x] Parameterised filters (date range, accounts, tags)
+- [x] Telegram notification on completion
+- [x] Datasets page UI with export modal
 
 ### Manual Assets & Liabilities
 
