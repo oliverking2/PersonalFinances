@@ -157,7 +157,6 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Seed standard tags on account creation (Groceries, Dining, Transport, Utilities, Entertainment, Shopping, Subscriptions, Health, Travel, Income, Transfers, Fees)
 - [x] Standard tags cannot be deleted (only hidden)
 - [x] Backfill migration for existing users
-- [ ] Remove ability to add tags on the transactions view
 
 ### Auto-Tagging Rules ✅
 
@@ -183,11 +182,6 @@ Automated categorisation and transaction splitting. Foundation for accurate budg
 - [x] Analytics correctly handles split amounts per tag (dbt model)
 - [x] Unify tags and splits (all tagging via splits, default 100%)
 
-### Future
-
-- [ ] Multi-rule match notifications (alert when transaction matches multiple rules, built-in notification system)
-- [ ] Smart tag suggestions (ML-based, learn from user corrections)
-
 ---
 
 ## Phase 5: Recurring Transactions ✅
@@ -200,21 +194,12 @@ Identify subscriptions and predict upcoming bills.
 - [x] Subscription management page (`/subscriptions`)
 - [x] Confirm/dismiss/pause/restore patterns
 - [x] Dagster sync job (auto-runs after dbt builds)
-
-### Detection Improvements (pending)
-
-- [ ] Improve confidence calculation (current formula too harsh for consistent payments)
-- [ ] Separate patterns by amount bucket (Apple £4.99 and £2.99 should be different)
-- [ ] Allow editing expected amount when subscription price changes
-- [ ] Subscription detail view with linked transactions and detection explanation
-- [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
-- [ ] Add pagination to subscription transactions endpoint (currently returns all)
-
-### General Transport Improvements
-
+- [x] Subscription detail view with linked transactions
 - [x] Transactions filtering needs to continue requesting for a given filter if there isn't max values showing
 
-### Phase 6: Budgeting & Goals ✅
+---
+
+## Phase 6: Budgeting & Goals ✅
 
 Financial planning features for tracking progress and controlling spending.
 
@@ -243,20 +228,13 @@ Financial planning features for tracking progress and controlling spending.
 - [x] Alert dropdown with acknowledge actions
 - [x] Dagster job to check budgets and generate alerts
 
-### Deferred to Phase 7
-
-- [ ] Telegram notifications
-- [ ] Rollover/flexible budgets
-- [ ] Weekly/annual budget periods
-- [ ] Income tracking (existing "Income" tag suffices for now)
-
 ---
 
-## Phase 7: Telegram Integration
+## Phase 7: Telegram Integration ✅
 
 Proactive alerts and two-way communication. Required for Vanguard MFA.
 
-### Core Infrastructure
+### Core Infrastructure ✅
 
 - [x] Telegram client module (send messages, receive updates)
 - [x] Telegram config via pydantic-settings (`TELEGRAM_BOT_TOKEN`, etc.)
@@ -270,48 +248,24 @@ Proactive alerts and two-way communication. Required for Vanguard MFA.
 - [x] Bot command handlers (`/start`, `/link`, `/status`, `/help`)
 - [x] User settings page for linking Telegram account (`/settings/account`)
 
-### Telegram Notifications
+### In-App Notification System ✅
 
-- [ ] Balance alerts (low balance, large deposits)
-- [ ] Transaction alerts (configurable thresholds)
-- [ ] Weekly summary reports
-- [ ] Budget/spending limit warnings (integrate with existing alerts)
-- [ ] Export completion notifications (in export engine PRD)
+- [x] `Notification` model (type, title, message, read, created_at, metadata)
+- [x] Notifications API (list, mark read, mark all read)
+- [x] Notification bell icon in header with unread count
+- [x] Notification dropdown/panel
+- [x] Auto-create notifications for: export complete, sync complete, budget warnings
+- [x] Replace current alert system with unified notifications
 
-### In-App Notification System
+### Export Engine ✅
 
-- [ ] `Notification` model (type, title, message, read, created_at, metadata)
-- [ ] Notifications API (list, mark read, mark all read)
-- [ ] Notification bell icon in header with unread count
-- [ ] Notification dropdown/panel
-- [ ] Auto-create notifications for: export complete, sync complete, budget warnings
-- [ ] Replace current alert system with unified notifications
+- [x] Dagster job for CSV/Parquet exports (S3 storage, signed URLs)
+- [x] Parameterised filters (date range, accounts, tags)
+- [x] Telegram notification on completion
+- [x] Datasets page UI with export modal
+- [x] Export history page (view past exports, regenerate download URLs)
 
-### MFA Support
-
-- [ ] MFA code relay for Vanguard/other integrations
-- [ ] Timeout handling and retry prompts
-
-### Interactive Features
-
-- [ ] Quick actions (categorise transaction, add note)
-- [ ] Reminder acknowledgement
-
----
-
-## Phase 8: Investment Platforms
-
-Expand beyond bank accounts to see full investment portfolio.
-
-### Vanguard Integration
-
-- [ ] Research API/scraping options
-- [ ] Handle MFA (via Telegram)
-- [ ] Extract portfolio holdings
-- [ ] Extract transaction history
-- [ ] dbt models for investment data
-
-### Trading212 Integration
+### Trading212 Integration ✅
 
 - [x] Research API availability
 - [x] Extract holdings and positions
@@ -320,9 +274,9 @@ Expand beyond bank accounts to see full investment portfolio.
 
 ---
 
-## Phase 9: Balance History & Net Worth
+## Phase 8: Balance History & Net Worth
 
-Track financial progress over time. Requires unified balance table.
+Track financial progress over time.
 
 - [ ] Unified balance table (consolidate provider-specific balance tables)
 - [ ] `fct_daily_balance_history` dbt mart model
@@ -335,33 +289,67 @@ Track financial progress over time. Requires unified balance table.
 
 ---
 
-## Phase 10: Low Priority & Polish
+## Phase 9: Mobile Responsiveness
 
-Items to tackle when core functionality is complete.
-
-### Mobile Responsiveness
+Make the app usable on mobile devices.
 
 - [ ] Responsive navigation (hamburger menu)
 - [ ] Home page mobile layout
+- [ ] Transactions page mobile layout
 - [ ] Analytics page mobile layout
 - [ ] Accounts page mobile layout
-- [ ] Transactions page mobile layout
 - [ ] Settings pages mobile layout
 
-### Export Engine
+---
 
-- [x] Dagster job for CSV/Parquet exports (S3 storage, signed URLs)
-- [x] Parameterised filters (date range, accounts, tags)
-- [x] Telegram notification on completion
-- [x] Datasets page UI with export modal
+## Phase 10: Recurring Transaction Polish
 
-### Manual Assets & Liabilities
+Improve subscription detection accuracy.
 
-- [ ] Student loan balance tracking
-- [ ] Mortgage balance tracking
-- [ ] Property valuations (manual entry with date)
-- [ ] Vehicle values
-- [ ] Other assets/liabilities
+- [ ] Improve confidence calculation (current formula too harsh for consistent payments)
+- [ ] Separate patterns by amount bucket (Apple £4.99 and £2.99 should be different)
+- [ ] Allow editing expected amount when subscription price changes
+- [ ] Detection explanation in subscription detail view
+- [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
+- [ ] Add pagination to subscription transactions endpoint (currently returns all)
+
+---
+
+## Phase 11: Budget Enhancements
+
+More flexible budgeting options.
+
+- [ ] Rollover/flexible budgets (unused budget carries forward)
+- [ ] Weekly/annual budget periods
+
+---
+
+## Phase 12: Lower Priority
+
+Items to tackle when higher priority work is complete.
+
+### Telegram Notifications
+
+- [ ] Balance alerts (low balance, large deposits)
+- [ ] Transaction alerts (configurable thresholds)
+- [ ] Weekly summary reports
+- [ ] Budget/spending limit warnings via Telegram
+- [ ] MFA code relay for Vanguard/other integrations
+- [ ] Quick actions (categorise transaction, add note)
+- [ ] Reminder acknowledgement
+
+### Vanguard Integration
+
+- [ ] Research API/scraping options
+- [ ] Handle MFA (via Telegram)
+- [ ] Extract portfolio holdings
+- [ ] Extract transaction history
+- [ ] dbt models for investment data
+
+### Smart Tagging Enhancements
+
+- [ ] Multi-rule match notifications (alert when transaction matches multiple rules)
+- [ ] Smart tag suggestions (ML-based, learn from user corrections)
 
 ### AI Features
 
@@ -370,6 +358,14 @@ Items to tackle when core functionality is complete.
 - [ ] Spending pattern insights
 - [ ] Anomaly detection (unusual transactions)
 - [ ] Financial health score
+
+### Manual Assets & Liabilities
+
+- [ ] Student loan balance tracking
+- [ ] Mortgage balance tracking
+- [ ] Property valuations (manual entry with date)
+- [ ] Vehicle values
+- [ ] Other assets/liabilities
 
 ### Backlog
 
