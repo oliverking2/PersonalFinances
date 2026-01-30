@@ -56,7 +56,9 @@ from src.postgres.gocardless.operations.requisitions import (
 )
 from src.providers.dagster import (
     GOCARDLESS_CONNECTION_SYNC_JOB,
+    TRADING212_SYNC_JOB,
     build_gocardless_run_config,
+    build_trading212_run_config,
     trigger_job,
 )
 from src.providers.gocardless.api.core import GoCardlessCredentials
@@ -459,9 +461,15 @@ def trigger_connection_sync(
         entity_id=connection_id,
     )
 
-    # Trigger Dagster job with connection scope
-    run_config = build_gocardless_run_config(str(connection_id))
-    run_id = trigger_job(GOCARDLESS_CONNECTION_SYNC_JOB, run_config)
+    # Trigger appropriate Dagster job based on provider
+    if connection.provider == Provider.TRADING212.value:
+        # Trading 212 uses the provider_id (T212 API key ID) for sync
+        run_config = build_trading212_run_config(connection.provider_id)
+        run_id = trigger_job(TRADING212_SYNC_JOB, run_config)
+    else:
+        # GoCardless uses the connection ID
+        run_config = build_gocardless_run_config(str(connection_id))
+        run_id = trigger_job(GOCARDLESS_CONNECTION_SYNC_JOB, run_config)
 
     if run_id:
         update_job_status(db, job.id, JobStatus.RUNNING, dagster_run_id=run_id)

@@ -41,6 +41,7 @@ const error = ref('')
 
 // Modal state
 const showCreateModal = ref(false)
+const showTrading212Modal = ref(false)
 const showEditConnectionModal = ref(false)
 const showAccountSettingsModal = ref(false)
 const showDeleteConfirm = ref(false)
@@ -200,6 +201,20 @@ function openCreateModal() {
 
 function closeCreateModal() {
   showCreateModal.value = false
+}
+
+function openTrading212Modal() {
+  showTrading212Modal.value = true
+}
+
+function closeTrading212Modal() {
+  showTrading212Modal.value = false
+}
+
+function handleTrading212Created() {
+  showTrading212Modal.value = false
+  toast.success('Trading 212 account connected successfully')
+  loadData()
 }
 
 function handleConnectionCreated(authUrl: string) {
@@ -442,7 +457,7 @@ async function pollJobStatus(
             Refresh
           </button>
 
-          <!-- New Connection button -->
+          <!-- New Connection buttons -->
           <button
             type="button"
             class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary-hover"
@@ -459,7 +474,27 @@ async function pollJobStatus(
                 d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
               />
             </svg>
-            New Connection
+            Connect Bank
+          </button>
+
+          <!-- Add Trading 212 button -->
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-lg border border-primary px-4 py-2 font-medium text-primary transition-colors hover:bg-primary/10"
+            @click="openTrading212Modal"
+          >
+            <!-- Plus icon -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="h-5 w-5"
+            >
+              <path
+                d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+              />
+            </svg>
+            Add Trading 212
           </button>
         </div>
       </div>
@@ -534,11 +569,18 @@ async function pollJobStatus(
         />
       </div>
 
-      <!-- Create Connection Modal -->
+      <!-- Create Connection Modal (Bank via GoCardless) -->
       <AccountsCreateConnectionModal
         :show="showCreateModal"
         @close="closeCreateModal"
         @created="handleConnectionCreated"
+      />
+
+      <!-- Add Trading 212 Modal -->
+      <AccountsAddTrading212Modal
+        :show="showTrading212Modal"
+        @close="closeTrading212Modal"
+        @created="handleTrading212Created"
       />
 
       <!-- Edit Connection Name Modal -->

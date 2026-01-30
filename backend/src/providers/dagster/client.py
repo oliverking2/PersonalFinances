@@ -29,6 +29,20 @@ GOCARDLESS_CONNECTION_SYNC_OPS = [
 # Job name for connection-scoped syncs
 GOCARDLESS_CONNECTION_SYNC_JOB = "gocardless_connection_sync_job"
 
+# Trading 212 sync ops
+TRADING212_SYNC_OPS = [
+    "source__trading212__extract__cash",
+    "source__trading212__extract__orders",
+    "source__trading212__extract__dividends",
+    "source__trading212__extract__transactions",
+    "sync__trading212__connections",
+    "sync__trading212__accounts",
+    "sync__trading212__transactions",
+]
+
+# Job name for Trading 212 syncs
+TRADING212_SYNC_JOB = "trading212_sync_job"
+
 
 def build_gocardless_run_config(connection_id: str) -> dict[str, Any]:
     """Build run config for GoCardless connection sync job.
@@ -42,6 +56,19 @@ def build_gocardless_run_config(connection_id: str) -> dict[str, Any]:
             for op_name in GOCARDLESS_CONNECTION_SYNC_OPS
         }
     }
+
+
+def build_trading212_run_config(api_key_id: str | None = None) -> dict[str, Any]:
+    """Build run config for Trading 212 sync job.
+
+    :param api_key_id: Optional API key UUID to scope sync to single key.
+    :returns: Run config dict for Dagster.
+    """
+    config: dict[str, Any] = {}
+    if api_key_id:
+        config = {"api_key_id": api_key_id}
+
+    return {"ops": {op_name: {"config": config} for op_name in TRADING212_SYNC_OPS}}
 
 
 def _get_dagster_url() -> str:

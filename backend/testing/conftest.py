@@ -19,6 +19,7 @@ os.environ.setdefault("REFRESH_TOKEN_EXPIRE_DAYS", "30")
 os.environ.setdefault("GC_SECRET_ID", "test-secret-id")
 os.environ.setdefault("GC_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ADMIN_TOKEN", "test-admin-token-for-registration")
+os.environ.setdefault("T212_ENCRYPTION_KEY", "I2bDZ1RTbAvAoYcf304u3XqUtWUO4zSWzSugt4tst_M=")
 
 from collections.abc import Generator
 from datetime import datetime

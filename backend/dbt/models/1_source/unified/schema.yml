@@ -95,7 +95,7 @@ sources:
         description: Unified account data from all providers
         meta:
           dagster:
-            asset_key: ["sync", "gocardless", "accounts"]
+            asset_key: ["sync", "unified", "accounts"]
         columns:
           - name: id
           - name: connection_id
@@ -120,7 +120,7 @@ sources:
         description: Provider connections linking users to financial institutions
         meta:
           dagster:
-            asset_key: ["sync", "gocardless", "connections"]
+            asset_key: ["sync", "unified", "connections"]
         columns:
           - name: id
           - name: user_id
@@ -147,7 +147,7 @@ sources:
         description: Unified transaction data from all providers
         meta:
           dagster:
-            asset_key: ["sync", "gocardless", "transactions"]
+            asset_key: ["sync", "unified", "transactions"]
         columns:
           - name: id
           - name: account_id

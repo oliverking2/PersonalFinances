@@ -2,9 +2,13 @@
 
 from uuid import uuid4
 
+import pytest
+
 from src.utils.security import (
     create_access_token,
     decode_access_token,
+    decrypt_api_key,
+    encrypt_api_key,
     generate_refresh_token,
     hash_password,
     hash_refresh_token,
@@ -148,3 +152,50 @@ class TestAccessToken:
         decoded_id = decode_access_token(token)
 
         assert decoded_id == user_id
+
+
+class TestApiKeyEncryption:
+    """Tests for API key encryption functions."""
+
+    def test_encrypt_api_key(self) -> None:
+        """Encrypting an API key should return base64-encoded string."""
+        api_key = "my-secret-api-key-12345"
+        encrypted = encrypt_api_key(api_key)
+
+        assert encrypted != api_key
+        assert len(encrypted) > 0
+
+    def test_decrypt_api_key(self) -> None:
+        """Decrypting should return original API key."""
+        api_key = "my-secret-api-key-12345"
+        encrypted = encrypt_api_key(api_key)
+
+        decrypted = decrypt_api_key(encrypted)
+
+        assert decrypted == api_key
+
+    def test_encrypt_decrypt_roundtrip(self) -> None:
+        """Encrypt and decrypt should be reversible."""
+        original = "test-trading212-api-key-abc123"
+        encrypted = encrypt_api_key(original)
+        decrypted = decrypt_api_key(encrypted)
+
+        assert decrypted == original
+
+    def test_decrypt_invalid_data(self) -> None:
+        """Decrypting invalid data should raise ValueError."""
+        with pytest.raises(ValueError, match="Failed to decrypt"):
+            decrypt_api_key("invalid-encrypted-data")
+
+    def test_encryption_is_unique(self) -> None:
+        """Each encryption should produce different output (due to IV)."""
+        api_key = "same-api-key"
+        encrypted1 = encrypt_api_key(api_key)
+        encrypted2 = encrypt_api_key(api_key)
+
+        # Fernet includes random IV, so same input produces different output
+        assert encrypted1 != encrypted2
+
+        # But both should decrypt to the same value
+        assert decrypt_api_key(encrypted1) == api_key
+        assert decrypt_api_key(encrypted2) == api_key

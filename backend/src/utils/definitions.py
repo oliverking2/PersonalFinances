@@ -178,3 +178,15 @@ def cookie_domain() -> str | None:
     if is_local_environment():
         return None
     return os.getenv("COOKIE_DOMAIN") or None
+
+
+def t212_encryption_key() -> str:
+    """Get the Trading 212 API key encryption key.
+
+    :return: Fernet encryption key (base64-encoded 32 bytes).
+    :raises ValueError: If T212_ENCRYPTION_KEY is not set.
+    """
+    key = os.getenv("T212_ENCRYPTION_KEY")
+    if not key:
+        raise ValueError("Environment variable T212_ENCRYPTION_KEY must be set")
+    return key

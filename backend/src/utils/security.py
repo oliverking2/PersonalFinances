@@ -1,7 +1,7 @@
 """Security utilities for authentication.
 
-This module provides password hashing, JWT token management, and
-refresh token generation utilities.
+This module provides password hashing, JWT token management,
+refresh token generation, and API key encryption utilities.
 """
 
 import hashlib
@@ -10,12 +10,14 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import bcrypt
+from cryptography.fernet import Fernet, InvalidToken
 from jose import JWTError, jwt
 
 from src.utils.definitions import (
     access_token_expire_minutes,
     jwt_algorithm,
     jwt_secret,
+    t212_encryption_key,
 )
 
 
@@ -112,3 +114,33 @@ def decode_access_token(token: str) -> UUID | None:
         return UUID(user_id_str)
     except (JWTError, ValueError):
         return None
+
+
+# API Key Encryption (Trading 212)
+
+
+def encrypt_api_key(api_key: str) -> str:
+    """Encrypt an API key for secure storage.
+
+    Uses Fernet symmetric encryption with the T212_ENCRYPTION_KEY.
+
+    :param api_key: Plain text API key to encrypt.
+    :return: Base64-encoded encrypted API key.
+    :raises ValueError: If encryption key is not configured.
+    """
+    cipher = Fernet(t212_encryption_key().encode())
+    return cipher.encrypt(api_key.encode()).decode()
+
+
+def decrypt_api_key(encrypted_key: str) -> str:
+    """Decrypt an encrypted API key.
+
+    :param encrypted_key: Base64-encoded encrypted API key.
+    :return: Plain text API key.
+    :raises ValueError: If decryption fails (wrong key or corrupted data).
+    """
+    try:
+        cipher = Fernet(t212_encryption_key().encode())
+        return cipher.decrypt(encrypted_key.encode()).decode()
+    except InvalidToken as e:
+        raise ValueError("Failed to decrypt API key: invalid or corrupted data") from e

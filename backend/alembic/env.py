@@ -28,6 +28,7 @@ from src.postgres.gocardless.models import *  # noqa: F403, E402
 from src.postgres.auth.models import *  # noqa: F403, E402
 from src.postgres.common.models import *  # noqa: F403, E402
 from src.postgres.telegram.models import *  # noqa: F403, E402
+from src.postgres.trading212.models import *  # noqa: F403, E402
 
 target_metadata = Base.metadata
 

@@ -39,7 +39,16 @@ class TestTelegramConfig:
 
     def test_missing_bot_token_raises_error(self) -> None:
         """Test that missing bot_token raises validation error."""
-        with pytest.raises(ValidationError):
+        # Ensure TELEGRAM_BOT_TOKEN is not in environment (BaseSettings reads from env)
+        # Also patch model_config to avoid reading from .env file
+        env_without_token = {k: v for k, v in os.environ.items() if k != "TELEGRAM_BOT_TOKEN"}
+        with (
+            patch.dict(os.environ, env_without_token, clear=True),
+            patch.object(
+                TelegramConfig, "model_config", {**TelegramConfig.model_config, "env_file": None}
+            ),
+            pytest.raises(ValidationError),
+        ):
             TelegramConfig()  # type: ignore[call-arg]
 
     def test_poll_timeout_validation_min(self) -> None:
