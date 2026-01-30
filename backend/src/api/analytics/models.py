@@ -9,6 +9,37 @@ from pydantic import BaseModel, Field
 # Dataset discovery models
 
 
+class EnumFilterResponse(BaseModel):
+    """An enum filter with predefined options."""
+
+    name: str = Field(..., description="Column name in the dataset")
+    label: str = Field(..., description="Display label for the filter")
+    options: list[str] = Field(..., description="Allowed values")
+
+
+class NumericFilterResponse(BaseModel):
+    """A numeric filter for min/max range filtering."""
+
+    name: str = Field(..., description="Column name in the dataset")
+    label: str = Field(..., description="Display label for the filter")
+
+
+class DatasetFiltersResponse(BaseModel):
+    """Available filter columns for a dataset."""
+
+    date_column: str | None = Field(default=None, description="Column name for date filtering")
+    account_id_column: str | None = Field(
+        default=None, description="Column name for account filtering"
+    )
+    tag_id_column: str | None = Field(default=None, description="Column name for tag filtering")
+    enum_filters: list[EnumFilterResponse] = Field(
+        default_factory=list, description="Enum filters with predefined options"
+    )
+    numeric_filters: list[NumericFilterResponse] = Field(
+        default_factory=list, description="Numeric filters for range filtering"
+    )
+
+
 class DatasetColumnResponse(BaseModel):
     """Schema column for a dataset."""
 
@@ -26,6 +57,10 @@ class DatasetResponse(BaseModel):
     description: str = Field(..., description="Dataset description")
     group: str = Field(..., description="Dataset group (facts, dimensions, aggregations)")
     time_grain: str | None = Field(None, description="Time grain for aggregations (day, month)")
+    filters: DatasetFiltersResponse = Field(
+        default_factory=lambda: DatasetFiltersResponse(),
+        description="Available filter columns",
+    )
 
 
 class DatasetListResponse(BaseModel):

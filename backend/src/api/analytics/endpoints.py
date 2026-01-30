@@ -9,19 +9,23 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from src.api.analytics.exports import router as exports_router
 from src.api.analytics.models import (
     AnalyticsStatusResponse,
     DatasetColumnResponse,
+    DatasetFiltersResponse,
     DatasetListResponse,
     DatasetQueryResponse,
     DatasetResponse,
     DatasetSchemaResponse,
+    EnumFilterResponse,
+    NumericFilterResponse,
     RefreshResponse,
 )
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
 from src.duckdb.client import check_connection, execute_query
-from src.duckdb.manifest import get_dataset_schema, get_datasets
+from src.duckdb.manifest import DatasetFilters, get_dataset_schema, get_datasets
 from src.duckdb.queries import build_dataset_query
 from src.filepaths import DUCKDB_PATH
 from src.postgres.auth.models import User
@@ -34,6 +38,9 @@ from src.providers.dagster import trigger_job
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Include exports sub-router
+router.include_router(exports_router)
 
 
 def _get_last_refresh_time() -> datetime | None:
@@ -113,6 +120,26 @@ def _serialize_row(row: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _build_filters_response(filters: DatasetFilters) -> DatasetFiltersResponse:
+    """Build a DatasetFiltersResponse from a DatasetFilters object.
+
+    :param filters: Internal DatasetFilters object.
+    :returns: API response model.
+    """
+    return DatasetFiltersResponse(
+        date_column=filters.date_column,
+        account_id_column=filters.account_id_column,
+        tag_id_column=filters.tag_id_column,
+        enum_filters=[
+            EnumFilterResponse(name=f.name, label=f.label, options=f.options)
+            for f in filters.enum_filters
+        ],
+        numeric_filters=[
+            NumericFilterResponse(name=f.name, label=f.label) for f in filters.numeric_filters
+        ],
+    )
+
+
 # Dataset discovery endpoints
 
 
@@ -158,6 +185,7 @@ def list_datasets(
                 description=ds.description,
                 group=ds.group,
                 time_grain=ds.time_grain,
+                filters=_build_filters_response(ds.filters),
             )
             for ds in datasets
         ],
@@ -187,6 +215,7 @@ def get_dataset_schema_endpoint(
         description=dataset.description,
         group=dataset.group,
         time_grain=dataset.time_grain,
+        filters=_build_filters_response(dataset.filters),
         columns=[
             DatasetColumnResponse(
                 name=col.name,

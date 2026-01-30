@@ -13,6 +13,25 @@ export interface DatasetColumn {
   data_type: string | null
 }
 
+export interface EnumFilter {
+  name: string // Column name in the dataset
+  label: string // Display label for the filter
+  options: string[] // Allowed values
+}
+
+export interface NumericFilter {
+  name: string // Column name in the dataset
+  label: string // Display label for the filter
+}
+
+export interface DatasetFilters {
+  date_column: string | null
+  account_id_column: string | null
+  tag_id_column: string | null
+  enum_filters: EnumFilter[] // Enum filters with predefined options
+  numeric_filters: NumericFilter[] // Numeric filters for range filtering
+}
+
 export interface Dataset {
   id: string // UUID
   dataset_name: string // dbt model name (e.g., fct_transactions)
@@ -20,6 +39,7 @@ export interface Dataset {
   description: string
   group: string // facts, dimensions, aggregations
   time_grain: string | null // day, month, etc.
+  filters: DatasetFilters // Available filter columns
 }
 
 export interface DatasetWithSchema extends Dataset {
@@ -72,4 +92,51 @@ export interface RefreshResponse {
 export interface DatasetListResponse {
   datasets: Dataset[]
   total: number
+}
+
+// -----------------------------------------------------------------------------
+// Export Types
+// -----------------------------------------------------------------------------
+
+export interface EnumFilterValue {
+  column: string
+  values: string[]
+}
+
+export interface NumericFilterValue {
+  column: string
+  min?: number
+  max?: number
+}
+
+export interface CreateExportRequest {
+  dataset_id: string
+  format: 'csv' | 'parquet'
+  start_date?: string
+  end_date?: string
+  account_ids?: string[]
+  tag_ids?: string[]
+  enum_filters?: EnumFilterValue[]
+  numeric_filters?: NumericFilterValue[]
+}
+
+export interface CreateExportResponse {
+  job_id: string
+  status: string
+  message: string
+}
+
+export interface ExportStatusResponse {
+  job_id: string
+  status: string // pending, running, completed, failed
+  dataset_id: string | null
+  dataset_name: string | null
+  format: string | null
+  row_count: number | null
+  file_size_bytes: number | null
+  download_url: string | null
+  expires_at: string | null
+  error_message: string | null
+  created_at: string
+  completed_at: string | null
 }

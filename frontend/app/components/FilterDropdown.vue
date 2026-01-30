@@ -3,6 +3,7 @@ FilterDropdown
 Reusable dropdown for filtering (tags, accounts, etc.)
 Supports both multi-select (default) and single-select modes.
 Multi-select shows checkboxes; single-select shows checkmarks and auto-closes.
+Uses Teleport to render dropdown panel at body level to avoid clipping in modals.
 ============================================================================ -->
 
 <script setup lang="ts">
@@ -36,8 +37,16 @@ const emit = defineEmits<{
 
 const isOpen = ref(false)
 const searchQuery = ref('')
-const dropdownRef = ref<HTMLDivElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
+
+// Panel positioning
+const panelStyle = ref({
+  top: '0px',
+  left: '0px',
+  width: '0px',
+})
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -66,10 +75,22 @@ const displayText = computed(() => {
 // Methods
 // ---------------------------------------------------------------------------
 
+function updatePanelPosition() {
+  if (!triggerRef.value) return
+
+  const rect = triggerRef.value.getBoundingClientRect()
+  panelStyle.value = {
+    top: `${rect.bottom + window.scrollY + 4}px`,
+    left: `${rect.left + window.scrollX}px`,
+    width: `${rect.width}px`,
+  }
+}
+
 function toggleDropdown() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     searchQuery.value = ''
+    updatePanelPosition()
     // Auto-focus the search input when dropdown opens
     nextTick(() => {
       searchInputRef.value?.focus()
@@ -106,24 +127,39 @@ function clearSelection() {
   emit('update:selectedIds', [])
 }
 
-// Close dropdown when clicking outside
+// Close dropdown when clicking outside (check both trigger and panel)
 function handleClickOutside(event: MouseEvent) {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+  const target = event.target as Node
+  const clickedTrigger = triggerRef.value?.contains(target)
+  const clickedPanel = panelRef.value?.contains(target)
+
+  if (!clickedTrigger && !clickedPanel) {
     isOpen.value = false
+  }
+}
+
+// Update position on scroll/resize when open
+function handleScrollOrResize() {
+  if (isOpen.value) {
+    updatePanelPosition()
   }
 }
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('scroll', handleScrollOrResize, true)
+  window.addEventListener('resize', handleScrollOrResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('scroll', handleScrollOrResize, true)
+  window.removeEventListener('resize', handleScrollOrResize)
 })
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative">
+  <div class="relative">
     <!-- Label row with optional manage link -->
     <div class="mb-1 flex items-center justify-between">
       <label class="text-sm text-muted">{{ label }}</label>
@@ -138,6 +174,7 @@ onUnmounted(() => {
 
     <!-- Dropdown trigger button -->
     <button
+      ref="triggerRef"
       type="button"
       class="flex w-full items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-left transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
       :class="isOpen ? 'border-primary ring-1 ring-primary' : ''"
@@ -193,55 +230,74 @@ onUnmounted(() => {
       </svg>
     </button>
 
-    <!-- Dropdown panel -->
-    <div
-      v-if="isOpen"
-      class="absolute left-0 top-full z-30 mt-1 w-full min-w-[200px] rounded-lg border border-border bg-surface shadow-lg"
-    >
-      <!-- Search input -->
-      <div v-if="searchable !== false" class="border-b border-border p-2">
-        <input
-          ref="searchInputRef"
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search..."
-          class="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-          @click.stop
-        />
-      </div>
-
-      <!-- Options list -->
-      <div class="max-h-48 overflow-y-auto p-1">
-        <div
-          v-if="filteredOptions.length === 0"
-          class="px-3 py-2 text-sm text-muted"
-        >
-          No options found
+    <!-- Dropdown panel - teleported to body to avoid modal clipping -->
+    <Teleport to="body">
+      <div
+        v-if="isOpen"
+        ref="panelRef"
+        class="fixed z-[60] min-w-[200px] rounded-lg border border-border bg-surface shadow-lg"
+        :style="panelStyle"
+      >
+        <!-- Search input -->
+        <div v-if="searchable !== false" class="border-b border-border p-2">
+          <input
+            ref="searchInputRef"
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search..."
+            class="w-full rounded border border-border bg-background px-2 py-1 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+            @click.stop
+          />
         </div>
 
-        <button
-          v-for="option in filteredOptions"
-          :key="option.id"
-          type="button"
-          class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-onyx"
-          @click.stop="toggleOption(option.id)"
-        >
-          <!-- Checkbox for multi-select mode -->
-          <span
-            v-if="multiSelect !== false"
-            class="flex h-4 w-4 items-center justify-center rounded border"
-            :class="
-              isSelected(option.id)
-                ? 'border-primary bg-primary'
-                : 'border-gray-600 bg-transparent'
-            "
+        <!-- Options list -->
+        <div class="max-h-48 overflow-y-auto p-1">
+          <div
+            v-if="filteredOptions.length === 0"
+            class="px-3 py-2 text-sm text-muted"
           >
+            No options found
+          </div>
+
+          <button
+            v-for="option in filteredOptions"
+            :key="option.id"
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-onyx"
+            @click.stop="toggleOption(option.id)"
+          >
+            <!-- Checkbox for multi-select mode -->
+            <span
+              v-if="multiSelect !== false"
+              class="flex h-4 w-4 items-center justify-center rounded border"
+              :class="
+                isSelected(option.id)
+                  ? 'border-primary bg-primary'
+                  : 'border-gray-600 bg-transparent'
+              "
+            >
+              <svg
+                v-if="isSelected(option.id)"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                class="h-3 w-3 text-background"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </span>
+
+            <!-- Simple checkmark for single-select mode (only shown when selected) -->
             <svg
-              v-if="isSelected(option.id)"
+              v-else-if="isSelected(option.id)"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
-              class="h-3 w-3 text-background"
+              class="h-4 w-4 text-primary"
             >
               <path
                 fill-rule="evenodd"
@@ -249,47 +305,32 @@ onUnmounted(() => {
                 clip-rule="evenodd"
               />
             </svg>
-          </span>
+            <!-- Empty spacer for unselected items in single-select to keep alignment -->
+            <span v-else class="h-4 w-4" />
 
-          <!-- Simple checkmark for single-select mode (only shown when selected) -->
-          <svg
-            v-else-if="isSelected(option.id)"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            class="h-4 w-4 text-primary"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
-              clip-rule="evenodd"
+            <!-- Colour dot (if present) -->
+            <span
+              v-if="option.colour"
+              class="h-3 w-3 rounded-full"
+              :style="{ backgroundColor: option.colour }"
             />
-          </svg>
-          <!-- Empty spacer for unselected items in single-select to keep alignment -->
-          <span v-else class="h-4 w-4" />
 
-          <!-- Colour dot (if present) -->
-          <span
-            v-if="option.colour"
-            class="h-3 w-3 rounded-full"
-            :style="{ backgroundColor: option.colour }"
-          />
+            <!-- Label -->
+            <span class="text-foreground">{{ option.label }}</span>
+          </button>
+        </div>
 
-          <!-- Label -->
-          <span class="text-foreground">{{ option.label }}</span>
-        </button>
+        <!-- Clear button (when items selected) -->
+        <div v-if="selectedIds.length > 0" class="border-t border-border p-2">
+          <button
+            type="button"
+            class="w-full rounded px-2 py-1 text-sm text-muted transition-colors hover:bg-onyx hover:text-foreground"
+            @click.stop="clearSelection"
+          >
+            Clear selection
+          </button>
+        </div>
       </div>
-
-      <!-- Clear button (when items selected) -->
-      <div v-if="selectedIds.length > 0" class="border-t border-border p-2">
-        <button
-          type="button"
-          class="w-full rounded px-2 py-1 text-sm text-muted transition-colors hover:bg-onyx hover:text-foreground"
-          @click.stop="clearSelection"
-        >
-          Clear selection
-        </button>
-      </div>
-    </div>
+    </Teleport>
   </div>
 </template>

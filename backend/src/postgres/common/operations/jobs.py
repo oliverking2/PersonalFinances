@@ -5,6 +5,7 @@ This module provides CRUD operations for Job entities.
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc
@@ -22,6 +23,7 @@ def create_job(
     job_type: JobType,
     entity_type: str | None = None,
     entity_id: UUID | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Job:
     """Create a new job.
 
@@ -30,6 +32,7 @@ def create_job(
     :param job_type: Type of job (sync, export, etc.).
     :param entity_type: Type of entity this job relates to (optional).
     :param entity_id: ID of the related entity (optional).
+    :param metadata: Optional metadata dict to store with the job.
     :returns: Created Job entity.
     """
     job = Job(
@@ -38,6 +41,7 @@ def create_job(
         status=JobStatus.PENDING.value,
         entity_type=entity_type,
         entity_id=entity_id,
+        job_metadata=metadata or {},
     )
     session.add(job)
     session.flush()
@@ -64,6 +68,7 @@ def update_job_status(
     status: JobStatus,
     dagster_run_id: str | None = None,
     error_message: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Job | None:
     """Update a job's status.
 
@@ -72,6 +77,7 @@ def update_job_status(
     :param status: New status.
     :param dagster_run_id: Dagster run ID (optional, set when job starts).
     :param error_message: Error message (optional, set when job fails).
+    :param metadata: Optional metadata dict to merge with existing metadata.
     :returns: Updated Job, or None if not found.
     """
     job = get_job_by_id(session, job_id)
@@ -85,6 +91,10 @@ def update_job_status(
 
     if error_message is not None:
         job.error_message = error_message
+
+    # Merge metadata if provided
+    if metadata is not None:
+        job.job_metadata = {**(job.job_metadata or {}), **metadata}
 
     # Update timestamps based on status
     now = datetime.now(UTC)

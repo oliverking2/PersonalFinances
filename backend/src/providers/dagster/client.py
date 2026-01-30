@@ -4,6 +4,7 @@ This module provides functions to interact with the Dagster GraphQL API
 for triggering jobs and monitoring their status.
 """
 
+import json
 import logging
 import os
 from typing import Any
@@ -43,6 +44,10 @@ TRADING212_SYNC_OPS = [
 # Job name for Trading 212 syncs
 TRADING212_SYNC_JOB = "trading212_sync_job"
 
+# Dataset export job
+DATASET_EXPORT_JOB = "dataset_export_job"
+DATASET_EXPORT_OPS = ["export_dataset"]
+
 
 def build_gocardless_run_config(connection_id: str) -> dict[str, Any]:
     """Build run config for GoCardless connection sync job.
@@ -69,6 +74,56 @@ def build_trading212_run_config(api_key_id: str | None = None) -> dict[str, Any]
         config = {"api_key_id": api_key_id}
 
     return {"ops": {op_name: {"config": config} for op_name in TRADING212_SYNC_OPS}}
+
+
+def build_export_run_config(
+    job_id: str,
+    user_id: str,
+    dataset_id: str,
+    file_format: str = "csv",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    account_ids: list[str] | None = None,
+    tag_ids: list[str] | None = None,
+    enum_filters: list[dict[str, Any]] | None = None,
+    numeric_filters: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build run config for dataset export job.
+
+    :param job_id: Job UUID as string.
+    :param user_id: User UUID as string.
+    :param dataset_id: Dataset UUID as string.
+    :param file_format: Export format (csv or parquet).
+    :param start_date: Optional start date filter (ISO format).
+    :param end_date: Optional end date filter (ISO format).
+    :param account_ids: Optional list of account UUIDs.
+    :param tag_ids: Optional list of tag UUIDs.
+    :param enum_filters: Optional enum filters (column + values).
+    :param numeric_filters: Optional numeric filters (column + min/max).
+    :returns: Run config dict for Dagster.
+    """
+    config: dict[str, Any] = {
+        "job_id": job_id,
+        "user_id": user_id,
+        "dataset_id": dataset_id,
+        "file_format": file_format,
+    }
+
+    if start_date:
+        config["start_date"] = start_date
+    if end_date:
+        config["end_date"] = end_date
+    if account_ids:
+        config["account_ids"] = account_ids
+    if tag_ids:
+        config["tag_ids"] = tag_ids
+    # Encode filters as JSON strings (Dagster Config doesn't support list[dict])
+    if enum_filters:
+        config["enum_filters_json"] = json.dumps(enum_filters)
+    if numeric_filters:
+        config["numeric_filters_json"] = json.dumps(numeric_filters)
+
+    return {"ops": {op_name: {"config": config} for op_name in DATASET_EXPORT_OPS}}
 
 
 def _get_dagster_url() -> str:

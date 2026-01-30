@@ -33,12 +33,31 @@ class DatasetColumn:
 
 
 @dataclass
+class EnumFilter:
+    """An enum filter with predefined options."""
+
+    name: str  # Column name in the dataset
+    label: str  # Display label for the filter
+    options: list[str]  # Allowed values
+
+
+@dataclass
+class NumericFilter:
+    """A numeric filter for min/max range filtering."""
+
+    name: str  # Column name in the dataset
+    label: str  # Display label for the filter
+
+
+@dataclass
 class DatasetFilters:
     """Filter column configuration for a dataset."""
 
     date_column: str | None = None
     account_id_column: str | None = None
     tag_id_column: str | None = None
+    enum_filters: list[EnumFilter] = field(default_factory=list)
+    numeric_filters: list[NumericFilter] = field(default_factory=list)
 
 
 @dataclass
@@ -122,10 +141,25 @@ def _extract_filters(meta: dict[str, Any]) -> DatasetFilters:
     :returns: DatasetFilters configuration.
     """
     filters_meta = meta.get("filters", {})
+
+    # Parse enum filters
+    enum_filters = []
+    for f in filters_meta.get("enum_filters", []):
+        if isinstance(f, dict) and "name" in f and "label" in f and "options" in f:
+            enum_filters.append(EnumFilter(name=f["name"], label=f["label"], options=f["options"]))
+
+    # Parse numeric filters
+    numeric_filters = []
+    for f in filters_meta.get("numeric_filters", []):
+        if isinstance(f, dict) and "name" in f and "label" in f:
+            numeric_filters.append(NumericFilter(name=f["name"], label=f["label"]))
+
     return DatasetFilters(
         date_column=filters_meta.get("date_column"),
         account_id_column=filters_meta.get("account_id_column"),
         tag_id_column=filters_meta.get("tag_id_column"),
+        enum_filters=enum_filters,
+        numeric_filters=numeric_filters,
     )
 
 

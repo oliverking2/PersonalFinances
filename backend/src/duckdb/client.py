@@ -70,7 +70,8 @@ def execute_query(
         result = conn.execute(limited_query, params) if params else conn.execute(limited_query)
 
         # Fetch results as list of dicts
-        columns = [desc[0] for desc in result.description]
+        # Normalize column names to lowercase for consistent API responses
+        columns = [desc[0].lower() for desc in result.description]
         rows = result.fetchall()
 
         return [dict(zip(columns, row)) for row in rows]

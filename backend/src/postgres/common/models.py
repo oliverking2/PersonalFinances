@@ -364,6 +364,7 @@ class Job(Base):
     entity_id: Mapped[UUID | None] = mapped_column(nullable=True)
     dagster_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_metadata: Mapped[dict[str, Any]] = mapped_column(_JSONType, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
