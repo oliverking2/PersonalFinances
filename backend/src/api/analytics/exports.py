@@ -18,7 +18,7 @@ from src.duckdb.manifest import get_dataset_schema
 from src.postgres.auth.models import User
 from src.postgres.common.enums import JobStatus, JobType
 from src.postgres.common.operations.connections import get_connections_by_user_id
-from src.postgres.common.operations.jobs import create_job, get_job_by_id
+from src.postgres.common.operations.jobs import create_job, get_job_by_id, get_jobs_by_user
 from src.postgres.common.operations.tags import get_tags_by_user_id
 from src.providers.dagster import build_export_run_config, trigger_job
 from src.providers.dagster.client import DATASET_EXPORT_JOB
@@ -89,6 +89,29 @@ class ExportStatusResponse(BaseModel):
     completed_at: datetime | None = Field(None, description="Job completion time")
 
 
+class ExportListItem(BaseModel):
+    """A single export in the list response."""
+
+    job_id: UUID = Field(..., description="Job UUID")
+    status: str = Field(..., description="Job status (pending, running, completed, failed)")
+    dataset_id: UUID | None = Field(None, description="Dataset UUID")
+    dataset_name: str | None = Field(None, description="Dataset name")
+    format: str | None = Field(None, description="Export format (csv, parquet)")
+    row_count: int | None = Field(None, description="Number of rows exported")
+    file_size_bytes: int | None = Field(None, description="File size in bytes")
+    error_message: str | None = Field(None, description="Error message if failed")
+    created_at: datetime = Field(..., description="Job creation time")
+    completed_at: datetime | None = Field(None, description="Job completion time")
+    filters: dict[str, Any] | None = Field(None, description="Filters applied to export")
+
+
+class ExportListResponse(BaseModel):
+    """Response for listing export jobs."""
+
+    exports: list[ExportListItem] = Field(..., description="List of exports")
+    total: int = Field(..., description="Total count")
+
+
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
@@ -123,6 +146,47 @@ def _validate_tag_ids(db: Session, user: User, tag_ids: list[UUID]) -> list[UUID
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/exports",
+    response_model=ExportListResponse,
+    summary="List export jobs",
+    responses=UNAUTHORIZED,
+)
+def list_exports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ExportListResponse:
+    """List all export jobs for the current user, newest first."""
+    jobs = get_jobs_by_user(
+        db,
+        user_id=current_user.id,
+        job_type=JobType.EXPORT,
+        limit=50,
+    )
+
+    exports = []
+    for job in jobs:
+        meta = job.job_metadata or {}
+        dataset_id_str = meta.get("dataset_id")
+        exports.append(
+            ExportListItem(
+                job_id=job.id,
+                status=job.status,
+                dataset_id=UUID(dataset_id_str) if dataset_id_str else None,
+                dataset_name=meta.get("dataset_name"),
+                format=meta.get("format"),
+                row_count=meta.get("row_count"),
+                file_size_bytes=meta.get("file_size_bytes"),
+                error_message=job.error_message,
+                created_at=job.created_at,
+                completed_at=job.completed_at,
+                filters=meta.get("filters"),
+            )
+        )
+
+    return ExportListResponse(exports=exports, total=len(exports))
 
 
 @router.post(

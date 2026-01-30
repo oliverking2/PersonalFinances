@@ -6,6 +6,7 @@
 import type {
   CreateExportRequest,
   CreateExportResponse,
+  ExportListResponse,
   ExportStatusResponse,
 } from '~/types/analytics'
 import { useAuthenticatedFetch } from '~/composables/useAuthenticatedFetch'
@@ -16,6 +17,18 @@ import { useAuthenticatedFetch } from '~/composables/useAuthenticatedFetch'
 
 export function useExportsApi() {
   const { authFetch } = useAuthenticatedFetch()
+
+  // ---------------------------------------------------------------------------
+  // List Exports
+  // ---------------------------------------------------------------------------
+
+  /**
+   * List all export jobs for the current user.
+   * Returns exports sorted by creation date (newest first).
+   */
+  async function listExports(): Promise<ExportListResponse> {
+    return authFetch<ExportListResponse>('/api/analytics/exports')
+  }
 
   // ---------------------------------------------------------------------------
   // Create Export
@@ -55,6 +68,7 @@ export function useExportsApi() {
   // ---------------------------------------------------------------------------
 
   return {
+    listExports,
     createExport,
     getExportStatus,
   }

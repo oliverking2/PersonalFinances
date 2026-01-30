@@ -140,3 +140,33 @@ export interface ExportStatusResponse {
   created_at: string
   completed_at: string | null
 }
+
+// Filters stored with an export job
+export interface ExportFilters {
+  start_date: string | null
+  end_date: string | null
+  account_ids: string[] | null
+  tag_ids: string[] | null
+  enum_filters: EnumFilterValue[] | null
+  numeric_filters: NumericFilterValue[] | null
+}
+
+// Single export in the list response (no download URL - fetched on demand)
+export interface ExportListItem {
+  job_id: string
+  status: string // pending, running, completed, failed
+  dataset_id: string | null
+  dataset_name: string | null
+  format: string | null // csv, parquet
+  row_count: number | null
+  file_size_bytes: number | null
+  error_message: string | null
+  created_at: string
+  completed_at: string | null
+  filters: ExportFilters | null
+}
+
+export interface ExportListResponse {
+  exports: ExportListItem[]
+  total: number
+}

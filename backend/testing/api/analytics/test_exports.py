@@ -128,6 +128,149 @@ def test_export_job_in_db(api_db_session: Session, test_user_in_db: User) -> Job
     return job
 
 
+class TestListExports:
+    """Tests for GET /api/analytics/exports endpoint."""
+
+    def test_returns_empty_list_when_no_exports(
+        self,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should return empty list when user has no exports."""
+        response = client.get(
+            "/api/analytics/exports",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["exports"] == []
+        assert data["total"] == 0
+
+    def test_returns_exports_for_user(
+        self,
+        api_db_session: Session,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_user_in_db: User,
+    ) -> None:
+        """Should return exports for the authenticated user."""
+        # Create a couple of export jobs
+        job1 = Job(
+            user_id=test_user_in_db.id,
+            job_type=JobType.EXPORT.value,
+            status=JobStatus.COMPLETED.value,
+            entity_type="dataset",
+            job_metadata={
+                "dataset_id": str(_dataset_uuid("fct_transactions")),
+                "dataset_name": "fct_transactions",
+                "format": "csv",
+                "row_count": 100,
+                "file_size_bytes": 5000,
+                "filters": {"start_date": "2024-01-01", "end_date": "2024-12-31"},
+            },
+        )
+        job2 = Job(
+            user_id=test_user_in_db.id,
+            job_type=JobType.EXPORT.value,
+            status=JobStatus.PENDING.value,
+            entity_type="dataset",
+            job_metadata={
+                "dataset_id": str(_dataset_uuid("fct_daily_spending")),
+                "dataset_name": "fct_daily_spending",
+                "format": "parquet",
+            },
+        )
+        api_db_session.add_all([job1, job2])
+        api_db_session.commit()
+
+        response = client.get(
+            "/api/analytics/exports",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert len(data["exports"]) == 2
+
+        # Check the completed export has all the metadata
+        completed = next(e for e in data["exports"] if e["status"] == "completed")
+        assert completed["dataset_name"] == "fct_transactions"
+        assert completed["format"] == "csv"
+        assert completed["row_count"] == 100
+        assert completed["file_size_bytes"] == 5000
+        assert completed["filters"]["start_date"] == "2024-01-01"
+
+    def test_excludes_other_users_exports(
+        self,
+        api_db_session: Session,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should not return exports from other users."""
+        # Create another user with an export
+        other_user = User(
+            username="otheruser2",
+            password_hash="hashed",
+            first_name="Other",
+            last_name="User",
+        )
+        api_db_session.add(other_user)
+        api_db_session.flush()
+
+        other_job = Job(
+            user_id=other_user.id,
+            job_type=JobType.EXPORT.value,
+            status=JobStatus.COMPLETED.value,
+            job_metadata={"dataset_name": "should_not_see"},
+        )
+        api_db_session.add(other_job)
+        api_db_session.commit()
+
+        response = client.get(
+            "/api/analytics/exports",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Other user's export should not be visible
+        assert data["total"] == 0
+
+    def test_excludes_non_export_jobs(
+        self,
+        api_db_session: Session,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_user_in_db: User,
+    ) -> None:
+        """Should only return export jobs, not sync or other job types."""
+        # Create a sync job (not export)
+        sync_job = Job(
+            user_id=test_user_in_db.id,
+            job_type=JobType.SYNC.value,
+            status=JobStatus.COMPLETED.value,
+            job_metadata={},
+        )
+        api_db_session.add(sync_job)
+        api_db_session.commit()
+
+        response = client.get(
+            "/api/analytics/exports",
+            headers=api_auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+
+    def test_returns_401_without_auth(self, client: TestClient) -> None:
+        """Should return 401 without authentication."""
+        response = client.get("/api/analytics/exports")
+        assert response.status_code == 401
+
+
 class TestCreateExport:
     """Tests for POST /api/analytics/exports endpoint."""
 

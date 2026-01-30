@@ -120,12 +120,36 @@ onMounted(() => {
       Back to Analytics
     </NuxtLink>
 
-    <!-- Page header -->
-    <div>
-      <h1 class="text-2xl font-bold sm:text-3xl">Datasets</h1>
-      <p class="mt-1 text-muted">
-        Export your financial data for external analysis
-      </p>
+    <!-- Page header with link to export history -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Datasets</h1>
+        <p class="mt-1 text-muted">
+          Export your financial data for external analysis
+        </p>
+      </div>
+      <!-- Link to export history -->
+      <NuxtLink
+        to="/analytics/exports"
+        class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-gray-700/50"
+      >
+        <!-- History/clock icon -->
+        <svg
+          class="h-4 w-4"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        Export History
+      </NuxtLink>
     </div>
 
     <!-- Error state -->
