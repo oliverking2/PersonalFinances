@@ -27,15 +27,12 @@ button {
   @apply border-none bg-primary text-white outline-none;
 
   /* Smooth transitions for interactive states */
-  @apply transition-all duration-200;
+  @apply transition-colors duration-200;
 
-  /* Hover: darken and lift slightly */
-  @apply hover:scale-105 hover:bg-primary-hover hover:shadow-lg;
+  /* Hover: darken */
+  @apply hover:bg-primary-hover;
 
   /* Focus: visible ring for keyboard navigation (accessibility) */
   @apply focus:ring-2 focus:ring-sage focus:ring-offset-2 focus:ring-offset-surface;
-
-  /* Active/click: press down effect */
-  @apply active:scale-95;
 }
 </style>

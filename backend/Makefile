@@ -42,12 +42,13 @@ clean:
 
 # SQL linting and auto-fix (run from backend directory)
 # Source .env for PostgreSQL connection vars needed by dbt templater
+# Set DUCKDB_PATH relative to backend/ since SQLFluff runs from here
 sql:
-	@set -a && . ./.env && set +a && poetry run sqlfluff fix dbt/models/ --config pyproject.toml
+	@set -a && . ./.env && set +a && DUCKDB_PATH=./data/analytics.duckdb poetry run sqlfluff fix dbt/models/ --config pyproject.toml
 
 # SQL lint only (no auto-fix) - useful for checking what violations exist
 sql-lint:
-	@set -a && . ./.env && set +a && poetry run sqlfluff lint dbt/models/ --config pyproject.toml
+	@set -a && . ./.env && set +a && DUCKDB_PATH=./data/analytics.duckdb poetry run sqlfluff lint dbt/models/ --config pyproject.toml
 
 # dbt commands (run from backend directory)
 # Source .env for PostgreSQL connection vars needed by DuckDB postgres extension

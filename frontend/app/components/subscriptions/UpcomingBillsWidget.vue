@@ -168,7 +168,7 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
                   Confidence: {{ Math.round(bill.confidence_score * 100) }}%
                 </span>
                 <span class="block text-muted">
-                  Visit Subscriptions to confirm or dismiss
+                  Visit Recurring to confirm or dismiss
                 </span>
                 <!-- Arrow -->
                 <span
@@ -199,7 +199,7 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
           >
         </span>
         <NuxtLink
-          to="/planning/subscriptions"
+          to="/planning/recurring"
           class="text-sm text-primary hover:text-primary-hover"
         >
           View all →

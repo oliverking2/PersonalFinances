@@ -565,6 +565,7 @@ def sync_detected_pattern(
     display_name: str | None = None,
     currency: str = "GBP",
     amount_variance: Decimal = Decimal("0"),
+    direction: RecurringDirection = RecurringDirection.EXPENSE,
 ) -> tuple[RecurringPattern, bool]:
     """Sync a detected pattern from dbt mart to PostgreSQL.
 
@@ -587,6 +588,7 @@ def sync_detected_pattern(
     :param display_name: Display name for the pattern.
     :param currency: Currency code (default GBP).
     :param amount_variance: Amount variance percentage.
+    :param direction: Income or expense direction.
     :return: Tuple of (pattern, created) where created is True if new.
     """
     # Extract base key (without amount bucket) for flexible matching
@@ -651,6 +653,7 @@ def sync_detected_pattern(
         amount_variance=amount_variance,
         currency=currency,
         frequency=frequency.value,
+        direction=direction.value,
         anchor_date=last_occurrence_date,
         next_expected_date=next_expected_date,
         last_occurrence_date=last_occurrence_date,

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.duckdb.client import execute_query
 from src.orchestration.resources import PostgresDatabase
-from src.postgres.common.enums import RecurringFrequency
+from src.postgres.common.enums import RecurringDirection, RecurringFrequency
 from src.postgres.common.models import (
     RecurringPattern,
     RecurringPatternTransaction,
@@ -95,41 +95,51 @@ def _link_transactions_to_pattern(
 
 @asset(
     key=AssetKey(["sync", "recurring", "patterns"]),
-    deps=[AssetKey(["mart", "fct_recurring_patterns"])],
+    deps=[AssetKey(["mart", "int_recurring_candidates"])],
     group_name="recurring_patterns",
-    description="Sync detected recurring patterns from dbt mart to PostgreSQL.",
+    description="Sync detected recurring patterns from dbt to PostgreSQL.",
     required_resource_keys={"postgres_database"},
     automation_condition=AutomationCondition.any_deps_updated(),
 )
 def sync_recurring_patterns(context: AssetExecutionContext) -> None:
-    """Sync recurring patterns from dbt fct_recurring_patterns to PostgreSQL.
+    """Sync recurring patterns from int_recurring_candidates to PostgreSQL.
 
     This asset:
-    1. Queries the dbt mart for detected patterns
+    1. Queries the dbt model for detected pattern candidates
     2. For each pattern, checks if it exists in PostgreSQL
     3. Creates new patterns or updates existing 'detected' ones
     4. Preserves user decisions (confirmed/dismissed/paused/manual not touched)
     """
     postgres_database: PostgresDatabase = context.resources.postgres_database
 
-    # Query detected patterns from dbt mart
+    # Query detected patterns from int_recurring_candidates
+    # This model detects patterns directly from transactions
     query = """
         SELECT
             user_id,
             account_id,
-            merchant_pattern,
-            display_name,
-            expected_amount,
-            amount_variance,
+            merchant_key AS merchant_pattern,
+            merchant_name AS display_name,
+            latest_amount AS expected_amount,
+            amount_variance_pct AS amount_variance,
             currency,
-            frequency,
+            detected_frequency AS frequency,
             confidence_score,
             occurrence_count,
-            last_occurrence_date,
-            next_expected_date,
-            status
-        FROM main_mart.fct_recurring_patterns
-        WHERE status = 'detected'
+            last_occurrence AS last_occurrence_date,
+            -- Calculate next expected date based on frequency
+            CASE detected_frequency
+                WHEN 'weekly' THEN last_occurrence + INTERVAL '7 days'
+                WHEN 'fortnightly' THEN last_occurrence + INTERVAL '14 days'
+                WHEN 'monthly' THEN last_occurrence + INTERVAL '1 month'
+                WHEN 'quarterly' THEN last_occurrence + INTERVAL '3 months'
+                WHEN 'annual' THEN last_occurrence + INTERVAL '1 year'
+            END AS next_expected_date,
+            direction
+        FROM main_mart.int_recurring_candidates
+        WHERE
+            confidence_score >= 0.2
+            AND detected_frequency != 'irregular'
     """
 
     try:
@@ -176,6 +186,14 @@ def sync_recurring_patterns(context: AssetExecutionContext) -> None:
                     elif not isinstance(next_expected, datetime):
                         next_expected = datetime.combine(next_expected, datetime.min.time())
 
+                # Parse direction
+                direction_str = row.get("direction", "expense")
+                direction = (
+                    RecurringDirection.INCOME
+                    if direction_str == "income"
+                    else RecurringDirection.EXPENSE
+                )
+
                 # Sync the pattern
                 pattern, created = sync_detected_pattern(
                     session=session,
@@ -191,6 +209,7 @@ def sync_recurring_patterns(context: AssetExecutionContext) -> None:
                     display_name=row.get("display_name"),
                     currency=str(row.get("currency", "GBP")),
                     amount_variance=Decimal(str(row.get("amount_variance", 0))),
+                    direction=direction,
                 )
 
                 # Link matching transactions to this pattern

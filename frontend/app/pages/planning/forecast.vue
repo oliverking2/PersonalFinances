@@ -329,7 +329,7 @@ onMounted(() => {
         </p>
       </div>
 
-      <!-- Controls: date range + view toggle -->
+      <!-- Controls: date range + view toggle + refresh -->
       <div v-if="forecastData" class="flex flex-wrap items-center gap-3">
         <!-- Date range selector -->
         <div class="flex rounded-lg border border-border bg-surface">
@@ -373,6 +373,28 @@ onMounted(() => {
             Weekly
           </button>
         </div>
+
+        <!-- Refresh button -->
+        <button
+          class="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted transition-colors hover:text-foreground"
+          :disabled="loading"
+          @click="loadData"
+        >
+          <svg
+            :class="['h-4 w-4', loading && 'animate-spin']"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          Refresh
+        </button>
       </div>
     </div>
 
@@ -701,9 +723,9 @@ onMounted(() => {
           subscriptions and income) and any planned transactions you've added.
           For more accurate projections, confirm detected patterns on the
           <NuxtLink
-            to="/planning/subscriptions"
+            to="/planning/recurring"
             class="text-emerald-400 hover:underline"
-            >Subscriptions</NuxtLink
+            >Recurring</NuxtLink
           >
           page.
         </p>
