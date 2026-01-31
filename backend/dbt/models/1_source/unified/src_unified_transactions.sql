@@ -1,5 +1,6 @@
 -- Source model for unified transactions table
 -- Provides a clean interface to the transactions data from PostgreSQL
+-- Excludes reconciled transactions (pending transactions replaced by booked versions)
 
 SELECT
     ID,
@@ -15,3 +16,4 @@ SELECT
     CATEGORY,
     SYNCED_AT
 FROM {{ source('unified', 'transactions') }}
+WHERE STATUS = 'active'
