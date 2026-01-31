@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
 from src.postgres.common.enums import NotificationType
@@ -154,8 +154,8 @@ def create_budget_notification(
         .filter(
             Notification.user_id == user_id,
             Notification.notification_type == notification_type.value,
-            Notification.extra_data["budget_id"].astext == str(budget_id),
-            Notification.extra_data["period_key"].astext == period_key,
+            cast(Notification.extra_data["budget_id"], String) == str(budget_id),
+            cast(Notification.extra_data["period_key"], String) == period_key,
         )
         .first()
     )

@@ -12,6 +12,7 @@ const route = useRoute()
 const tabs = [
   { to: '/planning/net-worth', label: 'Net Worth', icon: 'chart-line' },
   { to: '/planning/forecast', label: 'Forecast', icon: 'calendar' },
+  { to: '/planning/subscriptions', label: 'Subscriptions', icon: 'repeat' },
   { to: '/planning/budgets', label: 'Budgets', icon: 'wallet' },
   { to: '/planning/goals', label: 'Goals', icon: 'target' },
 ]

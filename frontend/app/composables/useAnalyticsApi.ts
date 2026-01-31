@@ -11,6 +11,8 @@ import type {
   DatasetQueryParams,
   DatasetQueryResponse,
   DatasetWithSchema,
+  ForecastEventsResponse,
+  ForecastQueryParams,
   RefreshResponse,
   ScenarioRequest,
   WeeklyForecastResponse,
@@ -139,19 +141,69 @@ export function useAnalyticsApi() {
   // ---------------------------------------------------------------------------
 
   /**
-   * Fetch the 90-day cash flow forecast.
+   * Fetch cash flow forecast for a configurable date range.
    * Returns daily projections with income, expenses, and projected balances.
+   *
+   * @param params - Optional date range (defaults to today + 90 days)
    */
-  async function fetchForecast(): Promise<CashFlowForecastResponse> {
-    return authFetch<CashFlowForecastResponse>('/api/analytics/forecast')
+  async function fetchForecast(
+    params?: ForecastQueryParams,
+  ): Promise<CashFlowForecastResponse> {
+    const queryParams = new URLSearchParams()
+
+    if (params?.start_date) {
+      queryParams.set('start_date', params.start_date)
+    }
+    if (params?.end_date) {
+      queryParams.set('end_date', params.end_date)
+    }
+
+    const queryString = queryParams.toString()
+    const path = queryString
+      ? `/api/analytics/forecast?${queryString}`
+      : '/api/analytics/forecast'
+
+    return authFetch<CashFlowForecastResponse>(path)
   }
 
   /**
-   * Fetch weekly aggregated forecast data.
+   * Fetch weekly aggregated forecast data for a configurable date range.
    * Returns weekly summaries for easier visualisation.
+   *
+   * @param params - Optional date range (defaults to today + 90 days)
    */
-  async function fetchWeeklyForecast(): Promise<WeeklyForecastResponse> {
-    return authFetch<WeeklyForecastResponse>('/api/analytics/forecast/weekly')
+  async function fetchWeeklyForecast(
+    params?: ForecastQueryParams,
+  ): Promise<WeeklyForecastResponse> {
+    const queryParams = new URLSearchParams()
+
+    if (params?.start_date) {
+      queryParams.set('start_date', params.start_date)
+    }
+    if (params?.end_date) {
+      queryParams.set('end_date', params.end_date)
+    }
+
+    const queryString = queryParams.toString()
+    const path = queryString
+      ? `/api/analytics/forecast/weekly?${queryString}`
+      : '/api/analytics/forecast/weekly'
+
+    return authFetch<WeeklyForecastResponse>(path)
+  }
+
+  /**
+   * Fetch detailed events for a specific forecast date.
+   * Returns list of recurring patterns and planned transactions for the date.
+   *
+   * @param forecastDate - The date to get events for (YYYY-MM-DD)
+   */
+  async function fetchForecastEvents(
+    forecastDate: string,
+  ): Promise<ForecastEventsResponse> {
+    return authFetch<ForecastEventsResponse>(
+      `/api/analytics/forecast/events?forecast_date=${forecastDate}`,
+    )
   }
 
   /**
@@ -191,6 +243,7 @@ export function useAnalyticsApi() {
     // Forecasting
     fetchForecast,
     fetchWeeklyForecast,
+    fetchForecastEvents,
     calculateScenario,
   }
 }

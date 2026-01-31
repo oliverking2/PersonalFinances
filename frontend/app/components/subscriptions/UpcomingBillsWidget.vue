@@ -199,7 +199,7 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
           >
         </span>
         <NuxtLink
-          to="/insights/subscriptions"
+          to="/planning/subscriptions"
           class="text-sm text-primary hover:text-primary-hover"
         >
           View all →

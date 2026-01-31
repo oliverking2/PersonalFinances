@@ -220,6 +220,29 @@ export interface WeeklyForecastResponse {
 }
 
 // -----------------------------------------------------------------------------
+// Forecast Events Types
+// -----------------------------------------------------------------------------
+
+export interface ForecastEvent {
+  source_type: 'recurring' | 'planned'
+  name: string
+  amount: string // Decimal as string
+  frequency: string | null
+}
+
+export interface ForecastEventsResponse {
+  forecast_date: string // YYYY-MM-DD
+  events: ForecastEvent[]
+  event_count: number
+}
+
+// Forecast query parameters
+export interface ForecastQueryParams {
+  start_date?: string // YYYY-MM-DD
+  end_date?: string // YYYY-MM-DD
+}
+
+// -----------------------------------------------------------------------------
 // Scenario Types
 // -----------------------------------------------------------------------------
 

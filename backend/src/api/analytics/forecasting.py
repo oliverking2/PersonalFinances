@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_current_user
@@ -84,6 +84,12 @@ class CashFlowForecastResponse(BaseModel):
     daily: list[ForecastDayResponse] = Field(..., description="Daily forecast data")
 
 
+# Default forecast range in days
+DEFAULT_FORECAST_DAYS = 90
+# Maximum forecast range in days (2 years)
+MAX_FORECAST_DAYS = 730
+
+
 @router.get(
     "/forecast",
     response_model=CashFlowForecastResponse,
@@ -91,13 +97,46 @@ class CashFlowForecastResponse(BaseModel):
     responses={**UNAUTHORIZED, **INTERNAL_ERROR},
 )
 def get_forecast(
+    start_date: date | None = Query(None, description="Start date (defaults to today)"),
+    end_date: date | None = Query(None, description="End date (defaults to start + 90 days)"),
     current_user: User = Depends(get_current_user),
 ) -> CashFlowForecastResponse:
-    """Get the 90-day cash flow forecast.
+    """Get cash flow forecast for a configurable date range.
 
     Combines recurring patterns (subscriptions, income) with planned transactions
     to project future balances. Includes runway calculation for financial planning.
     """
+    # Normalise date range
+    today = date.today()
+    effective_start = start_date or today
+    effective_end = end_date or (effective_start + timedelta(days=DEFAULT_FORECAST_DAYS))
+
+    # Validate range
+    if effective_end < effective_start:
+        raise HTTPException(status_code=400, detail="end_date must be after start_date")
+
+    days_requested = (effective_end - effective_start).days + 1
+    if days_requested > MAX_FORECAST_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Forecast range cannot exceed {MAX_FORECAST_DAYS} days (2 years)",
+        )
+
+    # For requests within the default range from today, try the cached dbt data first
+    days_from_today = (effective_end - today).days
+    use_cached = effective_start >= today and days_from_today <= DEFAULT_FORECAST_DAYS
+
+    if use_cached:
+        return _get_forecast_from_cache(current_user, effective_start, effective_end)
+
+    # For extended ranges, compute dynamically
+    return _compute_forecast_dynamically(current_user, effective_start, effective_end)
+
+
+def _get_forecast_from_cache(
+    current_user: User, start_date: date, end_date: date
+) -> CashFlowForecastResponse:
+    """Get forecast from dbt-cached data (for ranges within 90 days from today)."""
     query = """
         SELECT
             forecast_date,
@@ -112,11 +151,13 @@ def get_forecast(
             projected_balance,
             days_from_now,
             forecast_week
-        FROM fct_cash_flow_forecast
+        FROM main_mart.fct_cash_flow_forecast
         WHERE user_id = $user_id
+          AND forecast_date >= $start_date
+          AND forecast_date <= $end_date
         ORDER BY forecast_date ASC
     """
-    params = {"user_id": current_user.id}
+    params = {"user_id": current_user.id, "start_date": start_date, "end_date": end_date}
 
     try:
         rows = execute_query(query, params)
@@ -130,7 +171,51 @@ def get_forecast(
     if not rows:
         raise HTTPException(status_code=404, detail="No forecast data available")
 
-    # Build response
+    return _build_forecast_response_from_rows(rows)
+
+
+def _compute_forecast_dynamically(
+    current_user: User, start_date: date, end_date: date
+) -> CashFlowForecastResponse:
+    """Compute forecast dynamically for extended date ranges."""
+    # Fetch data from DuckDB (same as scenario endpoint)
+    patterns, planned, net_worth = _fetch_scenario_data(current_user.id, [], [])
+
+    starting_balance = Decimal(str(net_worth["starting_balance"]))
+    currency = str(net_worth["currency"])
+    as_of_date = net_worth["as_of_date"]
+
+    # Generate forecast dates for the requested range
+    days_count = (end_date - start_date).days + 1
+    forecast_dates = [start_date + timedelta(days=i) for i in range(days_count)]
+
+    # Build events and compute forecast
+    daily_events = _build_daily_events(patterns, planned, {}, forecast_dates)
+
+    # Adjust starting balance if start_date is in the future
+    # We need to account for events between today and start_date
+    today = date.today()
+    if start_date > today:
+        lead_in_dates = [today + timedelta(days=i) for i in range((start_date - today).days)]
+        lead_in_events = _build_daily_events(patterns, planned, {}, lead_in_dates)
+        for d in lead_in_dates:
+            for event in lead_in_events[d]:
+                starting_balance += event["amount"]
+
+    daily_data, summary = _compute_forecast_from_events(
+        daily_events, forecast_dates, starting_balance
+    )
+
+    return CashFlowForecastResponse(
+        currency=currency,
+        as_of_date=as_of_date,
+        summary=summary,
+        daily=daily_data,
+    )
+
+
+def _build_forecast_response_from_rows(rows: list[dict[str, Any]]) -> CashFlowForecastResponse:
+    """Build a CashFlowForecastResponse from database rows."""
     first_row = rows[0]
     last_row = rows[-1]
 
@@ -215,53 +300,151 @@ class WeeklyForecastResponse(BaseModel):
     responses={**UNAUTHORIZED, **INTERNAL_ERROR},
 )
 def get_weekly_forecast(
+    start_date: date | None = Query(None, description="Start date (defaults to today)"),
+    end_date: date | None = Query(None, description="End date (defaults to start + 90 days)"),
     current_user: User = Depends(get_current_user),
 ) -> WeeklyForecastResponse:
     """Get weekly aggregated cash flow forecast for easier visualisation."""
-    query = """
-        SELECT
-            forecast_week,
-            MIN(forecast_date) OVER (PARTITION BY forecast_week) AS week_start,
-            MAX(forecast_date) OVER (PARTITION BY forecast_week) AS week_end,
-            SUM(daily_income) OVER (PARTITION BY forecast_week) AS total_income,
-            SUM(daily_expenses) OVER (PARTITION BY forecast_week) AS total_expenses,
-            SUM(daily_change) OVER (PARTITION BY forecast_week) AS net_change,
-            projected_balance AS ending_balance,
-            currency
-        FROM fct_cash_flow_forecast
-        WHERE user_id = $user_id
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY forecast_week ORDER BY forecast_date DESC) = 1
-        ORDER BY forecast_week ASC
-    """
-    params = {"user_id": current_user.id}
+    # Get daily forecast first (handles caching vs dynamic computation)
+    daily_response = get_forecast(start_date, end_date, current_user)
 
-    try:
-        rows = execute_query(query, params)
-    except FileNotFoundError:
-        logger.warning("DuckDB database not available for weekly forecast query")
-        raise HTTPException(status_code=503, detail="Analytics database not available")
-    except Exception as e:
-        logger.exception(f"Failed to execute weekly forecast query: {e}")
-        raise HTTPException(status_code=500, detail="Forecast query failed") from e
+    # Aggregate daily data into weeks
+    weeks_map: dict[int, dict[str, Any]] = {}
 
-    if not rows:
-        raise HTTPException(status_code=404, detail="No forecast data available")
+    for day in daily_response.daily:
+        week_num = day.forecast_week
+        if week_num not in weeks_map:
+            weeks_map[week_num] = {
+                "week_start": day.forecast_date,
+                "week_end": day.forecast_date,
+                "total_income": Decimal("0"),
+                "total_expenses": Decimal("0"),
+                "net_change": Decimal("0"),
+                "ending_balance": day.projected_balance,
+            }
 
-    currency = str(rows[0]["currency"])
+        week = weeks_map[week_num]
+        week["week_end"] = day.forecast_date
+        week["total_income"] += day.daily_income
+        week["total_expenses"] += day.daily_expenses
+        week["net_change"] += day.daily_change
+        week["ending_balance"] = day.projected_balance  # Last day's balance
+
     weeks = [
         ForecastWeeklyResponse(
-            week_number=int(row["forecast_week"]),
-            week_start=row["week_start"],
-            week_end=row["week_end"],
-            total_income=Decimal(str(row["total_income"])),
-            total_expenses=Decimal(str(row["total_expenses"])),
-            net_change=Decimal(str(row["net_change"])),
-            ending_balance=Decimal(str(row["ending_balance"])),
+            week_number=week_num,
+            week_start=data["week_start"],
+            week_end=data["week_end"],
+            total_income=data["total_income"],
+            total_expenses=data["total_expenses"],
+            net_change=data["net_change"],
+            ending_balance=data["ending_balance"],
         )
-        for row in rows
+        for week_num, data in sorted(weeks_map.items())
     ]
 
-    return WeeklyForecastResponse(currency=currency, weeks=weeks)
+    return WeeklyForecastResponse(currency=daily_response.currency, weeks=weeks)
+
+
+# ---------------------------------------------------------------------------
+# Forecast Events Endpoint
+# ---------------------------------------------------------------------------
+
+
+class ForecastEventResponse(BaseModel):
+    """A single cash flow event on a forecast date."""
+
+    source_type: str = Field(..., description="Event source: 'recurring' or 'planned'")
+    name: str = Field(..., description="Display name of the pattern or transaction")
+    amount: Decimal = Field(..., description="Signed amount (negative for expenses)")
+    frequency: str | None = Field(None, description="Recurrence frequency if applicable")
+
+
+class ForecastEventsResponse(BaseModel):
+    """Response containing all events for a specific forecast date."""
+
+    forecast_date: date = Field(..., description="The date being queried")
+    events: list[ForecastEventResponse] = Field(..., description="List of cash flow events")
+    event_count: int = Field(..., description="Total number of events")
+
+
+@router.get(
+    "/forecast/events",
+    response_model=ForecastEventsResponse,
+    summary="Get forecast events for a specific date",
+    responses={**UNAUTHORIZED, **INTERNAL_ERROR},
+)
+def get_forecast_events(
+    forecast_date: date = Query(..., description="Date to get events for"),
+    current_user: User = Depends(get_current_user),
+) -> ForecastEventsResponse:
+    """Get detailed transaction/pattern information for a specific forecast date."""
+    # Fetch patterns and planned transactions
+    patterns, planned, _ = _fetch_scenario_data(current_user.id, [], [])
+
+    events: list[ForecastEventResponse] = []
+
+    # Process recurring patterns
+    for pat in patterns:
+        next_date = pat["next_expected_date"]
+        if isinstance(next_date, str):
+            next_date = date.fromisoformat(next_date)
+
+        if _matches_frequency(forecast_date, next_date, pat["frequency"]):
+            direction = pat["direction"]
+            raw_amount = Decimal(str(pat["expected_amount"]))
+            signed_amount = abs(raw_amount) if direction == "income" else -abs(raw_amount)
+
+            events.append(
+                ForecastEventResponse(
+                    source_type="recurring",
+                    name=str(pat["display_name"]),
+                    amount=signed_amount,
+                    frequency=str(pat["frequency"]),
+                )
+            )
+
+    # Process planned transactions
+    for plan in planned:
+        next_date = plan["next_expected_date"]
+        end_date = plan.get("end_date")
+        frequency = plan.get("frequency")
+
+        if isinstance(next_date, str):
+            next_date = date.fromisoformat(next_date)
+        if isinstance(end_date, str):
+            end_date = date.fromisoformat(end_date)
+
+        # Check if this planned transaction applies to the forecast date
+        if end_date and forecast_date > end_date:
+            continue
+
+        if frequency:
+            if _matches_frequency(forecast_date, next_date, frequency):
+                events.append(
+                    ForecastEventResponse(
+                        source_type="planned",
+                        name=str(plan["display_name"]),
+                        amount=Decimal(str(plan["amount"])),
+                        frequency=frequency,
+                    )
+                )
+        elif forecast_date == next_date:
+            # One-time planned transaction
+            events.append(
+                ForecastEventResponse(
+                    source_type="planned",
+                    name=str(plan["display_name"]),
+                    amount=Decimal(str(plan["amount"])),
+                    frequency=None,
+                )
+            )
+
+    return ForecastEventsResponse(
+        forecast_date=forecast_date,
+        events=events,
+        event_count=len(events),
+    )
 
 
 # Scenario calculation helpers
@@ -334,7 +517,7 @@ def _fetch_scenario_data(
     patterns_query = """
         SELECT pattern_id, display_name, direction, expected_amount, currency, frequency,
                next_expected_date
-        FROM fct_recurring_patterns
+        FROM main_mart.fct_recurring_patterns
         WHERE user_id = $user_id AND status NOT IN ('dismissed', 'paused')
           AND next_expected_date IS NOT NULL
     """
@@ -353,7 +536,7 @@ def _fetch_scenario_data(
         SELECT id AS transaction_id, name AS display_name,
                CASE WHEN amount > 0 THEN 'income' ELSE 'expense' END AS direction,
                amount, currency, frequency, next_expected_date, end_date
-        FROM src_planned_transactions
+        FROM main_source.src_planned_transactions
         WHERE user_id = $user_id AND enabled = TRUE AND next_expected_date IS NOT NULL
           AND (end_date IS NULL OR end_date >= CURRENT_DATE)
     """
@@ -369,7 +552,7 @@ def _fetch_scenario_data(
 
     net_worth_query = """
         SELECT net_worth AS starting_balance, currency, balance_date AS as_of_date
-        FROM fct_net_worth_history WHERE user_id = $user_id
+        FROM main_mart.fct_net_worth_history WHERE user_id = $user_id
         ORDER BY balance_date DESC LIMIT 1
     """
 

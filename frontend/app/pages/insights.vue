@@ -9,10 +9,7 @@ const route = useRoute()
 // ---------------------------------------------------------------------------
 // Tab configuration
 // ---------------------------------------------------------------------------
-const tabs = [
-  { to: '/insights/analytics', label: 'Analytics' },
-  { to: '/insights/subscriptions', label: 'Subscriptions' },
-]
+const tabs = [{ to: '/insights/analytics', label: 'Analytics' }]
 
 // Check if a tab is active (analytics has sub-routes like /datasets, /exports)
 function isActiveTab(to: string): boolean {

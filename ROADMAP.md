@@ -382,6 +382,7 @@ Items to tackle when higher priority work is complete.
 
 - [ ] Multi-rule match notifications (alert when transaction matches multiple rules)
 - [ ] Smart tag suggestions (ML-based, learn from user corrections)
+- [ ] new subscriptions don't get picked up soon enough, i need a way of adding/adjusting subscriptions. E.g. I have a simmer eats subscription which has been picked up as fortnightly even though it is weekly  
 
 ### AI Features
 
