@@ -361,6 +361,7 @@ Shifted from opt-out (detection creates patterns, user dismisses) to opt-in (det
 - [ ] Allow adjusting detected frequency (e.g., detected fortnightly but actually weekly)
 - [ ] Add "Edit Pattern" button to subscription detail view
 - [ ] Add "Create Pattern" button to subscription list view
+- [ ] Migration to clear out old patterns
 
 ### Addressed by Redesign
 
