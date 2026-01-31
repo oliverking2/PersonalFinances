@@ -36,11 +36,12 @@ RECURRING_CASH_FLOWS AS (
         CASE
             WHEN DIRECTION = 'income' THEN ABS(EXPECTED_AMOUNT)
             ELSE -ABS(EXPECTED_AMOUNT)
-        END         AS AMOUNT,
+        END                              AS AMOUNT,
         CURRENCY,
         FREQUENCY,
-        NEXT_EXPECTED_DATE,
-        'recurring' AS SOURCE_TYPE
+        -- Cast to DATE to ensure consistent type for date_diff
+        CAST(NEXT_EXPECTED_DATE AS DATE) AS NEXT_EXPECTED_DATE,
+        'recurring'                      AS SOURCE_TYPE
     FROM {{ ref('fct_recurring_patterns') }}
     WHERE
         STATUS NOT IN ('dismissed', 'paused')
@@ -57,8 +58,9 @@ PLANNED_CASH_FLOWS AS (
         AMOUNT,  -- Already signed correctly
         CURRENCY,
         FREQUENCY,
-        NEXT_EXPECTED_DATE,
-        END_DATE,
+        -- Cast to DATE to ensure consistent type for date_diff
+        CAST(NEXT_EXPECTED_DATE AS DATE)                      AS NEXT_EXPECTED_DATE,
+        CAST(END_DATE AS DATE)                                AS END_DATE,
         'planned'                                             AS SOURCE_TYPE
     FROM {{ ref('src_planned_transactions') }}
     WHERE

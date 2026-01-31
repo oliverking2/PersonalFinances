@@ -122,8 +122,8 @@ SELECT
     CONFIDENCE_SCORE,
     OCCURRENCE_COUNT,
     NOTES,
-    LAST_OCCURRENCE_DATE,
-    NEXT_EXPECTED_DATE,
+    CAST(LAST_OCCURRENCE_DATE AS DATE)                                                   AS LAST_OCCURRENCE_DATE,
+    CAST(NEXT_EXPECTED_DATE AS DATE)                                                     AS NEXT_EXPECTED_DATE,
     IS_USER_MANAGED,
     CREATED_AT,
     UPDATED_AT,
@@ -136,9 +136,9 @@ SELECT
         WHEN 'quarterly' THEN ABS(EXPECTED_AMOUNT) / 3
         WHEN 'annual' THEN ABS(EXPECTED_AMOUNT) / 12
         ELSE ABS(EXPECTED_AMOUNT)
-    END                                                                    AS MONTHLY_EQUIVALENT,
+    END                                                                                  AS MONTHLY_EQUIVALENT,
     -- Is the pattern overdue? (past expected date + 7-day grace period)
-    COALESCE(NEXT_EXPECTED_DATE < CURRENT_DATE - INTERVAL '7 days', FALSE) AS IS_OVERDUE,
+    COALESCE(CAST(NEXT_EXPECTED_DATE AS DATE) < CURRENT_DATE - INTERVAL '7 days', FALSE) AS IS_OVERDUE,
     -- Days until next expected payment
-    DATE_DIFF('day', CURRENT_DATE, NEXT_EXPECTED_DATE)                     AS DAYS_UNTIL_NEXT
+    DATE_DIFF('day', CURRENT_DATE, CAST(NEXT_EXPECTED_DATE AS DATE))                     AS DAYS_UNTIL_NEXT
 FROM WITH_NEXT_DATE
