@@ -330,7 +330,10 @@ onMounted(() => {
       </div>
 
       <!-- Controls: date range + view toggle + refresh -->
-      <div v-if="forecastData" class="flex flex-wrap items-center gap-3">
+      <div
+        v-if="!loading && analyticsAvailable"
+        class="flex flex-wrap items-center gap-3"
+      >
         <!-- Date range selector -->
         <div class="flex rounded-lg border border-border bg-surface">
           <button

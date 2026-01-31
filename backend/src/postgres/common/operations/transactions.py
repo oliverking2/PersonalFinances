@@ -12,7 +12,13 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from src.postgres.common.models import Transaction, TransactionSplit
+from sqlalchemy.orm import selectinload
+
+from src.postgres.common.models import (
+    RecurringPatternTransaction,
+    Transaction,
+    TransactionSplit,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -75,7 +81,21 @@ def get_transactions_for_user(
             page_size=page_size,
         )
 
-    query = session.query(Transaction).filter(Transaction.account_id.in_(account_ids))
+    # Build query with eager loading to avoid N+1 queries when accessing
+    # splits, tags, rules, and recurring pattern links
+    query = (
+        session.query(Transaction)
+        .filter(Transaction.account_id.in_(account_ids))
+        .options(
+            # Eager load splits with their tags and rules
+            selectinload(Transaction.splits).selectinload(TransactionSplit.tag),
+            selectinload(Transaction.splits).selectinload(TransactionSplit.rule),
+            # Eager load recurring pattern links with patterns
+            selectinload(Transaction.pattern_links).selectinload(
+                RecurringPatternTransaction.pattern
+            ),
+        )
+    )
 
     # Apply tag filter (join with transaction_splits if needed)
     # Uses OR logic: transactions with ANY of the specified tags

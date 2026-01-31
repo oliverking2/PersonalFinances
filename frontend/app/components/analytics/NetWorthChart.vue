@@ -118,6 +118,7 @@ const chartOptions = computed<ApexOptions>(() => ({
     zoom: { enabled: false },
     selection: { enabled: false },
   },
+  dataLabels: { enabled: false },
   stroke: {
     curve: 'smooth',
     width: props.showRollingAvg ? [2, 1] : [2],

@@ -23,6 +23,7 @@ from src.api.analytics.models import (
     NumericFilterResponse,
     RefreshResponse,
 )
+from src.api.common.helpers import get_user_account_ids
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
 from src.duckdb.client import check_connection, execute_query
@@ -32,7 +33,6 @@ from src.filepaths import DUCKDB_PATH
 from src.postgres.auth.models import User
 from src.postgres.common.enums import JobStatus, JobType
 from src.postgres.common.models import Job
-from src.postgres.common.operations.connections import get_connections_by_user_id
 from src.postgres.common.operations.tags import get_tags_by_user_id
 from src.providers.dagster import trigger_job
 
@@ -56,17 +56,6 @@ def _get_last_refresh_time() -> datetime | None:
     return datetime.fromtimestamp(mtime, tz=UTC)
 
 
-def _get_user_account_ids(db: Session, user: User) -> list[UUID]:
-    """Get all account IDs for a user.
-
-    :param db: Database session.
-    :param user: Authenticated user.
-    :returns: List of account UUIDs.
-    """
-    connections = get_connections_by_user_id(db, user.id)
-    return [acc.id for conn in connections for acc in conn.accounts]
-
-
 def _validate_account_ids(db: Session, user: User, account_ids: list[UUID]) -> list[UUID]:
     """Validate and filter account IDs to those owned by the user.
 
@@ -75,7 +64,7 @@ def _validate_account_ids(db: Session, user: User, account_ids: list[UUID]) -> l
     :param account_ids: Requested account IDs.
     :returns: Valid account IDs owned by user.
     """
-    user_account_ids = set(_get_user_account_ids(db, user))
+    user_account_ids = set(get_user_account_ids(db, user))
     return [aid for aid in account_ids if aid in user_account_ids]
 
 

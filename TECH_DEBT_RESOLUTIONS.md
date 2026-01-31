@@ -623,7 +623,11 @@ first_name: string // TODO: Backend will add these fields
 
 ## Completed Items - Move items here as they are resolved
 
-- [ ] Example: BE-001 - Fixed in PR #123
+- [x] BE-004: Split sync.py into sync_gocardless.py and sync_trading212.py (988→~500 lines each)
+- [x] BE-005: Created shared account ownership helper at `backend/src/api/common/helpers.py`
+- [x] BE-002: Consolidated duplicate `_get_user_account_ids()` into shared helper module
+- [x] TEST-003: Moved API test fixtures (test_institution_in_db, test_connection_in_db, test_account_in_db) to shared conftest.py
+- [x] DBT-002: Created `frequency_matches_date` macro to deduplicate frequency matching logic in fct_cash_flow_forecast.sql
 
 ---
 

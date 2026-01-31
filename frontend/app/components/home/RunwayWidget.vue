@@ -5,6 +5,7 @@ Displays financial runway - days until balance reaches threshold
 
 <script setup lang="ts">
 import type { CashFlowForecastResponse } from '~/types/analytics'
+import { formatCurrency, parseAmount } from '~/composables/useFormatting'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -18,15 +19,9 @@ defineProps<{
 // Computed helpers
 // ---------------------------------------------------------------------------
 
-// Format currency values
-function formatCurrency(amount: string): string {
-  const num = parseFloat(amount)
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num)
+// Format currency values (whole numbers for cleaner display)
+function formatWholeNumber(amount: string): string {
+  return formatCurrency(Math.round(parseAmount(amount)))
 }
 
 // Get runway status colour (green = healthy, amber = warning, red = danger)
@@ -112,13 +107,13 @@ function getProgressColor(days: number | null): string {
         <div>
           <p class="text-muted">Projected Balance</p>
           <p class="font-medium">
-            {{ formatCurrency(forecast.summary.ending_balance) }}
+            {{ formatWholeNumber(forecast.summary.ending_balance) }}
           </p>
         </div>
         <div>
           <p class="text-muted">Min Balance</p>
           <p class="font-medium">
-            {{ formatCurrency(forecast.summary.min_balance) }}
+            {{ formatWholeNumber(forecast.summary.min_balance) }}
           </p>
         </div>
       </div>

@@ -79,18 +79,20 @@ INTERNAL_TRANSFER_IDS AS (
 ### UI/UX
 
 **Net Worth Card Changes:**
+
 - Shows trend arrow with percentage (green up for growth, red down for decline)
 - Subtitle "vs last month" when trend is available
 - Clicks through to `/accounts`
 
 **Metric Card Navigation:**
-| Card | Destination |
-|------|-------------|
-| Net Worth | `/accounts` |
-| Spent This Month | `/analytics` |
-| vs Last Month | `/analytics` |
-| Top Category | `/transactions?tag={name}&start_date=...&end_date=...` |
-| Transactions | `/transactions?start_date=...&end_date=...` |
+
+| Card             | Destination                                            |
+|------------------|--------------------------------------------------------|
+| Net Worth        | `/accounts`                                            |
+| Spent This Month | `/analytics`                                           |
+| vs Last Month    | `/analytics`                                           |
+| Top Category     | `/transactions?tag={name}&start_date=...&end_date=...` |
+| Transactions     | `/transactions?start_date=...&end_date=...`            |
 
 ---
 
@@ -152,9 +154,9 @@ INTERNAL_TRANSFER_IDS AS (
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `backend/dbt/models/3_mart/fct_daily_spending_by_tag.sql` | Internal transfer pair detection |
-| `backend/dbt/models/3_mart/fct_monthly_trends.sql` | Internal transfer pair detection (both sides) |
-| `frontend/app/components/home/MetricCard.vue` | Added `to` and `trendInverted` props, NuxtLink rendering |
-| `frontend/app/pages/index.vue` | Net worth trend computation, navigation links for all cards |
+| File                                                      | Changes                                                     |
+|-----------------------------------------------------------|-------------------------------------------------------------|
+| `backend/dbt/models/3_mart/fct_daily_spending_by_tag.sql` | Internal transfer pair detection                            |
+| `backend/dbt/models/3_mart/fct_monthly_trends.sql`        | Internal transfer pair detection (both sides)               |
+| `frontend/app/components/home/MetricCard.vue`             | Added `to` and `trendInverted` props, NuxtLink rendering    |
+| `frontend/app/pages/index.vue`                            | Net worth trend computation, navigation links for all cards |

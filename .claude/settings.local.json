@@ -41,7 +41,8 @@
       "Bash(dbt compile:*)",
       "Bash(npm run lint-check:*)",
       "Bash(poetry run sqlfluff lint:*)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

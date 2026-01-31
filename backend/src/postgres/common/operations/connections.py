@@ -7,10 +7,10 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from src.postgres.common.enums import ConnectionStatus, Provider
-from src.postgres.common.models import Connection
+from src.postgres.common.models import Account, Connection
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +51,41 @@ def get_connections_by_user_id(
     session: Session,
     user_id: UUID,
     status: ConnectionStatus | None = None,
+    include_accounts: bool = False,
 ) -> list[Connection]:
     """Get all connections for a user.
 
     :param session: SQLAlchemy session.
     :param user_id: User's UUID.
     :param status: Filter by status (optional).
+    :param include_accounts: Eager load accounts to avoid N+1 queries (optional).
     :return: List of connections.
     """
     query = session.query(Connection).filter(Connection.user_id == user_id)
+
+    if include_accounts:
+        query = query.options(selectinload(Connection.accounts))
 
     if status is not None:
         query = query.filter(Connection.status == status.value)
 
     return query.order_by(Connection.created_at.desc()).all()
+
+
+def get_accounts_by_user_id(session: Session, user_id: UUID) -> list[Account]:
+    """Get all accounts for a user across all connections.
+
+    Uses eager loading to fetch all accounts in a single query.
+
+    :param session: SQLAlchemy session.
+    :param user_id: User's UUID.
+    :return: List of accounts.
+    """
+    connections = get_connections_by_user_id(session, user_id, include_accounts=True)
+    accounts = []
+    for conn in connections:
+        accounts.extend(conn.accounts)
+    return accounts
 
 
 def create_connection(

@@ -63,87 +63,95 @@ dbt Models
 ### Data Model
 
 **t212_api_keys** - Stores encrypted API keys per user
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID | PK |
-| user_id | UUID FK | → users.id |
-| api_key_encrypted | Text | Fernet-encrypted |
-| friendly_name | String(128) | User-provided label |
-| t212_account_id | String(50) | From API |
-| currency_code | String(3) | From API |
-| status | String(20) | active/error |
-| error_message | Text | Last error if status=error |
-| last_synced_at | DateTime | Last successful sync |
-| created_at, updated_at | DateTime | Timestamps |
+
+| Column                 | Type        | Notes                      |
+|------------------------|-------------|----------------------------|
+| id                     | UUID        | PK                         |
+| user_id                | UUID FK     | → users.id                 |
+| api_key_encrypted      | Text        | Fernet-encrypted           |
+| friendly_name          | String(128) | User-provided label        |
+| t212_account_id        | String(50)  | From API                   |
+| currency_code          | String(3)   | From API                   |
+| status                 | String(20)  | active/error               |
+| error_message          | Text        | Last error if status=error |
+| last_synced_at         | DateTime    | Last successful sync       |
+| created_at, updated_at | DateTime    | Timestamps                 |
 
 **t212_cash_balances** - Historical cash balance snapshots
-| Column | Type |
-|--------|------|
-| id | Integer PK |
-| api_key_id | UUID FK |
+
+| Column                                                | Type          |
+|-------------------------------------------------------|---------------|
+| id                                                    | Integer PK    |
+| api_key_id                                            | UUID FK       |
 | free, blocked, invested, pie_cash, ppl, result, total | Decimal(18,2) |
-| fetched_at | DateTime |
+| fetched_at                                            | DateTime      |
 
 **t212_orders** - Order/trade history
-| Column | Type |
-|--------|------|
-| id | Integer PK |
-| api_key_id | UUID FK |
-| t212_order_id | String(100) UNIQUE |
-| ticker, instrument_name | String |
-| order_type, status | String |
-| quantity, filled_quantity, filled_value | Decimal |
-| limit_price, stop_price, fill_price | Decimal |
-| currency | String(3) |
-| date_created, date_executed, date_modified | DateTime |
+
+| Column                                     | Type               |
+|--------------------------------------------|--------------------|
+| id                                         | Integer PK         |
+| api_key_id                                 | UUID FK            |
+| t212_order_id                              | String(100) UNIQUE |
+| ticker, instrument_name                    | String             |
+| order_type, status                         | String             |
+| quantity, filled_quantity, filled_value    | Decimal            |
+| limit_price, stop_price, fill_price        | Decimal            |
+| currency                                   | String(3)          |
+| date_created, date_executed, date_modified | DateTime           |
 
 **t212_dividends** - Dividend payments
-| Column | Type |
-|--------|------|
-| id | Integer PK |
-| api_key_id | UUID FK |
-| t212_reference | String(100) UNIQUE |
-| ticker, instrument_name | String |
-| amount, amount_in_euro, gross_amount_per_share | Decimal |
-| quantity | Decimal |
-| currency, dividend_type | String |
-| paid_on | DateTime |
+
+| Column                                         | Type               |
+|------------------------------------------------|--------------------|
+| id                                             | Integer PK         |
+| api_key_id                                     | UUID FK            |
+| t212_reference                                 | String(100) UNIQUE |
+| ticker, instrument_name                        | String             |
+| amount, amount_in_euro, gross_amount_per_share | Decimal            |
+| quantity                                       | Decimal            |
+| currency, dividend_type                        | String             |
+| paid_on                                        | DateTime           |
 
 **t212_transactions** - Cash movements (deposits, withdrawals, fees)
-| Column | Type |
-|--------|------|
-| id | Integer PK |
-| api_key_id | UUID FK |
-| t212_reference | String(100) UNIQUE |
-| transaction_type | String |
-| amount | Decimal |
-| currency | String(3) |
-| date_time | DateTime |
+
+| Column           | Type               |
+|------------------|--------------------|
+| id               | Integer PK         |
+| api_key_id       | UUID FK            |
+| t212_reference   | String(100) UNIQUE |
+| transaction_type | String             |
+| amount           | Decimal            |
+| currency         | String(3)          |
+| date_time        | DateTime           |
 
 ### API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /api/trading212 | Add T212 connection (validates key first) |
-| GET | /api/trading212 | List user's T212 connections |
-| DELETE | /api/trading212/{id} | Remove connection |
+| Method   | Path                 | Description                               |
+|----------|----------------------|-------------------------------------------|
+| POST     | /api/trading212      | Add T212 connection (validates key first) |
+| GET      | /api/trading212      | List user's T212 connections              |
+| DELETE   | /api/trading212/{id} | Remove connection                         |
 
 Sync is triggered via the existing `/api/connections/{id}/sync` endpoint which detects the provider and triggers the appropriate Dagster job.
 
 ### Dagster Assets
 
 **Extraction (from T212 API → raw tables)**:
+
 - `source/trading212/extract/cash` - Cash balances
 - `source/trading212/extract/orders` - Order history
 - `source/trading212/extract/dividends` - Dividend payments
 - `source/trading212/extract/transactions` - Cash movements
 
 **Sync (from raw tables → unified tables)**:
+
 - `sync/trading212/connections` - Upsert to connections table
 - `sync/trading212/accounts` - Upsert to accounts table with total_value/unrealised_pnl
 - `sync/trading212/transactions` - Sync orders, dividends, cash txns to unified transactions
 
 **Unified Gates (for dbt dependencies)**:
+
 - `sync/unified/accounts` - Depends on both GC and T212 account syncs
 - `sync/unified/connections` - Depends on both GC and T212 connection syncs
 - `sync/unified/transactions` - Depends on both GC and T212 transaction syncs
@@ -166,13 +174,13 @@ Sync is triggered via the existing `/api/connections/{id}/sync` endpoint which d
 
 ### API Rate Limits
 
-| Endpoint | Rate Limit |
-|----------|------------|
-| /equity/account/cash | 1 req/2s |
-| /equity/account/info | 1 req/30s |
-| /equity/history/orders | 1 req/5s |
-| /equity/history/dividends | 1 req/30s |
-| /equity/history/transactions | 1 req/30s |
+| Endpoint                     | Rate Limit  |
+|------------------------------|-------------|
+| /equity/account/cash         | 1 req/2s    |
+| /equity/account/info         | 1 req/30s   |
+| /equity/history/orders       | 1 req/5s    |
+| /equity/history/dividends    | 1 req/30s   |
+| /equity/history/transactions | 1 req/30s   |
 
 Client implements per-endpoint rate limiting with sleep between requests.
 
@@ -184,11 +192,11 @@ Client implements per-endpoint rate limiting with sleep between requests.
 
 ### Transaction Mapping
 
-| T212 Source | Unified Transaction Fields |
-|-------------|---------------------------|
-| Filled orders | provider_id: "order_{id}", amount: filled_value, description: "{BUY/SELL} {ticker}" |
-| Dividends | provider_id: "dividend_{ref}", amount: amount, description: "Dividend: {ticker}" |
-| Cash transactions | provider_id: "txn_{ref}", amount: amount, description: "{type}" |
+| T212 Source       | Unified Transaction Fields                                                          |
+|-------------------|-------------------------------------------------------------------------------------|
+| Filled orders     | provider_id: "order_{id}", amount: filled_value, description: "{BUY/SELL} {ticker}" |
+| Dividends         | provider_id: "dividend_{ref}", amount: amount, description: "Dividend: {ticker}"    |
+| Cash transactions | provider_id: "txn_{ref}", amount: amount, description: "{type}"                     |
 
 ---
 

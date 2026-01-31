@@ -1,8 +1,7 @@
 """Tests for analytics API endpoints."""
 
 import uuid
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -12,8 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.duckdb.manifest import DATASET_UUID_NAMESPACE, Dataset, DatasetColumn
 from src.postgres.auth.models import User
-from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
-from src.postgres.common.models import Account, Connection, Institution, Tag
+from src.postgres.common.models import Account, Tag
 
 
 def _dataset_uuid(name: str) -> uuid.UUID:
@@ -21,57 +19,8 @@ def _dataset_uuid(name: str) -> uuid.UUID:
     return uuid.uuid5(DATASET_UUID_NAMESPACE, name)
 
 
-@pytest.fixture
-def test_institution_in_db(api_db_session: Session) -> Institution:
-    """Create an institution in the database."""
-    institution = Institution(
-        id="CHASE_CHASGB2L",
-        provider=Provider.GOCARDLESS.value,
-        name="Chase UK",
-        logo_url="https://cdn.nordigen.com/ais/CHASE_CHASGB2L.png",
-        countries=["GB"],
-    )
-    api_db_session.add(institution)
-    api_db_session.commit()
-    return institution
-
-
-@pytest.fixture
-def test_connection_in_db(
-    api_db_session: Session, test_user_in_db: User, test_institution_in_db: Institution
-) -> Connection:
-    """Create a connection in the database."""
-    connection = Connection(
-        user_id=test_user_in_db.id,
-        provider=Provider.GOCARDLESS.value,
-        provider_id="test-req-id",
-        institution_id=test_institution_in_db.id,
-        friendly_name="Test Connection",
-        status=ConnectionStatus.ACTIVE.value,
-        created_at=datetime.now(),
-    )
-    api_db_session.add(connection)
-    api_db_session.commit()
-    return connection
-
-
-@pytest.fixture
-def test_account_in_db(api_db_session: Session, test_connection_in_db: Connection) -> Account:
-    """Create an account in the database."""
-    account = Account(
-        connection_id=test_connection_in_db.id,
-        provider_id="test-gc-account-id",
-        status=AccountStatus.ACTIVE.value,
-        name="Test Account",
-        display_name="My Account",
-        iban="GB00TEST00000000001234",
-        currency="GBP",
-        balance_amount=Decimal("1000.00"),
-        balance_currency="GBP",
-    )
-    api_db_session.add(account)
-    api_db_session.commit()
-    return account
+# test_institution_in_db, test_connection_in_db, and test_account_in_db
+# are provided by the shared conftest.py
 
 
 @pytest.fixture

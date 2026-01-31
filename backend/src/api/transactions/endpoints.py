@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from src.api.common.helpers import get_user_account_ids
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES, UNAUTHORIZED
 from src.api.transactions.models import (
@@ -198,12 +199,6 @@ def _to_response(txn: Transaction, db: Session | None = None) -> TransactionResp
     )
 
 
-def _get_user_account_ids(db: Session, user: User) -> list[UUID]:
-    """Get all account IDs for a user."""
-    connections = get_connections_by_user_id(db, user.id)
-    return [acc.id for conn in connections for acc in conn.accounts]
-
-
 def _verify_transaction_ownership(
     db: Session, transaction_id: UUID, user: User
 ) -> Transaction | None:
@@ -213,7 +208,7 @@ def _verify_transaction_ownership(
         return None
 
     # Verify through account ownership
-    account_ids = _get_user_account_ids(db, user)
+    account_ids = get_user_account_ids(db, user)
     if transaction.account_id not in account_ids:
         return None
 
@@ -311,7 +306,7 @@ def bulk_tag(
     current_user: User = Depends(get_current_user),
 ) -> BulkTagResponse:
     """Add or remove tags from multiple transactions in a single operation."""
-    account_ids = _get_user_account_ids(db, current_user)
+    account_ids = get_user_account_ids(db, current_user)
 
     # Verify all transactions belong to user
     transaction_ids = [UUID(tid) for tid in request.transaction_ids]

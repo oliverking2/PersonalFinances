@@ -193,6 +193,7 @@ Institution(
 ### sync_vanguard_connection(session, vg_session)
 
 Map `VanguardSession` → `Connection`:
+
 - `provider` = `Provider.VANGUARD.value`
 - `provider_id` = `str(vg_session.id)`
 - `institution_id` = `"VANGUARD_UK"`
@@ -202,6 +203,7 @@ Map `VanguardSession` → `Connection`:
 ### sync_vanguard_account(session, vg_session, connection)
 
 Map `VanguardSession` + latest `VanguardValuation` → `Account`:
+
 - `connection_id` = `connection.id`
 - `provider_id` = `"isa"` (or from Vanguard if multiple accounts)
 - `account_type` = `AccountType.INVESTMENT.value`
@@ -212,6 +214,7 @@ Map `VanguardSession` + latest `VanguardValuation` → `Account`:
 ### sync_vanguard_holdings(session, account, holdings_data)
 
 Map extracted holdings → `Holding` records:
+
 - `account_id` = `account.id`
 - `ticker` = fund ISIN or Vanguard code
 - `name` = fund name
@@ -246,12 +249,14 @@ Map extracted holdings → `Holding` records:
 ## Frontend Changes
 
 **accounts.vue:**
+
 - Add `showVanguardModal` ref
 - Add `openVanguardModal()`, `closeVanguardModal()`, `handleVanguardCreated()` handlers
 - Add "Add Vanguard" button in header (same row as "Connect Bank" and "Add Trading 212")
 - Add `<AccountsAddVanguardModal>` component
 
 **AddVanguardModal.vue:**
+
 - Username/password fields (both masked, with show/hide toggle)
 - Friendly name field
 - Warning about credential encryption

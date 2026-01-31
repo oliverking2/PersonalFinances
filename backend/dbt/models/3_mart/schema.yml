@@ -340,6 +340,53 @@ models:
       filters:
         date_column: "balance_date"
         account_id_column: "account_id"
+    columns:
+      - name: account_id
+        description: Unique identifier for the account (UUID)
+        data_tests:
+          - not_null
+      - name: user_id
+        description: Owner of the account (UUID)
+        data_tests:
+          - not_null
+      - name: account_name
+        description: Display name of the account
+        data_tests:
+          - not_null
+      - name: account_type
+        description: Type of account (bank, investment, trading)
+        data_tests:
+          - not_null
+      - name: balance_date
+        description: Date of the balance snapshot
+        data_tests:
+          - not_null
+      - name: balance_amount
+        description: Balance amount (forward-filled for gaps)
+        data_tests:
+          - not_null
+      - name: balance_currency
+        description: Currency of the balance
+        data_tests:
+          - not_null
+      - name: balance_type
+        description: Type of balance (expected, booked, etc.)
+      - name: total_value
+        description: Total value for investment accounts
+      - name: unrealised_pnl
+        description: Unrealised profit/loss for investment accounts
+      - name: daily_change
+        description: Change in balance from previous day
+        data_tests:
+          - not_null
+      - name: daily_value_change
+        description: Change in total value from previous day
+        data_tests:
+          - not_null
+      - name: is_actual_snapshot
+        description: Whether this is an actual snapshot (true) or gap-filled (false)
+        data_tests:
+          - not_null
 
   - name: fct_net_worth_history
     description: |

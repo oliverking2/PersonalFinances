@@ -13,19 +13,19 @@ from src.api.accounts.models import (
     AccountResponse,
     AccountUpdateRequest,
 )
+from src.api.common.helpers import verify_user_owns_account
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import RESOURCE_RESPONSES, RESOURCE_WRITE_RESPONSES
 from src.postgres.auth.models import User
 from src.postgres.common.enums import AccountCategory, AccountStatus
 from src.postgres.common.models import Account
 from src.postgres.common.operations.accounts import (
-    get_account_by_id,
     get_accounts_by_connection_id,
     update_account,
 )
 from src.postgres.common.operations.connections import (
+    get_accounts_by_user_id,
     get_connection_by_id,
-    get_connections_by_user_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,11 +52,8 @@ def list_accounts(
             raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
         accounts = get_accounts_by_connection_id(db, connection_id)
     else:
-        # Get all accounts for user's connections
-        connections = get_connections_by_user_id(db, current_user.id)
-        accounts = []
-        for conn in connections:
-            accounts.extend(get_accounts_by_connection_id(db, conn.id))
+        # Get all accounts for user using eager loading (single query)
+        accounts = get_accounts_by_user_id(db, current_user.id)
 
     return AccountListResponse(
         accounts=[_to_response(acc) for acc in accounts],
@@ -76,14 +73,7 @@ def get_account(
     current_user: User = Depends(get_current_user),
 ) -> AccountResponse:
     """Retrieve a specific bank account by its UUID."""
-    account = get_account_by_id(db, account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
-
-    # Verify user owns the parent connection
-    if account.connection.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
-
+    account = verify_user_owns_account(db, account_id, current_user)
     return _to_response(account)
 
 
@@ -93,20 +83,15 @@ def get_account(
     summary="Update account",
     responses=RESOURCE_WRITE_RESPONSES,
 )
-def patch_account(  # noqa: PLR0912
+def patch_account(
     account_id: UUID,
     request: AccountUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AccountResponse:
     """Update an account's display name, category, or minimum balance."""
-    account = get_account_by_id(db, account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
-
-    # Verify user owns the parent connection
-    if account.connection.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
+    # Verify ownership (raises 404 if not found or not owned)
+    verify_user_owns_account(db, account_id, current_user)
 
     # Check which fields were explicitly provided in the request
     # This allows us to differentiate between "not provided" and "explicitly set to null"

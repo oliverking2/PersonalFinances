@@ -7,6 +7,7 @@ Clean display without zoom/toolbar controls
 <script setup lang="ts">
 import VueApexCharts from 'vue3-apexcharts'
 import type { ApexOptions } from 'apexcharts'
+import { formatCurrency } from '~/composables/useFormatting'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -17,6 +18,18 @@ const props = defineProps<{
   compareEnabled: boolean
   periodLabel: string
 }>()
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// Format currency in compact form for y-axis (£1k, £10k, etc.)
+function formatCompactCurrency(amount: number): string {
+  if (Math.abs(amount) >= 1000) {
+    return `£${Math.round(amount / 1000)}k`
+  }
+  return `£${Math.round(amount)}`
+}
 
 // ---------------------------------------------------------------------------
 // Computed: Chart configuration
@@ -75,7 +88,10 @@ const chartOptions = computed<ApexOptions>(() => ({
       stops: [0, 100],
     },
   },
-  markers: { size: 0, hover: { size: 6 } },
+  markers: { size: 0, hover: { size: 5 } },
+  dataLabels: {
+    enabled: false,
+  },
   xaxis: {
     type: 'datetime',
     labels: {
@@ -87,7 +103,10 @@ const chartOptions = computed<ApexOptions>(() => ({
   },
   yaxis: {
     min: 0, // Spending is always positive
-    labels: { style: { colors: '#a3a3a3', fontSize: '12px' } },
+    labels: {
+      style: { colors: '#a3a3a3', fontSize: '12px' },
+      formatter: (val: number) => formatCompactCurrency(val),
+    },
   },
   grid: {
     borderColor: '#2e2e2e',
@@ -107,19 +126,6 @@ const chartOptions = computed<ApexOptions>(() => ({
     y: { formatter: (val: number) => formatCurrency(val) },
   },
 }))
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)
-}
 </script>
 
 <template>
