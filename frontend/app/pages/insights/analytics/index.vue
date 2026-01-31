@@ -22,10 +22,12 @@ const dailySpendingByTag = ref<DatasetQueryResponse | null>(null)
 const previousPeriodDailySpending = ref<DatasetQueryResponse | null>(null)
 const monthlyTrends = ref<DatasetQueryResponse | null>(null)
 const previousMonthTrends = ref<DatasetQueryResponse | null>(null)
+const balanceHistory = ref<DatasetQueryResponse | null>(null)
 
 // Dataset IDs (looked up on mount)
 const dailySpendingDatasetId = ref<string | null>(null)
 const monthlyTrendsDatasetId = ref<string | null>(null)
+const balanceHistoryDatasetId = ref<string | null>(null)
 
 // Loading states
 const loading = ref(true)
@@ -271,6 +273,21 @@ const previousDailySpending = computed(() => {
     .map(([date, total]) => ({ date, total }))
 })
 
+// Balance history data for chart
+const balanceHistoryData = computed(() => {
+  if (!balanceHistory.value?.rows?.length) return []
+
+  return balanceHistory.value.rows.map((row) => ({
+    account_id: row.account_id as string,
+    account_name: row.account_name as string,
+    balance_date: row.balance_date as string,
+    balance_amount: row.balance_amount as number,
+    balance_currency: (row.balance_currency as string) || 'GBP',
+    total_value: row.total_value as number | null | undefined,
+    daily_change: (row.daily_change as number) || 0,
+  }))
+})
+
 // ---------------------------------------------------------------------------
 // Computed: Summary statistics
 // ---------------------------------------------------------------------------
@@ -344,9 +361,13 @@ async function loadAnalytics() {
     const monthlyTrendsDs = datasets.find(
       (ds: Dataset) => ds.dataset_name === 'fct_monthly_trends',
     )
+    const balanceHistoryDs = datasets.find(
+      (ds: Dataset) => ds.dataset_name === 'fct_daily_balance_history',
+    )
 
     dailySpendingDatasetId.value = dailySpendingDs?.id || null
     monthlyTrendsDatasetId.value = monthlyTrendsDs?.id || null
+    balanceHistoryDatasetId.value = balanceHistoryDs?.id || null
 
     // Fetch data for current period
     await fetchPeriodData()
@@ -396,12 +417,24 @@ async function fetchPeriodData() {
     )
   }
 
+  // Balance history for current period
+  if (balanceHistoryDatasetId.value) {
+    queries.push(
+      queryDataset(balanceHistoryDatasetId.value, {
+        start_date: periodDateRange.value.start_date,
+        end_date: periodDateRange.value.end_date,
+        limit: 10000, // Allow more rows for balance history
+      }),
+    )
+  }
+
   const results = await Promise.all(queries)
 
   dailySpendingByTag.value = results[0] ?? null
   previousPeriodDailySpending.value = results[1] ?? null
   monthlyTrends.value = results[2] ?? null
   previousMonthTrends.value = results[3] ?? null
+  balanceHistory.value = results[4] ?? null
 }
 
 // Re-fetch when period changes
@@ -676,6 +709,12 @@ onMounted(() => {
           :previous-data="compareEnabled ? previousDailySpending : []"
           :compare-enabled="compareEnabled"
           :period-label="periodLabel"
+        />
+
+        <!-- Balance History Chart -->
+        <AnalyticsBalanceHistoryChart
+          v-if="balanceHistoryData.length > 0"
+          :data="balanceHistoryData"
         />
 
         <!-- Bottom row: Donut chart + Summary -->

@@ -1,5 +1,18 @@
 # Model definitions for source layer (documents output columns for lineage)
 models:
+  - name: src_balance_snapshots
+    description: Historical balance snapshots captured at each sync for trend analysis
+    columns:
+      - name: id
+      - name: account_id
+      - name: balance_amount
+      - name: balance_currency
+      - name: balance_type
+      - name: total_value
+      - name: unrealised_pnl
+      - name: source_updated_at
+      - name: captured_at
+
   - name: src_unified_budgets
     description: Source model for monthly spending budgets from PostgreSQL
     columns:
@@ -49,6 +62,23 @@ models:
       - name: status
       - name: display_name
       - name: notes
+      - name: created_at
+      - name: updated_at
+
+  - name: src_planned_transactions
+    description: Source model for planned income and expenses for forecasting
+    columns:
+      - name: id
+      - name: user_id
+      - name: name
+      - name: amount
+      - name: currency
+      - name: frequency
+      - name: next_expected_date
+      - name: end_date
+      - name: account_id
+      - name: notes
+      - name: enabled
       - name: created_at
       - name: updated_at
 
@@ -224,5 +254,33 @@ sources:
           - name: account_id
           - name: status
           - name: notes
+          - name: created_at
+          - name: updated_at
+      - name: balance_snapshots
+        description: Historical balance snapshots captured at each sync
+        columns:
+          - name: id
+          - name: account_id
+          - name: balance_amount
+          - name: balance_currency
+          - name: balance_type
+          - name: total_value
+          - name: unrealised_pnl
+          - name: source_updated_at
+          - name: captured_at
+      - name: planned_transactions
+        description: User-defined planned income and expenses for forecasting
+        columns:
+          - name: id
+          - name: user_id
+          - name: name
+          - name: amount
+          - name: currency
+          - name: frequency
+          - name: next_expected_date
+          - name: end_date
+          - name: account_id
+          - name: notes
+          - name: enabled
           - name: created_at
           - name: updated_at

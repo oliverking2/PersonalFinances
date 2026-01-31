@@ -5,12 +5,15 @@
 
 import type {
   AnalyticsStatus,
+  CashFlowForecastResponse,
   Dataset,
   DatasetListResponse,
   DatasetQueryParams,
   DatasetQueryResponse,
   DatasetWithSchema,
   RefreshResponse,
+  ScenarioRequest,
+  WeeklyForecastResponse,
 } from '~/types/analytics'
 import { useAuthenticatedFetch } from '~/composables/useAuthenticatedFetch'
 
@@ -132,6 +135,42 @@ export function useAnalyticsApi() {
   }
 
   // ---------------------------------------------------------------------------
+  // Forecasting API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fetch the 90-day cash flow forecast.
+   * Returns daily projections with income, expenses, and projected balances.
+   */
+  async function fetchForecast(): Promise<CashFlowForecastResponse> {
+    return authFetch<CashFlowForecastResponse>('/api/analytics/forecast')
+  }
+
+  /**
+   * Fetch weekly aggregated forecast data.
+   * Returns weekly summaries for easier visualisation.
+   */
+  async function fetchWeeklyForecast(): Promise<WeeklyForecastResponse> {
+    return authFetch<WeeklyForecastResponse>('/api/analytics/forecast/weekly')
+  }
+
+  /**
+   * Calculate a 'what-if' forecast scenario.
+   * Allows excluding patterns or modifying amounts to see projected impact.
+   */
+  async function calculateScenario(
+    scenario: ScenarioRequest,
+  ): Promise<CashFlowForecastResponse> {
+    return authFetch<CashFlowForecastResponse>(
+      '/api/analytics/forecast/scenario',
+      {
+        method: 'POST',
+        body: scenario,
+      },
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
   return {
@@ -148,5 +187,10 @@ export function useAnalyticsApi() {
 
     // Refresh
     triggerRefresh,
+
+    // Forecasting
+    fetchForecast,
+    fetchWeeklyForecast,
+    calculateScenario,
   }
 }

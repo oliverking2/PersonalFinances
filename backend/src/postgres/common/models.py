@@ -30,6 +30,7 @@ from src.postgres.common.enums import (
     JobType,
     NotificationType,
     Provider,
+    RecurringDirection,
     RecurringFrequency,
     RecurringStatus,
 )
@@ -578,6 +579,9 @@ class RecurringPattern(Base):
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
     frequency: Mapped[str] = mapped_column(String(20), nullable=False)
+    direction: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=RecurringDirection.EXPENSE.value
+    )
 
     # Timing
     anchor_date: Mapped[datetime] = mapped_column(
@@ -651,6 +655,11 @@ class RecurringPattern(Base):
     def status_enum(self) -> RecurringStatus:
         """Get status as RecurringStatus enum."""
         return RecurringStatus(self.status)
+
+    @property
+    def direction_enum(self) -> RecurringDirection:
+        """Get direction as RecurringDirection enum."""
+        return RecurringDirection(self.direction)
 
 
 class RecurringPatternTransaction(Base):
@@ -874,3 +883,180 @@ class Notification(Base):
     def notification_type_enum(self) -> NotificationType:
         """Get notification_type as NotificationType enum."""
         return NotificationType(self.notification_type)
+
+
+class BalanceSnapshot(Base):
+    """Database model for historical balance snapshots.
+
+    Captures balance data at each sync to build historical trends.
+    Append-only table - no updates, just inserts to preserve full history.
+    Provider-agnostic, unified structure for all account types.
+    """
+
+    __tablename__ = "balance_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Balance fields (unified across providers)
+    balance_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    balance_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # For investment accounts
+    total_value: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    unrealised_pnl: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+
+    # Metadata
+    source_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    captured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+
+    # Relationships
+    account: Mapped[Account] = relationship("Account")
+
+    __table_args__ = (
+        Index("idx_balance_snapshots_account_captured", "account_id", "captured_at"),
+        Index("idx_balance_snapshots_captured_at", "captured_at"),
+    )
+
+
+class PlannedTransaction(Base):
+    """Database model for planned income and expenses.
+
+    Allows users to manually enter irregular income (freelance payments, bonuses)
+    and expenses (annual insurance, holiday) that aren't auto-detected by
+    recurring pattern detection. Used in cash flow forecasting.
+
+    Amount convention:
+    - Positive = income
+    - Negative = expense
+
+    Frequency:
+    - null = one-time event
+    - weekly/fortnightly/monthly/quarterly/annual = recurring
+    """
+
+    __tablename__ = "planned_transactions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Basic info
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
+
+    # Recurrence
+    frequency: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    next_expected_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    end_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Optional account link
+    account_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Additional info
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    # Relationships
+    account: Mapped[Account | None] = relationship("Account")
+
+    __table_args__ = (
+        Index("idx_planned_transactions_user_id", "user_id"),
+        Index("idx_planned_transactions_next_date", "next_expected_date"),
+    )
+
+    @property
+    def frequency_enum(self) -> RecurringFrequency | None:
+        """Get frequency as RecurringFrequency enum, or None if one-time."""
+        return RecurringFrequency(self.frequency) if self.frequency else None
+
+    @property
+    def is_income(self) -> bool:
+        """Check if this is an income (positive amount)."""
+        return self.amount > 0
+
+    @property
+    def is_expense(self) -> bool:
+        """Check if this is an expense (negative amount)."""
+        return self.amount < 0
+
+
+class FinancialMilestone(Base):
+    """Database model for net worth milestones.
+
+    Simple targets for net worth tracking. Displayed as horizontal lines
+    on the net worth chart. Automatically marked as achieved when net worth
+    exceeds the target.
+    """
+
+    __tablename__ = "financial_milestones"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    target_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    # Display colour for chart annotation (hex code)
+    colour: Mapped[str] = mapped_column(String(7), nullable=False, default="#f59e0b")
+    # Achievement tracking
+    achieved: Mapped[bool] = mapped_column(default=False, nullable=False)
+    achieved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    __table_args__ = (Index("idx_financial_milestones_user_id", "user_id"),)

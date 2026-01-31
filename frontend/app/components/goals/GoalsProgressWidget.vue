@@ -28,7 +28,10 @@ function formatCurrency(amount: number): string {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <h3 class="text-lg font-semibold">Savings Goals</h3>
-      <NuxtLink to="/goals" class="text-sm text-primary hover:underline">
+      <NuxtLink
+        to="/planning/goals"
+        class="text-sm text-primary hover:underline"
+      >
         View all
       </NuxtLink>
     </div>
@@ -47,7 +50,7 @@ function formatCurrency(amount: number): string {
     >
       <p class="text-muted">No savings goals set up yet</p>
       <NuxtLink
-        to="/goals"
+        to="/planning/goals"
         class="mt-2 inline-block text-sm text-primary hover:underline"
       >
         Create your first goal

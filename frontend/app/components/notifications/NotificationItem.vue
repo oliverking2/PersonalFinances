@@ -73,21 +73,21 @@ const action = computed<NotificationAction | null>(() => {
       // Link back to datasets page to retry
       return {
         label: 'View Datasets',
-        href: '/analytics/datasets',
+        href: '/insights/analytics/datasets',
       }
 
     case 'budget_warning':
     case 'budget_exceeded':
       return {
         label: 'View Budgets',
-        href: '/budgets',
+        href: '/planning/budgets',
       }
 
     case 'sync_complete':
     case 'sync_failed':
       return {
         label: 'View Accounts',
-        href: '/accounts',
+        href: '/settings/accounts',
       }
 
     default:

@@ -168,6 +168,17 @@ class RecurringStatus(StrEnum):
     MANUAL = "manual"
 
 
+class RecurringDirection(StrEnum):
+    """Direction of a recurring transaction.
+
+    - EXPENSE: Outgoing payment (subscriptions, bills)
+    - INCOME: Incoming payment (salary, regular transfers)
+    """
+
+    EXPENSE = "expense"
+    INCOME = "income"
+
+
 class BudgetPeriod(StrEnum):
     """Budget time period.
 

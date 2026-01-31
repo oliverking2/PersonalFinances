@@ -7,7 +7,11 @@ Main dashboard showing net worth, spending metrics, and recent transactions
 import type { Account } from '~/types/accounts'
 import type { Transaction, SplitRequest } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
-import type { Dataset, DatasetQueryResponse } from '~/types/analytics'
+import type {
+  Dataset,
+  DatasetQueryResponse,
+  CashFlowForecastResponse,
+} from '~/types/analytics'
 import type { BudgetSummaryResponse } from '~/types/budgets'
 import type { GoalSummaryResponse } from '~/types/goals'
 
@@ -25,8 +29,13 @@ const {
 const { fetchTransactions, setSplits, clearSplits, updateNote } =
   useTransactionsApi()
 const { fetchTags, createTag } = useTagsApi()
-const { fetchDatasets, queryDataset, fetchAnalyticsStatus, triggerRefresh } =
-  useAnalyticsApi()
+const {
+  fetchDatasets,
+  queryDataset,
+  fetchAnalyticsStatus,
+  triggerRefresh,
+  fetchForecast,
+} = useAnalyticsApi()
 const { fetchBudgetSummary } = useBudgetsApi()
 const { fetchGoalSummary } = useGoalsApi()
 
@@ -42,6 +51,8 @@ const monthlyTrends = ref<DatasetQueryResponse | null>(null)
 const dailySpendingByTag = ref<DatasetQueryResponse | null>(null)
 const budgetSummary = ref<BudgetSummaryResponse | null>(null)
 const goalSummary = ref<GoalSummaryResponse | null>(null)
+const netWorthHistory = ref<DatasetQueryResponse | null>(null)
+const forecast = ref<CashFlowForecastResponse | null>(null)
 
 // Detail modal state
 const detailModalTransaction = ref<Transaction | null>(null)
@@ -62,6 +73,7 @@ const analyticsAvailable = ref(false)
 // Dataset IDs (looked up on mount)
 const monthlyTrendsDatasetId = ref<string | null>(null)
 const dailySpendingDatasetId = ref<string | null>(null)
+const netWorthDatasetId = ref<string | null>(null)
 
 // Refresh states
 const refreshingAll = ref(false)
@@ -182,6 +194,20 @@ const netWorthChangePercent = computed(() => {
       Math.abs(previousNetWorth.value)) *
     100
   )
+})
+
+// Net worth sparkline data (last 30 days of net worth values)
+const netWorthSparkline = computed(() => {
+  if (!netWorthHistory.value?.rows?.length) return undefined
+
+  // Extract net_worth values, sorted by date
+  const sorted = [...netWorthHistory.value.rows].sort((a, b) =>
+    (a.balance_date as string).localeCompare(b.balance_date as string),
+  )
+
+  // Take last 30 data points for sparkline
+  const recent = sorted.slice(-30)
+  return recent.map((row) => row.net_worth as number)
 })
 
 // Top spending category this month (includes "Untagged" for transactions without tags)
@@ -365,9 +391,13 @@ async function loadAnalytics() {
     const dailySpendingDs = datasets.find(
       (ds: Dataset) => ds.dataset_name === 'fct_daily_spending_by_tag',
     )
+    const netWorthDs = datasets.find(
+      (ds: Dataset) => ds.dataset_name === 'fct_net_worth_history',
+    )
 
     monthlyTrendsDatasetId.value = monthlyTrendsDs?.id || null
     dailySpendingDatasetId.value = dailySpendingDs?.id || null
+    netWorthDatasetId.value = netWorthDs?.id || null
 
     // Query monthly trends for current period and same period last month
     // Uses same day range for fair comparison (e.g., Jan 1-25 vs Dec 1-25)
@@ -403,6 +433,24 @@ async function loadAnalytics() {
           end_date: today.value,
         },
       )
+    }
+
+    // Query net worth history for sparkline (last 90 days to have enough data)
+    if (netWorthDatasetId.value) {
+      const ninetyDaysAgo = new Date()
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+      netWorthHistory.value = await queryDataset(netWorthDatasetId.value, {
+        start_date: ninetyDaysAgo.toISOString().slice(0, 10),
+        end_date: today.value,
+      })
+    }
+
+    // Fetch cash flow forecast for runway widget
+    try {
+      forecast.value = await fetchForecast()
+    } catch {
+      // Forecast is optional, don't fail if unavailable
+      forecast.value = null
     }
   } catch (e) {
     // Analytics errors are non-fatal - we still show net worth from accounts
@@ -839,7 +887,7 @@ onMounted(() => {
     >
       <p class="text-muted">No bank accounts connected yet.</p>
       <NuxtLink
-        to="/accounts"
+        to="/settings/accounts"
         class="mt-4 inline-block text-primary hover:text-primary-hover"
       >
         Connect a bank account →
@@ -851,7 +899,7 @@ onMounted(() => {
       v-if="hasAccounts || loadingAccounts"
       class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
     >
-      <!-- Net Worth - links to accounts page -->
+      <!-- Net Worth - links to net-worth page with sparkline -->
       <HomeMetricCard
         label="Net Worth"
         :value="formatCurrency(netWorth)"
@@ -859,7 +907,8 @@ onMounted(() => {
         :trend-inverted="true"
         :subtitle="netWorthChangePercent !== null ? 'vs last month' : undefined"
         :loading="loadingAccounts"
-        to="/accounts"
+        :sparkline-data="netWorthSparkline"
+        to="/planning/net-worth"
       />
 
       <!-- This Month Spending - links to analytics page -->
@@ -941,8 +990,8 @@ onMounted(() => {
     <!-- Upcoming Bills Widget -->
     <SubscriptionsUpcomingBillsWidget v-if="hasAccounts" :days="7" />
 
-    <!-- Budget & Goals Widgets -->
-    <div v-if="hasAccounts" class="grid gap-4 sm:grid-cols-2">
+    <!-- Budget, Goals & Runway Widgets -->
+    <div v-if="hasAccounts" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <BudgetsBudgetSummaryWidget
         :summary="budgetSummary"
         :loading="loadingBudgets"
@@ -951,6 +1000,7 @@ onMounted(() => {
         :summary="goalSummary"
         :loading="loadingGoals"
       />
+      <HomeRunwayWidget :forecast="forecast" :loading="loadingAnalytics" />
     </div>
 
     <!-- Recent Transactions Section -->

@@ -9,6 +9,7 @@ WITH DETECTED AS (
         USER_ID,
         MERCHANT_KEY,
         MERCHANT_NAME,
+        DIRECTION,
         CURRENCY,
         OCCURRENCE_COUNT,
         -- Use latest transaction amount (reflects current price after any changes)
@@ -35,6 +36,7 @@ USER_PATTERNS AS (
         PAT.AMOUNT_VARIANCE,
         PAT.CURRENCY,
         PAT.FREQUENCY,
+        PAT.DIRECTION,
         PAT.STATUS,
         PAT.CONFIDENCE_SCORE,
         PAT.OCCURRENCE_COUNT,
@@ -58,6 +60,7 @@ MERGED AS (
         COALESCE(USR.AMOUNT_VARIANCE, DET.AMOUNT_VARIANCE_PCT)  AS AMOUNT_VARIANCE,
         COALESCE(USR.CURRENCY, DET.CURRENCY, 'GBP')             AS CURRENCY,
         COALESCE(USR.FREQUENCY, DET.FREQUENCY)                  AS FREQUENCY,
+        COALESCE(USR.DIRECTION, DET.DIRECTION, 'expense')       AS DIRECTION,
         COALESCE(USR.STATUS, 'detected')                        AS STATUS,
         COALESCE(USR.CONFIDENCE_SCORE, DET.CONFIDENCE_SCORE)    AS CONFIDENCE_SCORE,
         COALESCE(USR.OCCURRENCE_COUNT, DET.OCCURRENCE_COUNT)    AS OCCURRENCE_COUNT,
@@ -114,6 +117,7 @@ SELECT
     AMOUNT_VARIANCE,
     CURRENCY,
     FREQUENCY,
+    DIRECTION,
     STATUS,
     CONFIDENCE_SCORE,
     OCCURRENCE_COUNT,
@@ -124,6 +128,7 @@ SELECT
     CREATED_AT,
     UPDATED_AT,
     -- Calculate monthly equivalent amount for comparison
+    -- For income, keep positive; for expense, keep positive for display
     CASE FREQUENCY
         WHEN 'weekly' THEN ABS(EXPECTED_AMOUNT) * 4.33
         WHEN 'fortnightly' THEN ABS(EXPECTED_AMOUNT) * 2.17

@@ -1,15 +1,18 @@
 -- Intermediate model for detecting recurring transaction patterns
 -- Groups transactions by merchant and calculates pattern candidates
--- This model identifies potential subscriptions and recurring payments
+-- This model identifies potential subscriptions, recurring payments, and income
 
 WITH MERCHANT_GROUPS AS (
-    -- Group transactions by normalised merchant name AND amount bucket
+    -- Group transactions by normalised merchant name, amount bucket, AND direction
     -- Amount bucket separates different subscription tiers (e.g., Apple £4.99 vs £2.99)
+    -- Direction separates income from expenses for the same counterparty
     SELECT
         TXN.ACCOUNT_ID,
         ACC.USER_ID,
         -- Normalise merchant name (lowercase, trim)
         LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION))) AS MERCHANT_NAME,
+        -- Direction: expense (negative amounts) or income (positive amounts)
+        CASE WHEN TXN.AMOUNT < 0 THEN 'expense' ELSE 'income' END     AS DIRECTION,
         -- Graded rounding for amount buckets:
         -- Under £10: nearest £1 (separates £2.99 vs £4.99)
         -- £10-50: nearest £5
@@ -21,8 +24,10 @@ WITH MERCHANT_GROUPS AS (
             WHEN ABS(TXN.AMOUNT) < 200 THEN ROUND(ABS(TXN.AMOUNT) / 10) * 10
             ELSE ROUND(ABS(TXN.AMOUNT) / 25) * 25
         END                                                           AS AMOUNT_BUCKET,
-        -- Combine merchant + amount bucket as the pattern key
+        -- Combine merchant + direction + amount bucket as the pattern key
+        -- Direction included to separate income from expense for same counterparty
         LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION)))
+        || '_' || CASE WHEN TXN.AMOUNT < 0 THEN 'exp' ELSE 'inc' END
         || '_£' || CAST(
             CASE
                 WHEN ABS(TXN.AMOUNT) < 10 THEN ROUND(ABS(TXN.AMOUNT))
@@ -39,6 +44,7 @@ WITH MERCHANT_GROUPS AS (
             PARTITION BY
                 TXN.ACCOUNT_ID,
                 LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION))),
+                CASE WHEN TXN.AMOUNT < 0 THEN 'expense' ELSE 'income' END,
                 CASE
                     WHEN ABS(TXN.AMOUNT) < 10 THEN ROUND(ABS(TXN.AMOUNT))
                     WHEN ABS(TXN.AMOUNT) < 50 THEN ROUND(ABS(TXN.AMOUNT) / 5) * 5
@@ -50,8 +56,7 @@ WITH MERCHANT_GROUPS AS (
     FROM {{ ref('fct_transactions') }} AS TXN
     INNER JOIN {{ ref('dim_accounts') }} AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
     WHERE
-        TXN.AMOUNT < 0  -- Only expenses
-        AND TXN.BOOKING_DATE >= CURRENT_DATE - INTERVAL '18 months'
+        TXN.BOOKING_DATE >= CURRENT_DATE - INTERVAL '18 months'
         AND COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION) IS NOT NULL
 ),
 
@@ -75,13 +80,15 @@ WITH_INTERVALS AS (
 ),
 
 MERCHANT_STATS AS (
-    -- Calculate statistics per merchant
+    -- Calculate statistics per merchant (including direction)
     SELECT
         ACCOUNT_ID,
         USER_ID,
         MERCHANT_KEY,
         -- Clean merchant name for display (without £xxx suffix)
         MAX(MERCHANT_NAME)    AS MERCHANT_NAME,
+        -- Carry direction through (all rows in group have same direction)
+        MAX(DIRECTION)        AS DIRECTION,
         CURRENCY,
         COUNT(*)              AS OCCURRENCE_COUNT,
         MIN(AMOUNT)           AS MIN_AMOUNT,
@@ -113,6 +120,7 @@ SELECT
     STS.USER_ID,
     STS.MERCHANT_KEY,
     STS.MERCHANT_NAME,
+    STS.DIRECTION,
     STS.CURRENCY,
     STS.OCCURRENCE_COUNT,
     STS.MIN_AMOUNT,

@@ -39,12 +39,14 @@ def _create_sync_notification(
     :param success: Whether the sync succeeded.
     :param error_message: Error message if sync failed.
     """
-    # Get connection name if this is a connection sync
-    connection_name = "Unknown"
+    # Determine entity name based on job type
+    entity_name = "data"
     if job.entity_type == "connection" and job.entity_id:
         connection = db.get(Connection, job.entity_id)
         if connection:
-            connection_name = connection.friendly_name
+            entity_name = connection.friendly_name
+    elif job.entity_type == "analytics":
+        entity_name = "analytics"
 
     if success:
         create_notification(
@@ -52,10 +54,10 @@ def _create_sync_notification(
             job.user_id,
             NotificationType.SYNC_COMPLETE,
             title="Sync Complete",
-            message=f"Your {connection_name} sync completed successfully.",
+            message=f"Your {entity_name} sync completed successfully.",
             metadata={
                 "job_id": str(job.id),
-                "connection_name": connection_name,
+                "connection_name": entity_name,
             },
         )
     else:
@@ -64,10 +66,10 @@ def _create_sync_notification(
             job.user_id,
             NotificationType.SYNC_FAILED,
             title="Sync Failed",
-            message=f"Your {connection_name} sync failed. Please try again.",
+            message=f"Your {entity_name} sync failed. Please try again.",
             metadata={
                 "job_id": str(job.id),
-                "connection_name": connection_name,
+                "connection_name": entity_name,
                 "error_message": error_message,
             },
         )

@@ -1,17 +1,18 @@
 <!-- ==========================================================================
-Subscriptions Page
-Manage recurring payments and subscriptions
+Recurring Patterns Page
+Manage recurring expenses (subscriptions, bills) and income (salary, transfers)
 ============================================================================ -->
 
 <script setup lang="ts">
 import type {
   Subscription,
   RecurringStatus,
+  RecurringDirection,
   SubscriptionSummary,
 } from '~/types/subscriptions'
 import { getStatusLabel } from '~/types/subscriptions'
 
-useHead({ title: 'Subscriptions | Finances' })
+useHead({ title: 'Recurring Patterns | Finances' })
 
 // API
 const {
@@ -36,6 +37,7 @@ const error = ref('')
 
 // Filters
 const statusFilter = ref<RecurringStatus | 'all'>('all')
+const directionFilter = ref<RecurringDirection | 'all'>('all')
 const sortBy = ref<'amount' | 'name' | 'next'>('amount')
 
 // Edit modal state
@@ -46,9 +48,14 @@ const editingSubscription = ref<Subscription | null>(null)
 // Computed
 // ---------------------------------------------------------------------------
 
-// Filter subscriptions by status
+// Filter subscriptions by status and direction
 const filteredSubscriptions = computed(() => {
   let result = [...subscriptions.value]
+
+  // Direction filter
+  if (directionFilter.value !== 'all') {
+    result = result.filter((s) => s.direction === directionFilter.value)
+  }
 
   // Status filter
   if (statusFilter.value === 'all') {
@@ -77,15 +84,34 @@ const filteredSubscriptions = computed(() => {
   return result
 })
 
-// Tab counts
-const tabCounts = computed(() => ({
+// Tab counts (respects direction filter)
+const tabCounts = computed(() => {
+  // First filter by direction if set
+  let filtered = subscriptions.value
+  if (directionFilter.value !== 'all') {
+    filtered = filtered.filter((s) => s.direction === directionFilter.value)
+  }
+
+  return {
+    all: filtered.filter((s) => s.status !== 'dismissed').length,
+    confirmed: filtered.filter(
+      (s) => s.status === 'confirmed' || s.status === 'manual',
+    ).length,
+    detected: filtered.filter((s) => s.status === 'detected').length,
+    paused: filtered.filter((s) => s.status === 'paused').length,
+    dismissed: filtered.filter((s) => s.status === 'dismissed').length,
+  }
+})
+
+// Direction counts
+const directionCounts = computed(() => ({
   all: subscriptions.value.filter((s) => s.status !== 'dismissed').length,
-  confirmed: subscriptions.value.filter(
-    (s) => s.status === 'confirmed' || s.status === 'manual',
+  expense: subscriptions.value.filter(
+    (s) => s.direction === 'expense' && s.status !== 'dismissed',
   ).length,
-  detected: subscriptions.value.filter((s) => s.status === 'detected').length,
-  paused: subscriptions.value.filter((s) => s.status === 'paused').length,
-  dismissed: subscriptions.value.filter((s) => s.status === 'dismissed').length,
+  income: subscriptions.value.filter(
+    (s) => s.direction === 'income' && s.status !== 'dismissed',
+  ).length,
 }))
 
 // ---------------------------------------------------------------------------
@@ -217,29 +243,49 @@ function formatCurrency(amount: number): string {
   <div class="space-y-6">
     <!-- Header -->
     <div>
-      <h1 class="text-2xl font-bold sm:text-3xl">Subscriptions</h1>
-      <p class="mt-1 text-muted">
-        Manage your recurring payments and subscriptions
-      </p>
+      <h1 class="text-2xl font-bold sm:text-3xl">Recurring Patterns</h1>
+      <p class="mt-1 text-muted">Manage recurring expenses and income</p>
     </div>
 
     <!-- Summary cards -->
     <div
       v-if="summary && !loading"
-      class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
     >
-      <!-- Monthly total -->
+      <!-- Monthly expenses -->
       <div class="rounded-lg border border-border bg-surface p-4">
-        <p class="text-sm text-muted">Monthly Total</p>
-        <p class="mt-1 text-2xl font-bold">
-          {{ formatCurrency(summary.monthly_total) }}
+        <p class="text-sm text-muted">Monthly Expenses</p>
+        <p class="mt-1 text-2xl font-bold text-red-400">
+          {{ formatCurrency(summary.monthly_expenses || 0) }}
+        </p>
+        <p class="text-xs text-muted">
+          {{ summary.expense_count || 0 }} patterns
         </p>
       </div>
 
-      <!-- Total count -->
+      <!-- Monthly income -->
       <div class="rounded-lg border border-border bg-surface p-4">
-        <p class="text-sm text-muted">Total Subscriptions</p>
-        <p class="mt-1 text-2xl font-bold">{{ summary.total_count }}</p>
+        <p class="text-sm text-muted">Monthly Income</p>
+        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+          {{ formatCurrency(summary.monthly_income || 0) }}
+        </p>
+        <p class="text-xs text-muted">
+          {{ summary.income_count || 0 }} patterns
+        </p>
+      </div>
+
+      <!-- Net monthly -->
+      <div class="rounded-lg border border-border bg-surface p-4">
+        <p class="text-sm text-muted">Net Monthly</p>
+        <p
+          :class="[
+            'mt-1 text-2xl font-bold',
+            summary.monthly_total >= 0 ? 'text-emerald-400' : 'text-red-400',
+          ]"
+        >
+          {{ summary.monthly_total >= 0 ? '+' : ''
+          }}{{ formatCurrency(summary.monthly_total) }}
+        </p>
       </div>
 
       <!-- Confirmed -->
@@ -269,6 +315,33 @@ function formatCurrency(amount: number): string {
 
     <!-- Filters row -->
     <div class="flex flex-wrap items-center gap-4">
+      <!-- Direction tabs (Expenses / Income) -->
+      <div class="flex rounded-lg border border-border bg-surface p-1">
+        <button
+          v-for="dir in ['all', 'expense', 'income'] as const"
+          :key="dir"
+          type="button"
+          class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+          :class="[
+            directionFilter === dir
+              ? dir === 'income'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : dir === 'expense'
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-primary/20 text-primary'
+              : 'text-muted hover:text-foreground',
+          ]"
+          @click="directionFilter = dir"
+        >
+          {{
+            dir === 'all' ? 'All' : dir === 'expense' ? 'Expenses' : 'Income'
+          }}
+          <span class="ml-1 text-xs opacity-60">
+            ({{ directionCounts[dir] }})
+          </span>
+        </button>
+      </div>
+
       <!-- Status tabs -->
       <div class="flex rounded-lg border border-border bg-surface p-1">
         <button

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from src.api.analytics.exports import router as exports_router
+from src.api.analytics.forecasting import router as forecasting_router
 from src.api.analytics.models import (
     AnalyticsStatusResponse,
     DatasetColumnResponse,
@@ -39,8 +40,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Include exports sub-router
+# Include sub-routers
 router.include_router(exports_router)
+router.include_router(forecasting_router)
 
 
 def _get_last_refresh_time() -> datetime | None:

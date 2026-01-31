@@ -20,6 +20,7 @@ from src.postgres.common.enums import (
     map_gc_requisition_status,
 )
 from src.postgres.common.models import Account, Connection, Institution, Transaction
+from src.postgres.common.operations.balance_snapshots import create_balance_snapshot
 from src.postgres.gocardless.models import (
     Balance,
     BankAccount,
@@ -165,6 +166,16 @@ def sync_gocardless_account(
             existing.balance_type = balance.balance_type
             existing.balance_updated_at = balance.last_change_date or now
 
+            # Create balance snapshot for historical tracking
+            create_balance_snapshot(
+                session=session,
+                account_id=existing.id,
+                balance_amount=Decimal(str(balance.balance_amount)),
+                balance_currency=balance.balance_currency,
+                balance_type=balance.balance_type,
+                source_updated_at=balance.last_change_date,
+            )
+
         session.flush()
         logger.info(
             f"Updated account: id={existing.id}, "
@@ -194,6 +205,18 @@ def sync_gocardless_account(
 
     session.add(account)
     session.flush()
+
+    # Create initial balance snapshot for historical tracking
+    if balance:
+        create_balance_snapshot(
+            session=session,
+            account_id=account.id,
+            balance_amount=Decimal(str(balance.balance_amount)),
+            balance_currency=balance.balance_currency,
+            balance_type=balance.balance_type,
+            source_updated_at=balance.last_change_date,
+        )
+
     logger.info(
         f"Created account: id={account.id}, "
         f"connection_id={connection.id}, provider_id={bank_account.id}"
@@ -617,6 +640,19 @@ def sync_trading212_account(
             existing.balance_type = "cash"
             existing.balance_updated_at = latest_balance.fetched_at
 
+            # Create balance snapshot for historical tracking
+            if api_key.currency_code:
+                create_balance_snapshot(
+                    session=session,
+                    account_id=existing.id,
+                    balance_amount=latest_balance.free,
+                    balance_currency=api_key.currency_code,
+                    balance_type="cash",
+                    total_value=latest_balance.total,
+                    unrealised_pnl=latest_balance.ppl,
+                    source_updated_at=latest_balance.fetched_at,
+                )
+
         session.flush()
         logger.info(
             f"Updated T212 account: id={existing.id}, "
@@ -646,6 +682,20 @@ def sync_trading212_account(
 
     session.add(account)
     session.flush()
+
+    # Create initial balance snapshot for historical tracking
+    if latest_balance and api_key.currency_code:
+        create_balance_snapshot(
+            session=session,
+            account_id=account.id,
+            balance_amount=latest_balance.free,
+            balance_currency=api_key.currency_code,
+            balance_type="cash",
+            total_value=latest_balance.total,
+            unrealised_pnl=latest_balance.ppl,
+            source_updated_at=latest_balance.fetched_at,
+        )
+
     logger.info(
         f"Created T212 account: id={account.id}, "
         f"connection_id={connection.id}, provider_id={provider_id}"

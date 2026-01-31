@@ -20,10 +20,60 @@ const props = defineProps<{
   loading?: boolean // Show skeleton loading state
   muted?: boolean // Grey out the card (e.g., analytics unavailable)
   to?: RouteLocationRaw // Optional navigation destination (renders as NuxtLink)
+  sparklineData?: number[] // Optional array of values for sparkline chart
 }>()
 
 // Compute whether card should be clickable
 const isClickable = computed(() => props.to && !props.loading && !props.muted)
+
+// ---------------------------------------------------------------------------
+// Sparkline - simple SVG path from data points
+// ---------------------------------------------------------------------------
+
+// Generate SVG path for sparkline
+const sparklinePath = computed(() => {
+  if (!props.sparklineData?.length || props.sparklineData.length < 2) return ''
+
+  const data = props.sparklineData
+  const width = 80
+  const height = 24
+  const padding = 2
+
+  // Calculate min/max for scaling
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1 // Avoid division by zero
+
+  // Scale points to fit the SVG
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1)) * (width - padding * 2) + padding
+    const y =
+      height - padding - ((value - min) / range) * (height - padding * 2)
+    return { x, y }
+  })
+
+  // Build SVG path
+  const pathParts = points.map((p, i) =>
+    i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`,
+  )
+  return pathParts.join(' ')
+})
+
+// Determine sparkline colour based on trend direction
+const sparklineColor = computed(() => {
+  if (!props.sparklineData?.length || props.sparklineData.length < 2)
+    return '#6b7280'
+
+  const first = props.sparklineData[0] ?? 0
+  const last = props.sparklineData[props.sparklineData.length - 1] ?? 0
+  const increasing = last >= first
+
+  // If trendInverted, increasing is good (green); otherwise increasing is bad (red)
+  if (props.trendInverted) {
+    return increasing ? '#10b981' : '#ef4444'
+  }
+  return increasing ? '#ef4444' : '#10b981'
+})
 </script>
 
 <template>
@@ -37,17 +87,38 @@ const isClickable = computed(() => props.to && !props.loading && !props.muted)
     <!-- Label -->
     <p class="text-sm font-medium text-muted">{{ label }}</p>
 
-    <!-- Value - text-foreground ensures it's not styled as a link -->
-    <p
-      class="mt-1 text-2xl font-bold sm:text-3xl"
-      :class="{
-        'text-positive': valueColor === 'positive',
-        'text-negative': valueColor === 'negative',
-        'text-foreground': !valueColor || valueColor === 'default',
-      }"
-    >
-      {{ value }}
-    </p>
+    <!-- Value row with optional sparkline -->
+    <div class="mt-1 flex items-center justify-between gap-2">
+      <!-- Value - text-foreground ensures it's not styled as a link -->
+      <p
+        class="text-2xl font-bold sm:text-3xl"
+        :class="{
+          'text-positive': valueColor === 'positive',
+          'text-negative': valueColor === 'negative',
+          'text-foreground': !valueColor || valueColor === 'default',
+        }"
+      >
+        {{ value }}
+      </p>
+
+      <!-- Sparkline - small inline trend chart -->
+      <svg
+        v-if="sparklinePath"
+        width="80"
+        height="24"
+        class="shrink-0"
+        viewBox="0 0 80 24"
+      >
+        <path
+          :d="sparklinePath"
+          fill="none"
+          :stroke="sparklineColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </div>
 
     <!-- Subtitle and/or trend -->
     <div class="mt-1 flex items-center gap-2 text-sm">
@@ -93,16 +164,37 @@ const isClickable = computed(() => props.to && !props.loading && !props.muted)
       <!-- Label -->
       <p class="text-sm font-medium text-muted">{{ label }}</p>
 
-      <!-- Value -->
-      <p
-        class="mt-1 text-2xl font-bold sm:text-3xl"
-        :class="{
-          'text-positive': valueColor === 'positive',
-          'text-negative': valueColor === 'negative',
-        }"
-      >
-        {{ value }}
-      </p>
+      <!-- Value row with optional sparkline -->
+      <div class="mt-1 flex items-center justify-between gap-2">
+        <!-- Value -->
+        <p
+          class="text-2xl font-bold sm:text-3xl"
+          :class="{
+            'text-positive': valueColor === 'positive',
+            'text-negative': valueColor === 'negative',
+          }"
+        >
+          {{ value }}
+        </p>
+
+        <!-- Sparkline - small inline trend chart -->
+        <svg
+          v-if="sparklinePath"
+          width="80"
+          height="24"
+          class="shrink-0"
+          viewBox="0 0 80 24"
+        >
+          <path
+            :d="sparklinePath"
+            fill="none"
+            :stroke="sparklineColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
 
       <!-- Subtitle and/or trend -->
       <div class="mt-1 flex items-center gap-2 text-sm">

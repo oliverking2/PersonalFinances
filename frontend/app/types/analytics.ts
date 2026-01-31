@@ -170,3 +170,66 @@ export interface ExportListResponse {
   exports: ExportListItem[]
   total: number
 }
+
+// -----------------------------------------------------------------------------
+// Forecasting Types
+// -----------------------------------------------------------------------------
+
+export interface ForecastDay {
+  forecast_date: string // YYYY-MM-DD
+  daily_change: string // Decimal as string
+  daily_income: string
+  daily_expenses: string
+  event_count: number
+  projected_balance: string
+  days_from_now: number
+  forecast_week: number
+}
+
+export interface ForecastSummary {
+  starting_balance: string // Decimal as string
+  ending_balance: string
+  total_income: string
+  total_expenses: string
+  net_change: string
+  runway_days: number | null // Days until balance goes negative
+  min_balance: string
+  min_balance_date: string | null
+}
+
+export interface CashFlowForecastResponse {
+  currency: string
+  as_of_date: string // YYYY-MM-DD
+  summary: ForecastSummary
+  daily: ForecastDay[]
+}
+
+export interface ForecastWeek {
+  week_number: number
+  week_start: string // YYYY-MM-DD
+  week_end: string
+  total_income: string
+  total_expenses: string
+  net_change: string
+  ending_balance: string
+}
+
+export interface WeeklyForecastResponse {
+  currency: string
+  weeks: ForecastWeek[]
+}
+
+// -----------------------------------------------------------------------------
+// Scenario Types
+// -----------------------------------------------------------------------------
+
+export interface PatternModification {
+  pattern_id: string
+  new_amount: string | null // Decimal as string, null = exclude
+}
+
+export interface ScenarioRequest {
+  exclude_patterns?: string[]
+  exclude_planned?: string[]
+  modifications?: PatternModification[]
+}

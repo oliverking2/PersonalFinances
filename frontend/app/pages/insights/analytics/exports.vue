@@ -212,7 +212,7 @@ onUnmounted(() => {
   <div class="space-y-6">
     <!-- Back link -->
     <NuxtLink
-      to="/analytics/datasets"
+      to="/insights/analytics/datasets"
       class="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
     >
       <!-- Left arrow icon -->
@@ -451,7 +451,7 @@ onUnmounted(() => {
     >
       <p class="text-muted">No exports yet.</p>
       <NuxtLink
-        to="/analytics/datasets"
+        to="/insights/analytics/datasets"
         class="mt-4 inline-block text-primary underline"
       >
         Go to Datasets to create your first export

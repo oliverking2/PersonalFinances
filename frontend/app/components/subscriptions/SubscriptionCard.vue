@@ -97,20 +97,39 @@ const confidenceClass = computed(() => {
           </span>
         </div>
 
-        <!-- Frequency badge -->
+        <!-- Frequency and direction badges -->
         <div class="mt-1 flex items-center gap-2 text-sm text-muted">
           <span
             class="rounded bg-gray-700/50 px-1.5 py-0.5 text-xs font-medium text-gray-300"
           >
             {{ getFrequencyLabel(subscription.frequency) }}
           </span>
+          <!-- Direction badge -->
+          <span
+            :class="[
+              'rounded px-1.5 py-0.5 text-xs font-medium',
+              subscription.direction === 'income'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'bg-red-500/20 text-red-400',
+            ]"
+          >
+            {{ subscription.direction === 'income' ? 'Income' : 'Expense' }}
+          </span>
         </div>
       </div>
 
       <!-- Right: amount -->
       <div class="text-right">
-        <p class="text-lg font-semibold">
-          -{{ formatCurrency(subscription.expected_amount) }}
+        <p
+          :class="[
+            'text-lg font-semibold',
+            subscription.direction === 'income'
+              ? 'text-emerald-400'
+              : 'text-red-400',
+          ]"
+        >
+          {{ subscription.direction === 'income' ? '+' : '-'
+          }}{{ formatCurrency(subscription.expected_amount) }}
         </p>
         <p class="text-sm text-muted">
           ~{{ formatCurrency(subscription.monthly_equivalent) }}/mo

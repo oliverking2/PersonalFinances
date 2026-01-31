@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from src.postgres.common.enums import RecurringFrequency, RecurringStatus
+from src.postgres.common.enums import RecurringDirection, RecurringFrequency, RecurringStatus
 
 
 class SubscriptionResponse(BaseModel):
@@ -17,6 +17,7 @@ class SubscriptionResponse(BaseModel):
     expected_amount: Decimal = Field(..., description="Expected transaction amount")
     currency: str = Field(..., description="Currency code")
     frequency: RecurringFrequency = Field(..., description="Payment frequency")
+    direction: RecurringDirection = Field(..., description="Payment direction (expense/income)")
     status: RecurringStatus = Field(..., description="Pattern status")
     confidence_score: Decimal = Field(..., description="Detection confidence (0.0-1.0)")
     occurrence_count: int = Field(..., description="Number of matched transactions")
@@ -74,6 +75,7 @@ class UpcomingBillResponse(BaseModel):
     currency: str = Field(..., description="Currency code")
     next_expected_date: datetime = Field(..., description="Expected date")
     frequency: RecurringFrequency = Field(..., description="Payment frequency")
+    direction: RecurringDirection = Field(..., description="Payment direction (expense/income)")
     confidence_score: Decimal = Field(..., description="Confidence score")
     status: RecurringStatus = Field(..., description="Pattern status")
     days_until: int = Field(..., description="Days until payment")
@@ -92,8 +94,12 @@ class UpcomingBillsResponse(BaseModel):
 class SubscriptionSummaryResponse(BaseModel):
     """Response model for subscription statistics."""
 
-    monthly_total: Decimal = Field(..., description="Total monthly recurring spend")
+    monthly_total: Decimal = Field(..., description="Net monthly (income - expenses)")
+    monthly_expenses: Decimal = Field(..., description="Total monthly recurring expenses")
+    monthly_income: Decimal = Field(..., description="Total monthly recurring income")
     total_count: int = Field(..., description="Total subscriptions")
+    expense_count: int = Field(..., description="Number of expense patterns")
+    income_count: int = Field(..., description="Number of income patterns")
     confirmed_count: int = Field(..., description="Confirmed subscriptions")
     detected_count: int = Field(..., description="Detected (unconfirmed) subscriptions")
     paused_count: int = Field(..., description="Paused subscriptions")

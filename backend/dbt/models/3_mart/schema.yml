@@ -236,8 +236,9 @@ models:
 
   - name: fct_recurring_patterns
     description: |
-      Fact table for recurring payment patterns (subscriptions, bills).
+      Fact table for recurring payment patterns (subscriptions, bills, income).
       Merges auto-detected patterns with user-managed patterns from the database.
+      Supports both expense patterns (subscriptions) and income patterns (salary, transfers).
     meta:
       dataset: true
       friendly_name: "Recurring Patterns"
@@ -273,6 +274,12 @@ models:
         description: Payment frequency (weekly, monthly, etc.)
         data_tests:
           - not_null
+      - name: direction
+        description: Direction of flow (expense or income)
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['expense', 'income']
       - name: status
         description: Pattern status (detected, confirmed, dismissed, paused)
         data_tests:
@@ -291,6 +298,76 @@ models:
         description: Whether the pattern is past expected date + grace period
       - name: days_until_next
         description: Days until next expected payment
+
+  - name: fct_daily_balance_history
+    description: |
+      Daily balance history per account.
+      Aggregates balance snapshots to daily grain with gap-filling for continuous time series.
+      Includes daily change calculations for trend analysis.
+    meta:
+      dataset: true
+      friendly_name: "Daily Balance History"
+      group: "aggregations"
+      time_grain: "day"
+      filters:
+        date_column: "balance_date"
+        account_id_column: "account_id"
+
+  - name: fct_net_worth_history
+    description: |
+      Net worth history per user per day.
+      Sums all account balances to calculate total net worth over time.
+      Includes daily change, 7-day rolling average, and month comparison metrics.
+    meta:
+      dataset: true
+      friendly_name: "Net Worth History"
+      group: "aggregations"
+      time_grain: "day"
+      filters:
+        date_column: "balance_date"
+    columns:
+      - name: user_id
+        description: Owner of the accounts (UUID)
+        data_tests:
+          - not_null
+      - name: balance_date
+        description: Date of the net worth snapshot
+        data_tests:
+          - not_null
+      - name: currency
+        description: Primary currency (ISO 4217)
+        data_tests:
+          - not_null
+      - name: net_worth
+        description: Total net worth (sum of all account values)
+        data_tests:
+          - not_null
+      - name: total_cash_balance
+        description: Sum of cash balances across all accounts
+      - name: total_investment_value
+        description: Sum of investment portfolio values
+      - name: account_count
+        description: Number of accounts included
+        data_tests:
+          - not_null
+      - name: is_actual_snapshot
+        description: Whether all accounts have actual snapshots (not gap-filled)
+        data_tests:
+          - not_null
+      - name: daily_change
+        description: Change in net worth from previous day
+        data_tests:
+          - not_null
+      - name: rolling_7d_avg
+        description: 7-day rolling average of net worth
+      - name: month_start
+        description: First day of the month for this date
+      - name: month_start_net_worth
+        description: Net worth at the start of the month
+      - name: change_from_month_start
+        description: Change in net worth since month start
+      - name: pct_change_from_month_start
+        description: Percentage change since month start
 
   - name: fct_monthly_trends
     description: |
@@ -483,3 +560,65 @@ models:
         description: When goal was last updated
         data_tests:
           - not_null
+
+  - name: fct_cash_flow_forecast
+    description: |
+      Cash flow forecast projecting future balances.
+      Combines recurring patterns (detected and confirmed) with planned transactions
+      to project balance changes over the next 90 days.
+    meta:
+      dataset: true
+      friendly_name: "Cash Flow Forecast"
+      group: "forecasting"
+      time_grain: "day"
+      filters:
+        date_column: "forecast_date"
+    columns:
+      - name: user_id
+        description: Owner of the forecast (UUID)
+        data_tests:
+          - not_null
+      - name: forecast_date
+        description: Date of the forecast
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the amounts
+        data_tests:
+          - not_null
+      - name: starting_balance
+        description: Net worth at forecast start date
+        data_tests:
+          - not_null
+      - name: as_of_date
+        description: Date of the starting balance snapshot
+        data_tests:
+          - not_null
+      - name: daily_change
+        description: Net cash flow for this day (income - expenses)
+        data_tests:
+          - not_null
+      - name: daily_income
+        description: Total income expected on this day
+        data_tests:
+          - not_null
+      - name: daily_expenses
+        description: Total expenses expected on this day
+        data_tests:
+          - not_null
+      - name: event_count
+        description: Number of cash flow events on this day
+        data_tests:
+          - not_null
+      - name: cumulative_change
+        description: Cumulative net change from forecast start
+        data_tests:
+          - not_null
+      - name: projected_balance
+        description: Projected balance (starting + cumulative change)
+        data_tests:
+          - not_null
+      - name: days_from_now
+        description: Days from today
+      - name: forecast_week
+        description: Week number in forecast (1-based)

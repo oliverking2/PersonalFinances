@@ -264,19 +264,6 @@ async function handleUnhide(tag: Tag) {
 
 <template>
   <div class="page-container">
-    <!-- Settings navigation -->
-    <nav class="settings-nav">
-      <NuxtLink to="/settings/account" class="settings-nav-link">
-        Account
-      </NuxtLink>
-      <NuxtLink to="/settings/tags" class="settings-nav-link active">
-        Tags
-      </NuxtLink>
-      <NuxtLink to="/settings/rules" class="settings-nav-link">
-        Auto-Tagging Rules
-      </NuxtLink>
-    </nav>
-
     <!-- Header -->
     <header class="page-header">
       <div>
@@ -530,22 +517,6 @@ async function handleUnhide(tag: Tag) {
 </template>
 
 <style scoped>
-/* Settings navigation */
-.settings-nav {
-  @apply mb-6 flex gap-1 border-b border-border;
-}
-
-.settings-nav-link {
-  @apply px-4 py-2 text-sm font-medium text-muted;
-  @apply border-b-2 border-transparent transition-colors;
-  @apply hover:text-foreground;
-
-  &.active,
-  &.router-link-active {
-    @apply border-primary text-primary;
-  }
-}
-
 /* Page layout */
 .page-container {
   @apply mx-auto max-w-4xl px-4 py-8;

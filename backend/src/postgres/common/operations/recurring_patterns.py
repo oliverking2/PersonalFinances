@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from src.postgres.common.enums import RecurringFrequency, RecurringStatus
+from src.postgres.common.enums import RecurringDirection, RecurringFrequency, RecurringStatus
 from src.postgres.common.models import (
     RecurringPattern,
     RecurringPatternTransaction,
@@ -123,6 +123,59 @@ def calculate_monthly_total(
             total += monthly
 
     return total
+
+
+def calculate_monthly_totals_by_direction(
+    session: Session,
+    user_id: UUID,
+) -> dict[str, Decimal]:
+    """Calculate monthly totals separated by direction.
+
+    :param session: SQLAlchemy session.
+    :param user_id: User's UUID.
+    :return: Dict with 'income', 'expenses', and 'net' monthly totals.
+    """
+    patterns = get_patterns_by_user_id(session, user_id)
+
+    income_total = Decimal("0")
+    expense_total = Decimal("0")
+
+    for pattern in patterns:
+        if pattern.status_enum in (
+            RecurringStatus.CONFIRMED,
+            RecurringStatus.DETECTED,
+            RecurringStatus.MANUAL,
+        ):
+            monthly = _to_monthly_equivalent(abs(pattern.expected_amount), pattern.frequency_enum)
+            if pattern.direction_enum == RecurringDirection.INCOME:
+                income_total += monthly
+            else:
+                expense_total += monthly
+
+    return {
+        "income": income_total,
+        "expenses": expense_total,
+        "net": income_total - expense_total,
+    }
+
+
+def count_patterns_by_direction(session: Session, user_id: UUID) -> dict[RecurringDirection, int]:
+    """Count active patterns grouped by direction.
+
+    :param session: SQLAlchemy session.
+    :param user_id: User's UUID.
+    :return: Dict mapping direction to count.
+    """
+    results = (
+        session.query(RecurringPattern.direction, func.count(RecurringPattern.id))
+        .filter(
+            RecurringPattern.user_id == user_id,
+            RecurringPattern.status != RecurringStatus.DISMISSED.value,
+        )
+        .group_by(RecurringPattern.direction)
+        .all()
+    )
+    return {RecurringDirection(direction): count for direction, count in results}
 
 
 def _to_monthly_equivalent(amount: Decimal, frequency: RecurringFrequency) -> Decimal:

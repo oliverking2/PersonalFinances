@@ -22,6 +22,8 @@ export type RecurringStatus =
   | 'paused'
   | 'manual'
 
+export type RecurringDirection = 'expense' | 'income'
+
 // -----------------------------------------------------------------------------
 // Subscription (Recurring Pattern)
 // Represents a detected or user-confirmed recurring payment
@@ -31,9 +33,10 @@ export interface Subscription {
   id: string
   merchant_pattern: string // Normalised merchant name
   display_name: string // User-friendly name
-  expected_amount: number // Expected transaction amount (negative)
+  expected_amount: number // Expected transaction amount (negative for expense, positive for income)
   currency: string
   frequency: RecurringFrequency
+  direction: RecurringDirection // expense or income
   status: RecurringStatus
   confidence_score: number // Detection confidence (0.0-1.0)
   occurrence_count: number // Number of matched transactions
@@ -64,6 +67,7 @@ export interface UpcomingBill {
   currency: string
   next_expected_date: string // ISO datetime
   frequency: RecurringFrequency
+  direction: RecurringDirection
   confidence_score: number
   status: RecurringStatus
   days_until: number
@@ -79,8 +83,12 @@ export interface UpcomingBillsResponse {
 }
 
 export interface SubscriptionSummary {
-  monthly_total: number
+  monthly_total: number // Net (income - expenses)
+  monthly_expenses: number // Total recurring expenses
+  monthly_income: number // Total recurring income
   total_count: number
+  expense_count: number
+  income_count: number
   confirmed_count: number
   detected_count: number
   paused_count: number
@@ -131,6 +139,7 @@ export interface SubscriptionTransactionsResponse {
 export interface SubscriptionQueryParams {
   status?: RecurringStatus
   frequency?: RecurringFrequency
+  direction?: RecurringDirection
   min_confidence?: number
   include_dismissed?: boolean
 }
@@ -175,4 +184,13 @@ export function getFrequencyShortLabel(frequency: RecurringFrequency): string {
     irregular: 'Irreg',
   }
   return labels[frequency] || frequency
+}
+
+// Get display label for direction
+export function getDirectionLabel(direction: RecurringDirection): string {
+  const labels: Record<RecurringDirection, string> = {
+    expense: 'Expense',
+    income: 'Income',
+  }
+  return labels[direction] || direction
 }

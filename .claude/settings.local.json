@@ -39,7 +39,8 @@
       "Bash(npm run typecheck:*)",
       "Bash(npx nuxi typecheck)",
       "Bash(dbt compile:*)",
-      "Bash(npm run lint-check:*)"
+      "Bash(npm run lint-check:*)",
+      "Bash(poetry run sqlfluff lint:*)"
     ]
   }
 }

@@ -274,21 +274,50 @@ Proactive alerts and two-way communication. Required for Vanguard MFA.
 
 ---
 
-## Phase 8: Balance History & Net Worth
+## Phase 8: Balance History & Net Worth ✅
 
 Track financial progress over time.
 
-- [ ] Unified balance table (consolidate provider-specific balance tables)
-- [ ] `fct_daily_balance_history` dbt mart model
-- [ ] Balance over time graphs
-- [ ] Net worth tracking over time
-- [ ] Set milestone targets
-- [ ] Forecasting (project future balances based on recurring income/expenses)
-- [ ] Recurring income detection (salary, regular transfers - like subscriptions but positive)
-- [ ] Manual income entry (for irregular/variable income)
-- [ ] Cash flow projections UI (when will balance cross thresholds, best day for big purchases)
-- [ ] "What if" scenarios
-- [ ] Runway calculations
+### Balance History ✅
+
+- [x] `balance_snapshots` table (append-only, captured on each sync)
+- [x] `fct_daily_balance_history` dbt mart model (gap-filled time series)
+- [x] Balance history chart (BalanceHistoryChart component)
+
+### Net Worth Tracking ✅
+
+- [x] `fct_net_worth_history` dbt mart model (aggregated net worth with rolling averages)
+- [x] Net worth tracking page (`/net-worth`) with period filters and account breakdown
+- [x] Net worth chart (NetWorthChart component) with 7-day rolling average
+
+### Income Detection ✅
+
+- [x] Recurring income detection (direction column on recurring patterns)
+- [x] Updated subscriptions page to show both income and expenses
+- [x] Income/expense summary in recurring patterns
+
+### Forecasting ✅
+
+- [x] `fct_cash_flow_forecast` dbt model (90-day projection)
+- [x] Forecasting API endpoints (`/api/analytics/forecast`, `/api/analytics/forecast/weekly`)
+- [x] Cash flow forecast chart (CashFlowForecastChart component)
+- [x] Forecasting page (`/forecasting`) with summary cards and weekly view
+
+### Milestones ✅
+
+- [x] `financial_milestones` table with CRUD operations
+- [x] Milestones API endpoints (`/api/milestones`)
+- [x] Milestone markers on net worth chart
+
+### Planned Transactions ✅
+
+- [x] `planned_transactions` table for manual income/expenses
+- [x] Planned transactions API endpoints (`/api/planned-transactions`)
+
+### Home Page Enhancements ✅
+
+- [x] Net worth sparkline in metric card
+- [x] Financial runway widget (days until balance threshold)
 
 ---
 
@@ -425,6 +454,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260125-frontend-analytics-page.md` - Analytics page with charts, filters, and comparison view
 - `20260127-fullstack-budgeting-goals.md` - Budgets, savings goals, and spending alerts
 - `20260127-fullstack-recurring-transactions.md` - Recurring transaction detection and subscription management
+- `20260130-fullstack-balance-history-net-worth.md` - Balance history, net worth tracking, forecasting, milestones
 
 ### Implemented Without PRD
 

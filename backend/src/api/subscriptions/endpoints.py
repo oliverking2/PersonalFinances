@@ -22,11 +22,13 @@ from src.api.subscriptions.models import (
     UpcomingBillsResponse,
 )
 from src.postgres.auth.models import User
-from src.postgres.common.enums import RecurringFrequency, RecurringStatus
+from src.postgres.common.enums import RecurringDirection, RecurringFrequency, RecurringStatus
 from src.postgres.common.models import RecurringPattern
 from src.postgres.common.operations.recurring_patterns import (
     calculate_monthly_total,
+    calculate_monthly_totals_by_direction,
     confirm_pattern,
+    count_patterns_by_direction,
     count_patterns_by_status,
     create_pattern,
     dismiss_pattern,
@@ -126,17 +128,24 @@ def get_subscription_summary(
     current_user: User = Depends(get_current_user),
 ) -> SubscriptionSummaryResponse:
     """Get summary statistics for subscriptions."""
-    monthly_total = calculate_monthly_total(db, current_user.id)
+    monthly_totals = calculate_monthly_totals_by_direction(db, current_user.id)
     status_counts = count_patterns_by_status(db, current_user.id)
+    direction_counts = count_patterns_by_direction(db, current_user.id)
 
     total_count = sum(status_counts.values())
     confirmed_count = status_counts.get(RecurringStatus.CONFIRMED, 0)
     detected_count = status_counts.get(RecurringStatus.DETECTED, 0)
     paused_count = status_counts.get(RecurringStatus.PAUSED, 0)
+    expense_count = direction_counts.get(RecurringDirection.EXPENSE, 0)
+    income_count = direction_counts.get(RecurringDirection.INCOME, 0)
 
     return SubscriptionSummaryResponse(
-        monthly_total=monthly_total,
+        monthly_total=monthly_totals["net"],
+        monthly_expenses=monthly_totals["expenses"],
+        monthly_income=monthly_totals["income"],
         total_count=total_count,
+        expense_count=expense_count,
+        income_count=income_count,
         confirmed_count=confirmed_count,
         detected_count=detected_count,
         paused_count=paused_count,
@@ -361,6 +370,7 @@ def _to_response(pattern: RecurringPattern) -> SubscriptionResponse:
         expected_amount=pattern.expected_amount,
         currency=pattern.currency,
         frequency=pattern.frequency_enum,
+        direction=pattern.direction_enum,
         status=pattern.status_enum,
         confidence_score=pattern.confidence_score,
         occurrence_count=pattern.occurrence_count,
@@ -390,6 +400,7 @@ def _to_upcoming_response(pattern: RecurringPattern) -> UpcomingBillResponse:
         currency=pattern.currency,
         next_expected_date=pattern.next_expected_date,  # type: ignore[arg-type]
         frequency=pattern.frequency_enum,
+        direction=pattern.direction_enum,
         confidence_score=pattern.confidence_score,
         status=pattern.status_enum,
         days_until=days_until,

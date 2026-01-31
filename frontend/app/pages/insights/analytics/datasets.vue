@@ -100,7 +100,7 @@ onMounted(() => {
   <div class="space-y-6">
     <!-- Back link -->
     <NuxtLink
-      to="/analytics"
+      to="/insights/analytics"
       class="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
     >
       <svg
@@ -130,7 +130,7 @@ onMounted(() => {
       </div>
       <!-- Link to export history -->
       <NuxtLink
-        to="/analytics/exports"
+        to="/insights/analytics/exports"
         class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-gray-700/50"
       >
         <!-- History/clock icon -->
@@ -170,7 +170,7 @@ onMounted(() => {
         first.
       </p>
       <NuxtLink
-        to="/analytics"
+        to="/insights/analytics"
         class="mt-4 inline-block text-primary underline"
       >
         Go to Analytics

@@ -28,7 +28,10 @@ function formatCurrency(amount: number): string {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <h3 class="text-lg font-semibold">Budgets</h3>
-      <NuxtLink to="/budgets" class="text-sm text-primary hover:underline">
+      <NuxtLink
+        to="/planning/budgets"
+        class="text-sm text-primary hover:underline"
+      >
         View all
       </NuxtLink>
     </div>
@@ -47,7 +50,7 @@ function formatCurrency(amount: number): string {
     >
       <p class="text-muted">No budgets set up yet</p>
       <NuxtLink
-        to="/budgets"
+        to="/planning/budgets"
         class="mt-2 inline-block text-sm text-primary hover:underline"
       >
         Create your first budget

@@ -8,17 +8,14 @@ const authStore = useAuthStore()
 const route = useRoute()
 
 // ---------------------------------------------------------------------------
-// Navigation links
+// Navigation links - simplified to 5 top-level items
 // ---------------------------------------------------------------------------
 const navLinks = [
   { to: '/', label: 'Home' },
-  { to: '/analytics', label: 'Analytics' },
-  { to: '/budgets', label: 'Budgets' },
-  { to: '/goals', label: 'Goals' },
-  { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
-  { to: '/subscriptions', label: 'Subscriptions' },
-  { to: '/settings/tags', label: 'Settings' },
+  { to: '/planning', label: 'Planning' },
+  { to: '/insights', label: 'Insights' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 // Check if a nav link is active
