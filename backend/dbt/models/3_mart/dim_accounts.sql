@@ -3,7 +3,7 @@
 
 WITH ACCOUNTS AS (
     SELECT
-        ID  AS ACCOUNT_ID,
+        ID AS ACCOUNT_ID,
         CONNECTION_ID,
         DISPLAY_NAME,
         NAME,
@@ -13,26 +13,15 @@ WITH ACCOUNTS AS (
         CATEGORY,
         CREDIT_LIMIT,
         STATUS,
-        BALANCE_AMOUNT,
+        RAW_BALANCE_AMOUNT,
+        NORMALIZED_BALANCE,
         BALANCE_CURRENCY,
         BALANCE_TYPE,
         BALANCE_UPDATED_AT,
         TOTAL_VALUE,
         UNREALISED_PNL,
-        PROVIDER_ID,
-        -- Normalize credit card balance to always represent amount owed
-        -- Positive raw balance on credit cards = available credit (Nationwide style)
-        -- Negative raw balance on credit cards = amount owed (Amex style)
-        CASE
-            WHEN CATEGORY = 'credit_card' AND CREDIT_LIMIT IS NOT NULL AND BALANCE_AMOUNT > 0
-                THEN GREATEST(0, CREDIT_LIMIT - BALANCE_AMOUNT)  -- Available credit -> owed
-            WHEN CATEGORY = 'credit_card' AND BALANCE_AMOUNT <= 0
-                THEN ABS(BALANCE_AMOUNT)  -- Already shows owed
-            WHEN CATEGORY = 'credit_card'
-                THEN ABS(BALANCE_AMOUNT)  -- No credit limit, use absolute value
-            ELSE BALANCE_AMOUNT  -- Non-credit cards: use raw balance
-        END AS NORMALIZED_BALANCE
-    FROM {{ ref("src_unified_accounts") }}
+        PROVIDER_ID
+    FROM {{ ref("stg_unified_accounts") }}
 ),
 
 CONNECTIONS AS (
@@ -64,7 +53,7 @@ SELECT
     ACC.CATEGORY,
     ACC.CREDIT_LIMIT,
     ACC.STATUS                                              AS ACCOUNT_STATUS,
-    ACC.BALANCE_AMOUNT                                      AS RAW_BALANCE_AMOUNT,
+    ACC.RAW_BALANCE_AMOUNT,
     ACC.NORMALIZED_BALANCE                                  AS BALANCE_AMOUNT,
     ACC.BALANCE_CURRENCY,
     ACC.BALANCE_TYPE,

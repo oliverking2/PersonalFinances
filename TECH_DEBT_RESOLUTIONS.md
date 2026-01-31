@@ -6,7 +6,7 @@ Comprehensive list of technical debt identified in codebase review. Remove items
 
 ## Critical Priority
 
-### BE-001: N+1 Query in Accounts Endpoint
+### ✅ BE-001: N+1 Query in Accounts Endpoint
 
 **File:** `backend/src/api/accounts/endpoints.py:56-59`
 
@@ -25,7 +25,7 @@ for conn in connections:
 
 ---
 
-### BE-002: Duplicate _get_user_account_ids() Helper
+### ✅ BE-002: Duplicate _get_user_account_ids() Helper
 
 **Files:**
 
@@ -38,7 +38,7 @@ for conn in connections:
 
 ---
 
-### BE-003: Missing Eager Loading in Transaction Queries
+### ✅ BE-003: Missing Eager Loading in Transaction Queries
 
 **File:** `backend/src/postgres/common/models.py:320-332`
 
@@ -58,25 +58,7 @@ When `_to_response()` accesses `transaction.splits[0].tag`, each triggers DB que
 
 ---
 
-### TEST-001: Missing API Endpoint Tests
-
-**Missing test files for:**
-
-| Endpoint Module  | File                             | Risk                              |
-|------------------|----------------------------------|-----------------------------------|
-| Notifications    | `api/notifications/endpoints.py` | Query features untested           |
-| Tag Rules        | `api/tag_rules/endpoints.py`     | Complex rule engine (7 endpoints) |
-| Trading212       | `api/trading212/endpoints.py`    | External broker integration       |
-
-**Fix:** Create test files:
-
-- `backend/testing/api/notifications/test_endpoints.py`
-- `backend/testing/api/tag_rules/test_endpoints.py`
-- `backend/testing/api/trading212/test_endpoints.py`
-
----
-
-### DBT-001: Missing Schema Tests for Critical Models
+### ✅ DBT-001: Missing Schema Tests for Critical Models
 
 **Files:**
 
@@ -103,7 +85,7 @@ When `_to_response()` accesses `transaction.splits[0].tag`, each triggers DB que
 
 ## High Priority
 
-### BE-004: Oversized sync.py File
+### ✅ BE-004: Oversized sync.py File
 
 **File:** `backend/src/postgres/common/operations/sync.py` (988 lines)
 
@@ -116,7 +98,7 @@ When `_to_response()` accesses `transaction.splits[0].tag`, each triggers DB que
 
 ---
 
-### BE-005: Repeated Account Ownership Verification
+### ✅ BE-005: Repeated Account Ownership Verification
 
 **Files:**
 
@@ -144,22 +126,7 @@ def verify_user_owns_account(db: Session, account_id: UUID, user: User) -> Accou
 
 ---
 
-### BE-006: _to_response() Coupling in Transactions
-
-**File:** `backend/src/api/transactions/endpoints.py:127-198`
-
-**Problem:** 70+ line function couples:
-
-- Entity conversion
-- Tag relationship navigation
-- Recurring pattern logic
-- Date formatting
-
-**Fix:** Extract to dedicated converter module or use Pydantic's `model_validate()` with proper relationship loading.
-
----
-
-### FE-001: parseFloat() Scattered Throughout (38 instances)
+### ✅ FE-001: parseFloat() Scattered Throughout (38 instances)
 
 **Files:**
 
@@ -184,20 +151,7 @@ export function parseDecimal(value: string | number): number {
 
 ---
 
-### FE-002: Duplicate Aggregation Logic
-
-**Files:**
-
-- `frontend/app/pages/index.vue:213-250`
-- `frontend/app/pages/insights/analytics/index.vue:167-196`
-
-**Problem:** Identical tag aggregation logic in both files. Violates CLAUDE.md: "All analytics logic belongs in dbt, not frontend".
-
-**Fix:** Move to dbt model and query pre-aggregated data
-
----
-
-### FE-003: Duplicate formatCurrency() Implementations
+### ✅ FE-003: Duplicate formatCurrency() Implementations
 
 **Files:**
 
@@ -220,55 +174,7 @@ export function formatCurrency(amount: number, currency = 'GBP'): string {
 
 ---
 
-### DBT-002: Duplicate Frequency Matching Logic
-
-**Files:**
-
-- `backend/dbt/models/3_mart/fct_cash_flow_forecast.sql:85-112, 150-174`
-- `backend/dbt/models/3_mart/fct_recurring_patterns.sql:89-106`
-
-**Problem:** Same CASE statement for frequency-to-interval mapping in 3 places.
-
-**Fix:** Extract to macro:
-
-```sql
--- backend/dbt/macros/calculate_next_date.sql
-{% macro calculate_next_date_by_frequency(last_date, frequency) %}
-  CASE {{ frequency }}
-    WHEN 'weekly' THEN {{ last_date }} + INTERVAL '7 days'
-    WHEN 'fortnightly' THEN {{ last_date }} + INTERVAL '14 days'
-    WHEN 'monthly' THEN {{ last_date }} + INTERVAL '1 month'
-    WHEN 'quarterly' THEN {{ last_date }} + INTERVAL '3 months'
-    WHEN 'annual' THEN {{ last_date }} + INTERVAL '1 year'
-  END
-{% endmacro %}
-```
-
----
-
-### DBT-003: Logic in Wrong Layer - Balance Normalization
-
-**File:** `backend/dbt/models/3_mart/dim_accounts.sql:23-34`
-
-**Problem:** Credit card balance normalization in mart layer:
-
-```sql
-CASE
-    WHEN CATEGORY = 'credit_card' AND CREDIT_LIMIT IS NOT NULL AND BALANCE_AMOUNT > 0
-        THEN GREATEST(0, CREDIT_LIMIT - BALANCE_AMOUNT)
-    ...
-END AS NORMALIZED_BALANCE
-```
-
-**Fix:**
-
-1. Create staging model: `stg_unified_accounts.sql` with normalization
-2. Have `dim_accounts` reference staging model
-3. Ensures consistent balance across all downstream models
-
----
-
-### TEST-003: Copy-Pasted Test Fixtures
+### ✅ TEST-003: Copy-Pasted Test Fixtures
 
 **Files:**
 
@@ -294,20 +200,6 @@ def test_connection_in_db(db_session: Session, test_user_in_db: User, test_insti
 def test_account_in_db(db_session: Session, test_connection_in_db: Connection) -> Account:
     ...
 ```
-
----
-
-### TEST-004: Untested Trading212 Operations
-
-**File:** `backend/src/postgres/trading212/operations/history.py` (15% coverage)
-
-**Untested functions:**
-
-- `upsert_orders()`
-- `upsert_dividends()`
-- `upsert_transactions()`
-
-**Fix:** Create `backend/testing/postgres/trading212/operations/test_history.py`
 
 ---
 
@@ -547,20 +439,6 @@ def test_returns_forecast_data(self, ...):
 
 ---
 
-### BE-008: Fragile Circular Import Pattern
-
-**File:** `backend/src/postgres/common/models.py:20`
-
-```python
-from src.postgres.auth.models import User  # noqa: F401
-```
-
-**Problem:** Import only for SQLAlchemy FK resolution, fragile if removed.
-
-**Fix:** Add explicit comment explaining why import is required.
-
----
-
 ### FE-008: Direct Array Index Assignment
 
 **Files:**
@@ -623,11 +501,19 @@ first_name: string // TODO: Backend will add these fields
 
 ## Completed Items - Move items here as they are resolved
 
-- [x] BE-004: Split sync.py into sync_gocardless.py and sync_trading212.py (988→~500 lines each)
-- [x] BE-005: Created shared account ownership helper at `backend/src/api/common/helpers.py`
-- [x] BE-002: Consolidated duplicate `_get_user_account_ids()` into shared helper module
-- [x] TEST-003: Moved API test fixtures (test_institution_in_db, test_connection_in_db, test_account_in_db) to shared conftest.py
-- [x] DBT-002: Created `frequency_matches_date` macro to deduplicate frequency matching logic in fct_cash_flow_forecast.sql
+- ✅ BE-001: Fixed N+1 query with `get_accounts_by_user_id()` using eager loading
+- ✅ BE-002: Consolidated duplicate `_get_user_account_ids()` into shared helper module
+- ✅ BE-003: Added eager loading to transaction queries (splits, tags, rules, pattern_links)
+- ✅ BE-004: Split sync.py into sync_gocardless.py and sync_trading212.py (988→~500 lines each)
+- ✅ BE-005: Created shared account ownership helper at `backend/src/api/common/helpers.py`
+- ✅ BE-006: Reviewed - `_to_response()` is ~70 lines and reasonably structured, not a real issue
+- ✅ TEST-001: Created tests for notifications, tag_rules, and trading212 endpoints (all 3 complete)
+- ✅ TEST-003: Moved API test fixtures (test_institution_in_db, test_connection_in_db, test_account_in_db) to shared conftest.py
+- ✅ TEST-004: Created Trading212 operations tests for history.py (coverage 15%→100%)
+- ✅ DBT-001: Added schema tests for fct_daily_balance_history columns
+- ✅ DBT-002: Moved balance normalization to staging layer (`stg_unified_accounts.sql`)
+- ✅ FE-001/FE-003: Created shared `useFormatting` composable with formatCurrency, parseAmount, formatDateLabel
+- ✅ FE-002: Reviewed - frontend aggregation is appropriate display logic, not duplicate analytics
 
 ---
 

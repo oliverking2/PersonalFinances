@@ -359,6 +359,8 @@ Shifted from opt-out (detection creates patterns, user dismisses) to opt-in (det
 - [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
 - [ ] Add pagination to pattern transactions endpoint (currently returns all)
 - [ ] Allow adjusting detected frequency (e.g., detected fortnightly but actually weekly)
+- [ ] Add "Edit Pattern" button to subscription detail view
+- [ ] Add "Create Pattern" button to subscription list view
 
 ### Addressed by Redesign
 
