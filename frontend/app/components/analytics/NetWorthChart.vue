@@ -144,6 +144,8 @@ const chartOptions = computed<ApexOptions>(() => ({
     axisTicks: { show: false },
   },
   yaxis: {
+    // Start y-axis at zero unless net worth goes negative
+    min: Math.min(...props.data.map((d) => d.net_worth)) >= 0 ? 0 : undefined,
     labels: {
       style: { colors: '#a3a3a3', fontSize: '12px' },
       formatter: (val: number) => formatCompactCurrency(val),

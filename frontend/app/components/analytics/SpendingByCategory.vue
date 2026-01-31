@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'click-category': [category: string]
+  'click-category': [category: string, period: 'current' | 'previous']
 }>()
 
 // ---------------------------------------------------------------------------
@@ -118,11 +118,16 @@ const chartOptions = computed<ApexOptions>(() => ({
       dataPointSelection: (
         _event: unknown,
         _chart: unknown,
-        config: { dataPointIndex: number },
+        config: { dataPointIndex: number; seriesIndex: number },
       ) => {
         const categoryName = categories.value[config.dataPointIndex]
         if (categoryName) {
-          emit('click-category', categoryName)
+          // seriesIndex 0 = current period, 1 = previous period
+          const period =
+            props.compareEnabled && config.seriesIndex === 1
+              ? 'previous'
+              : 'current'
+          emit('click-category', categoryName, period)
         }
       },
     },

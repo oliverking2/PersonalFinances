@@ -86,6 +86,7 @@ const chartOptions = computed<ApexOptions>(() => ({
     axisTicks: { show: false },
   },
   yaxis: {
+    min: 0, // Spending is always positive
     labels: { style: { colors: '#a3a3a3', fontSize: '12px' } },
   },
   grid: {

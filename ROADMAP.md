@@ -344,6 +344,75 @@ Improve subscription detection accuracy.
 - [ ] Detection explanation in subscription detail view
 - [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
 - [ ] Add pagination to subscription transactions endpoint (currently returns all)
+- [ ] Manual recurring pattern creation (select transactions → create pattern from them)
+- [ ] Allow adjusting detected frequency (e.g., detected fortnightly but actually weekly)
+
+### Known Challenges (Needs Design Rethink)
+
+The current recurring transaction system has several architectural issues that may require a redesign:
+
+#### 1. Transaction-to-Pattern Linking is Fragile
+
+**Problem**: Transactions are linked to patterns via fuzzy merchant name matching after dbt detection. This causes:
+
+- Wrong transactions linked when merchants have similar names (all "Tesco" transactions could match multiple Tesco patterns)
+- Orphaned links when pattern keys change format
+- No reliable way to know which specific transactions formed the original pattern
+
+**Current Flow**:
+
+```
+dbt detects patterns → Dagster syncs to RecurringPattern → separate job fuzzy-matches transactions by merchant name
+```
+
+**Possible Fix**: dbt model should output the specific `TRANSACTION_IDS` that formed each pattern (already added `LIST(TRANSACTION_ID)` to the model). The sync job should use these IDs directly rather than re-matching by merchant name.
+
+#### 2. Variable Descriptions Prevent Detection
+
+**Problem**: Some recurring payments include dates or references in the description, making each transaction appear unique:
+
+```
+"Bank Transfer to MR O KING RENT 2026-01-15"
+"Bank Transfer to MR O KING RENT 2026-02-15"
+```
+
+The dbt model normalises descriptions with `REGEXP_REPLACE` to strip trailing dates, but this doesn't catch all patterns (e.g., dates mid-string, reference numbers).
+
+**Options**:
+
+- More aggressive description normalisation (strip all date patterns, reference numbers)
+- Allow user-defined "transaction rules" that force transactions to be grouped
+- Manual pattern creation from selected transactions (see also Phase 10 tasks)
+
+#### 3. Merchant Pattern Key Format Migration
+
+**Problem**: The pattern key format changed from `merchant_£XX` to `merchant_exp_£XX` (with direction suffix). This causes:
+
+- Duplicates when sync runs (old format and new format both exist)
+- Key extraction functions must handle both formats
+- Existing data needs migration when format changes
+
+**Lesson**: Pattern keys should be stable identifiers, not human-readable compound strings. Consider using a hash or separate columns for merchant/direction/amount_bucket.
+
+#### 4. Multiple Patterns for Same Merchant
+
+**Problem**: One merchant can have multiple subscriptions at different price points (e.g., Apple £4.99 and £2.99). Current detection handles this via amount buckets, but:
+
+- UI shows confusing duplicate entries
+- User must manually distinguish which is which
+- Amount changes (price increases) create new patterns instead of updating existing
+
+**Options**:
+
+- Allow user to merge patterns
+- Add user-friendly names separate from detection keys
+- Track price history per pattern
+
+#### 5. Confidence Score is Too Harsh
+
+**Problem**: The confidence formula penalises patterns that are actually reliable. Monthly payments that always arrive on time get lower scores than they should because the sample size is small.
+
+**Current Formula**: Based on payment count, interval consistency, and amount consistency. Needs rebalancing to better reflect real-world reliability.
 
 ---
 
@@ -353,6 +422,7 @@ More flexible budgeting options.
 
 - [ ] Rollover/flexible budgets (unused budget carries forward)
 - [ ] Weekly/annual budget periods
+- [ ] Incorporate budgets into cash flow forecast (project when budgets will be exceeded)
 
 ---
 

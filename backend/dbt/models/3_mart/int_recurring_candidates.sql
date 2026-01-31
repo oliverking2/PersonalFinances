@@ -9,10 +9,17 @@ WITH MERCHANT_GROUPS AS (
     SELECT
         TXN.ACCOUNT_ID,
         ACC.USER_ID,
-        -- Normalise merchant name (lowercase, trim)
-        LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION))) AS MERCHANT_NAME,
+        -- Normalise merchant name:
+        -- 1. Use counterparty_name if available, otherwise description
+        -- 2. Strip trailing dates (YYYY-MM-DD) that make each transaction unique
+        -- 3. Lowercase and trim
+        LOWER(TRIM(REGEXP_REPLACE(
+            COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION),
+            '\s*\d{4}-\d{2}-\d{2}$',
+            ''
+        )))                                                       AS MERCHANT_NAME,
         -- Direction: expense (negative amounts) or income (positive amounts)
-        CASE WHEN TXN.AMOUNT < 0 THEN 'expense' ELSE 'income' END     AS DIRECTION,
+        CASE WHEN TXN.AMOUNT < 0 THEN 'expense' ELSE 'income' END AS DIRECTION,
         -- Graded rounding for amount buckets:
         -- Under £10: nearest £1 (separates £2.99 vs £4.99)
         -- £10-50: nearest £5
@@ -23,10 +30,14 @@ WITH MERCHANT_GROUPS AS (
             WHEN ABS(TXN.AMOUNT) < 50 THEN ROUND(ABS(TXN.AMOUNT) / 5) * 5
             WHEN ABS(TXN.AMOUNT) < 200 THEN ROUND(ABS(TXN.AMOUNT) / 10) * 10
             ELSE ROUND(ABS(TXN.AMOUNT) / 25) * 25
-        END                                                           AS AMOUNT_BUCKET,
+        END                                                       AS AMOUNT_BUCKET,
         -- Combine merchant + direction + amount bucket as the pattern key
         -- Direction included to separate income from expense for same counterparty
-        LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION)))
+        LOWER(TRIM(REGEXP_REPLACE(
+            COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION),
+            '\s*\d{4}-\d{2}-\d{2}$',
+            ''
+        )))
         || '_' || CASE WHEN TXN.AMOUNT < 0 THEN 'exp' ELSE 'inc' END
         || '_£' || CAST(
             CASE
@@ -35,7 +46,7 @@ WITH MERCHANT_GROUPS AS (
                 WHEN ABS(TXN.AMOUNT) < 200 THEN ROUND(ABS(TXN.AMOUNT) / 10) * 10
                 ELSE ROUND(ABS(TXN.AMOUNT) / 25) * 25
             END AS VARCHAR
-        )                                                             AS MERCHANT_KEY,
+        )                                                         AS MERCHANT_KEY,
         TXN.TRANSACTION_ID,
         TXN.BOOKING_DATE,
         TXN.AMOUNT,
@@ -43,7 +54,11 @@ WITH MERCHANT_GROUPS AS (
         ROW_NUMBER() OVER (
             PARTITION BY
                 TXN.ACCOUNT_ID,
-                LOWER(TRIM(COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION))),
+                LOWER(TRIM(REGEXP_REPLACE(
+                    COALESCE(TXN.COUNTERPARTY_NAME, TXN.DESCRIPTION),
+                    '\s*\d{4}-\d{2}-\d{2}$',
+                    ''
+                ))),
                 CASE WHEN TXN.AMOUNT < 0 THEN 'expense' ELSE 'income' END,
                 CASE
                     WHEN ABS(TXN.AMOUNT) < 10 THEN ROUND(ABS(TXN.AMOUNT))
@@ -52,7 +67,7 @@ WITH MERCHANT_GROUPS AS (
                     ELSE ROUND(ABS(TXN.AMOUNT) / 25) * 25
                 END
             ORDER BY TXN.BOOKING_DATE
-        )                                                             AS OCCURRENCE_NUM
+        )                                                         AS OCCURRENCE_NUM
     FROM {{ ref('fct_transactions') }} AS TXN
     INNER JOIN {{ ref('dim_accounts') }} AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
     WHERE
@@ -98,7 +113,9 @@ MERCHANT_STATS AS (
         AVG(INTERVAL_DAYS)    AS AVG_INTERVAL,
         STDDEV(INTERVAL_DAYS) AS INTERVAL_STDDEV,
         MAX(BOOKING_DATE)     AS LAST_OCCURRENCE,
-        MIN(BOOKING_DATE)     AS FIRST_OCCURRENCE
+        MIN(BOOKING_DATE)     AS FIRST_OCCURRENCE,
+        -- Aggregate transaction IDs for linking
+        LIST(TRANSACTION_ID)  AS TRANSACTION_IDS
     FROM WITH_INTERVALS
     WHERE INTERVAL_DAYS IS NOT NULL
     GROUP BY ACCOUNT_ID, USER_ID, MERCHANT_KEY, CURRENCY
@@ -133,6 +150,8 @@ SELECT
     STS.INTERVAL_STDDEV,
     STS.LAST_OCCURRENCE,
     STS.FIRST_OCCURRENCE,
+    -- Transaction IDs that belong to this pattern (for linking)
+    STS.TRANSACTION_IDS,
     -- Detect frequency from average interval with tolerance
     -- Ranges widened to catch real-world billing patterns (bills vary a few days)
     CASE

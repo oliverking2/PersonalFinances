@@ -541,14 +541,69 @@ def count_patterns_by_status(session: Session, user_id: UUID) -> dict[RecurringS
 
 
 def _extract_merchant_base_key(merchant_pattern: str) -> str:
-    """Extract base key from merchant pattern by removing amount bucket suffix.
+    """Extract base key from merchant pattern by removing direction and amount bucket suffixes.
 
-    Handles keys like "merchant_exp_£16" -> "merchant_exp".
+    Handles both old and new formats:
+    - Old: "merchant_£16" -> "merchant"
+    - New: "merchant_exp_£16" -> "merchant"
+    - New: "merchant_inc_£16" -> "merchant"
 
-    :param merchant_pattern: Full merchant pattern with amount bucket.
-    :returns: Base key without amount bucket.
+    :param merchant_pattern: Full merchant pattern with optional direction and amount bucket.
+    :returns: Base key without direction or amount bucket.
     """
-    return re.sub(r"_£\d+$", "", merchant_pattern)
+    # First strip the amount bucket (e.g., "_£16" or "_£16.0")
+    # Then strip the direction suffix if present (e.g., "_exp" or "_inc")
+    base = re.sub(r"_£[\d.]+$", "", merchant_pattern)
+    return re.sub(r"_(exp|inc)$", "", base)
+
+
+def _extract_amount_bucket(merchant_pattern: str) -> Decimal | None:
+    """Extract the amount bucket from a merchant pattern.
+
+    :param merchant_pattern: Pattern like "merchant_£16" or "merchant_exp_£16.0".
+    :returns: Amount as Decimal, or None if not found.
+    """
+    match = re.search(r"_£([\d.]+)$", merchant_pattern)
+    if match:
+        return Decimal(match.group(1))
+    return None
+
+
+def _find_best_matching_pattern(
+    patterns: list[RecurringPattern],
+    incoming_amount_bucket: Decimal | None,
+    direction: RecurringDirection,
+) -> RecurringPattern | None:
+    """Find the best matching pattern from a list of candidates.
+
+    Selection priority:
+    1. Match by amount bucket (same subscription tier)
+    2. Match by direction
+    3. First pattern in list
+
+    :param patterns: List of patterns with matching base key.
+    :param incoming_amount_bucket: Amount bucket from incoming pattern.
+    :param direction: Direction of incoming pattern.
+    :returns: Best matching pattern, or None if list is empty.
+    """
+    if not patterns:
+        return None
+    if len(patterns) == 1:
+        return patterns[0]
+
+    # Try to find one with matching amount bucket
+    if incoming_amount_bucket is not None:
+        for pat in patterns:
+            if _extract_amount_bucket(pat.merchant_pattern) == incoming_amount_bucket:
+                return pat
+
+    # Try to find one with matching direction
+    for pat in patterns:
+        if pat.direction == direction.value:
+            return pat
+
+    # Fall back to first pattern
+    return patterns[0]
 
 
 def sync_detected_pattern(
@@ -593,6 +648,7 @@ def sync_detected_pattern(
     """
     # Extract base key (without amount bucket) for flexible matching
     base_key = _extract_merchant_base_key(merchant_pattern)
+    incoming_amount_bucket = _extract_amount_bucket(merchant_pattern)
 
     # Find existing patterns for this account and check for base key match
     account_patterns = (
@@ -604,12 +660,15 @@ def sync_detected_pattern(
         .all()
     )
 
-    # Find pattern with matching base key
-    existing = None
-    for pat in account_patterns:
-        if _extract_merchant_base_key(pat.merchant_pattern) == base_key:
-            existing = pat
-            break
+    # Find all patterns with matching base key
+    matching_patterns = [
+        pat
+        for pat in account_patterns
+        if _extract_merchant_base_key(pat.merchant_pattern) == base_key
+    ]
+
+    # Select the best match based on amount bucket and direction
+    existing = _find_best_matching_pattern(matching_patterns, incoming_amount_bucket, direction)
 
     if existing:
         # Only update if status is still 'detected' (user hasn't acted on it)

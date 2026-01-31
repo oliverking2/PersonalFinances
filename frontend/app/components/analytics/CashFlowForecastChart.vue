@@ -278,6 +278,8 @@ const chartOptions = computed<ApexOptions>(() => ({
     axisTicks: { show: false },
   },
   yaxis: {
+    // Start y-axis at zero unless balance goes negative (then show full range)
+    min: parseFloat(props.summary.min_balance) >= 0 ? 0 : undefined,
     labels: {
       style: { colors: '#a3a3a3', fontSize: '12px' },
       formatter: (val: number) => formatCompactCurrency(val),

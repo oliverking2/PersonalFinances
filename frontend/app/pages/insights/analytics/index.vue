@@ -533,13 +533,20 @@ async function pollJobStatus(jobId: string) {
 // ---------------------------------------------------------------------------
 
 // Navigate to transactions page filtered by tag/category
-function handleCategoryClick(categoryName: string) {
+function handleCategoryClick(
+  categoryName: string,
+  period: 'current' | 'previous' = 'current',
+) {
   // Build query params for the transactions page
   const params = new URLSearchParams()
 
-  // Add date range from current period
-  params.set('start_date', periodDateRange.value.start_date)
-  params.set('end_date', periodDateRange.value.end_date)
+  // Use the appropriate date range based on which bar was clicked
+  const dateRange =
+    period === 'previous'
+      ? previousPeriodDateRange.value
+      : periodDateRange.value
+  params.set('start_date', dateRange.start_date)
+  params.set('end_date', dateRange.end_date)
 
   // Add tag filter (use the category name to find the tag)
   // Note: "Untagged" is a special case - we'd filter for transactions without tags

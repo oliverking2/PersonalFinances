@@ -25,18 +25,21 @@ from src.postgres.common.operations.recurring_patterns import sync_detected_patt
 def _extract_merchant_name(merchant_pattern: str) -> str:
     """Extract the clean merchant name from a pattern key.
 
-    The dbt model stores patterns as 'merchant_name_£XX' where XX is the amount bucket.
+    The dbt model stores patterns as 'merchant_name_exp_£XX' or 'merchant_name_inc_£XX'.
     This extracts just the merchant name for transaction matching.
 
-    :param merchant_pattern: Pattern key (e.g., 'netflix_£15').
+    :param merchant_pattern: Pattern key (e.g., 'netflix_exp_£15').
     :return: Clean merchant name (e.g., 'netflix').
     """
-    # Pattern format: merchant_name_£XX (amount bucket suffix)
-    # Find the last occurrence of '_£' and strip everything after
+    # First strip the amount bucket suffix (e.g., '_£15' or '_£15.0')
     suffix_idx = merchant_pattern.rfind("_£")
-    if suffix_idx > 0:
-        return merchant_pattern[:suffix_idx]
-    return merchant_pattern
+    name = merchant_pattern[:suffix_idx] if suffix_idx > 0 else merchant_pattern
+
+    # Then strip the direction suffix if present (e.g., '_exp' or '_inc')
+    if name.endswith("_exp") or name.endswith("_inc"):
+        name = name[:-4]
+
+    return name
 
 
 def _link_transactions_to_pattern(
