@@ -154,17 +154,26 @@ class RecurringFrequency(StrEnum):
 class RecurringStatus(StrEnum):
     """Status of a recurring payment pattern.
 
-    - DETECTED: Auto-detected, not yet confirmed by user
-    - CONFIRMED: User confirmed this is recurring
-    - DISMISSED: User marked as not recurring (false positive)
-    - PAUSED: User temporarily paused (e.g., cancelled subscription)
-    - MANUAL: Manually added by user
+    - PENDING: Auto-detected, awaiting user acceptance
+    - ACTIVE: User-confirmed or manually created, actively tracked
+    - PAUSED: User temporarily paused (e.g., subscription on hold)
+    - CANCELLED: Pattern ended, no longer recurring
+    """
+
+    PENDING = "pending"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    CANCELLED = "cancelled"
+
+
+class RecurringSource(StrEnum):
+    """Source of how a recurring pattern was created.
+
+    - DETECTED: Created by automatic detection from transaction history
+    - MANUAL: Created manually by the user
     """
 
     DETECTED = "detected"
-    CONFIRMED = "confirmed"
-    DISMISSED = "dismissed"
-    PAUSED = "paused"
     MANUAL = "manual"
 
 

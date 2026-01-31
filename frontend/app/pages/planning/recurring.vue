@@ -5,24 +5,25 @@ Manage recurring expenses (subscriptions, bills) and income (salary, transfers)
 
 <script setup lang="ts">
 import type {
-  Subscription,
+  RecurringPattern,
   RecurringStatus,
   RecurringDirection,
-  SubscriptionSummary,
-} from '~/types/subscriptions'
-import { getStatusLabel } from '~/types/subscriptions'
+  RecurringSummary,
+} from '~/types/recurring'
+import { getStatusLabel } from '~/types/recurring'
 
 useHead({ title: 'Recurring Patterns | Finances' })
 
 // API
 const {
-  fetchSubscriptions,
-  fetchSubscriptionSummary,
-  confirmSubscription,
-  dismissSubscription,
-  pauseSubscription,
-  updateSubscription,
-} = useSubscriptionsApi()
+  fetchPatterns,
+  fetchSummary,
+  acceptPattern,
+  deletePattern,
+  pausePattern,
+  resumePattern,
+  updatePattern,
+} = useRecurringApi()
 
 const toast = useToastStore()
 
@@ -30,39 +31,39 @@ const toast = useToastStore()
 // State
 // ---------------------------------------------------------------------------
 
-const subscriptions = ref<Subscription[]>([])
-const summary = ref<SubscriptionSummary | null>(null)
+const patterns = ref<RecurringPattern[]>([])
+const summary = ref<RecurringSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
 
-// Filters
+// Filters - default tab is now 'pending' to highlight items needing review
 const statusFilter = ref<RecurringStatus | 'all'>('all')
 const directionFilter = ref<RecurringDirection | 'all'>('all')
 const sortBy = ref<'amount' | 'name' | 'next'>('amount')
 
 // Edit modal state
 const editModalOpen = ref(false)
-const editingSubscription = ref<Subscription | null>(null)
+const editingPattern = ref<RecurringPattern | null>(null)
 
 // ---------------------------------------------------------------------------
 // Computed
 // ---------------------------------------------------------------------------
 
-// Filter subscriptions by status and direction
-const filteredSubscriptions = computed(() => {
-  let result = [...subscriptions.value]
+// Filter patterns by status and direction
+const filteredPatterns = computed(() => {
+  let result = [...patterns.value]
 
   // Direction filter
   if (directionFilter.value !== 'all') {
-    result = result.filter((s) => s.direction === directionFilter.value)
+    result = result.filter((p) => p.direction === directionFilter.value)
   }
 
   // Status filter
   if (statusFilter.value === 'all') {
-    // "All" excludes dismissed subscriptions
-    result = result.filter((s) => s.status !== 'dismissed')
+    // "All" excludes cancelled patterns
+    result = result.filter((p) => p.status !== 'cancelled')
   } else {
-    result = result.filter((s) => s.status === statusFilter.value)
+    result = result.filter((p) => p.status === statusFilter.value)
   }
 
   // Sort
@@ -71,7 +72,7 @@ const filteredSubscriptions = computed(() => {
       case 'amount':
         return Math.abs(b.expected_amount) - Math.abs(a.expected_amount)
       case 'name':
-        return a.display_name.localeCompare(b.display_name)
+        return a.name.localeCompare(b.name)
       case 'next':
         if (!a.next_expected_date) return 1
         if (!b.next_expected_date) return -1
@@ -87,30 +88,28 @@ const filteredSubscriptions = computed(() => {
 // Tab counts (respects direction filter)
 const tabCounts = computed(() => {
   // First filter by direction if set
-  let filtered = subscriptions.value
+  let filtered = patterns.value
   if (directionFilter.value !== 'all') {
-    filtered = filtered.filter((s) => s.direction === directionFilter.value)
+    filtered = filtered.filter((p) => p.direction === directionFilter.value)
   }
 
   return {
-    all: filtered.filter((s) => s.status !== 'dismissed').length,
-    confirmed: filtered.filter(
-      (s) => s.status === 'confirmed' || s.status === 'manual',
-    ).length,
-    detected: filtered.filter((s) => s.status === 'detected').length,
-    paused: filtered.filter((s) => s.status === 'paused').length,
-    dismissed: filtered.filter((s) => s.status === 'dismissed').length,
+    all: filtered.filter((p) => p.status !== 'cancelled').length,
+    pending: filtered.filter((p) => p.status === 'pending').length,
+    active: filtered.filter((p) => p.status === 'active').length,
+    paused: filtered.filter((p) => p.status === 'paused').length,
+    cancelled: filtered.filter((p) => p.status === 'cancelled').length,
   }
 })
 
 // Direction counts
 const directionCounts = computed(() => ({
-  all: subscriptions.value.filter((s) => s.status !== 'dismissed').length,
-  expense: subscriptions.value.filter(
-    (s) => s.direction === 'expense' && s.status !== 'dismissed',
+  all: patterns.value.filter((p) => p.status !== 'cancelled').length,
+  expense: patterns.value.filter(
+    (p) => p.direction === 'expense' && p.status !== 'cancelled',
   ).length,
-  income: subscriptions.value.filter(
-    (s) => s.direction === 'income' && s.status !== 'dismissed',
+  income: patterns.value.filter(
+    (p) => p.direction === 'income' && p.status !== 'cancelled',
   ).length,
 }))
 
@@ -122,16 +121,15 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    // Include dismissed subscriptions so user can restore them
-    const [subsResponse, summaryResponse] = await Promise.all([
-      fetchSubscriptions({ include_dismissed: true }),
-      fetchSubscriptionSummary(),
+    const [patternsResponse, summaryResponse] = await Promise.all([
+      fetchPatterns(),
+      fetchSummary(),
     ])
-    subscriptions.value = subsResponse.subscriptions
+    patterns.value = patternsResponse.patterns
     summary.value = summaryResponse
   } catch (e) {
     error.value =
-      e instanceof Error ? e.message : 'Failed to load subscriptions'
+      e instanceof Error ? e.message : 'Failed to load recurring patterns'
   } finally {
     loading.value = false
   }
@@ -143,86 +141,83 @@ onMounted(loadData)
 // Actions
 // ---------------------------------------------------------------------------
 
-async function handleConfirm(subscription: Subscription) {
+// Accept a pending pattern (detected → active)
+async function handleAccept(pattern: RecurringPattern) {
   try {
-    const updated = await confirmSubscription(subscription.id)
+    const updated = await acceptPattern(pattern.id)
     // Update in list
-    const idx = subscriptions.value.findIndex((s) => s.id === subscription.id)
-    if (idx >= 0) subscriptions.value[idx] = updated
-    toast.success(`Confirmed: ${subscription.display_name}`)
+    const idx = patterns.value.findIndex((p) => p.id === pattern.id)
+    if (idx >= 0) patterns.value[idx] = updated
+    toast.success(`Accepted: ${pattern.name}`)
   } catch {
-    toast.error('Failed to confirm subscription')
+    toast.error('Failed to accept pattern')
   }
 }
 
-async function handleDismiss(subscription: Subscription) {
+// Dismiss (delete) a pattern - can be re-detected later
+async function handleDismiss(pattern: RecurringPattern) {
   try {
-    await dismissSubscription(subscription.id)
-    // Update status in list (keep it so user can restore later)
-    const idx = subscriptions.value.findIndex((s) => s.id === subscription.id)
-    if (idx >= 0) {
-      subscriptions.value[idx] = { ...subscription, status: 'dismissed' }
-    }
-    toast.success(`Dismissed: ${subscription.display_name}`)
+    await deletePattern(pattern.id)
+    // Remove from list
+    patterns.value = patterns.value.filter((p) => p.id !== pattern.id)
+    toast.success(`Dismissed: ${pattern.name}`)
   } catch {
-    toast.error('Failed to dismiss subscription')
+    toast.error('Failed to dismiss pattern')
   }
 }
 
-async function handlePause(subscription: Subscription) {
+// Pause an active pattern
+async function handlePause(pattern: RecurringPattern) {
   try {
-    const updated = await pauseSubscription(subscription.id)
+    const updated = await pausePattern(pattern.id)
     // Update in list
-    const idx = subscriptions.value.findIndex((s) => s.id === subscription.id)
-    if (idx >= 0) subscriptions.value[idx] = updated
-    toast.success(`Paused: ${subscription.display_name}`)
+    const idx = patterns.value.findIndex((p) => p.id === pattern.id)
+    if (idx >= 0) patterns.value[idx] = updated
+    toast.success(`Paused: ${pattern.name}`)
   } catch {
-    toast.error('Failed to pause subscription')
+    toast.error('Failed to pause pattern')
   }
 }
 
-async function handleRestore(subscription: Subscription) {
+// Resume a paused pattern
+async function handleResume(pattern: RecurringPattern) {
   try {
-    // Restore by confirming the subscription
-    const updated = await confirmSubscription(subscription.id)
+    const updated = await resumePattern(pattern.id)
     // Update in list
-    const idx = subscriptions.value.findIndex((s) => s.id === subscription.id)
-    if (idx >= 0) subscriptions.value[idx] = updated
-    toast.success(`Restored: ${subscription.display_name}`)
+    const idx = patterns.value.findIndex((p) => p.id === pattern.id)
+    if (idx >= 0) patterns.value[idx] = updated
+    toast.success(`Resumed: ${pattern.name}`)
   } catch {
-    toast.error('Failed to restore subscription')
+    toast.error('Failed to resume pattern')
   }
 }
 
-function handleEdit(subscription: Subscription) {
-  editingSubscription.value = subscription
+function handleEdit(pattern: RecurringPattern) {
+  editingPattern.value = pattern
   editModalOpen.value = true
 }
 
-interface SubscriptionUpdates {
-  display_name?: string
+interface PatternUpdates {
+  name?: string
   notes?: string
   expected_amount?: number
 }
 
-async function handleSaveEdit(updates: SubscriptionUpdates) {
-  if (!editingSubscription.value) return
+async function handleSaveEdit(updates: PatternUpdates) {
+  if (!editingPattern.value) return
 
   try {
-    const updated = await updateSubscription(
-      editingSubscription.value.id,
-      updates,
-    )
+    const updated = await updatePattern(editingPattern.value.id, updates)
     // Update in list
-    const idx = subscriptions.value.findIndex(
-      (s) => s.id === editingSubscription.value?.id,
+    const idx = patterns.value.findIndex(
+      (p) => p.id === editingPattern.value?.id,
     )
-    if (idx >= 0) subscriptions.value[idx] = updated
-    toast.success('Subscription updated')
+    if (idx >= 0) patterns.value[idx] = updated
+    toast.success('Pattern updated')
     editModalOpen.value = false
-    editingSubscription.value = null
+    editingPattern.value = null
   } catch {
-    toast.error('Failed to update subscription')
+    toast.error('Failed to update pattern')
   }
 }
 
@@ -288,19 +283,19 @@ function formatCurrency(amount: number): string {
         </p>
       </div>
 
-      <!-- Confirmed -->
+      <!-- Active -->
       <div class="rounded-lg border border-border bg-surface p-4">
-        <p class="text-sm text-muted">Confirmed</p>
+        <p class="text-sm text-muted">Active</p>
         <p class="mt-1 text-2xl font-bold text-primary">
-          {{ summary.confirmed_count }}
+          {{ summary.active_count }}
         </p>
       </div>
 
-      <!-- Needs review -->
+      <!-- Pending review -->
       <div class="rounded-lg border border-border bg-surface p-4">
-        <p class="text-sm text-muted">Needs Review</p>
+        <p class="text-sm text-muted">Pending Review</p>
         <p class="mt-1 text-2xl font-bold text-warning">
-          {{ summary.detected_count }}
+          {{ summary.pending_count }}
         </p>
       </div>
     </div>
@@ -347,10 +342,10 @@ function formatCurrency(amount: number): string {
         <button
           v-for="tab in [
             'all',
-            'confirmed',
-            'detected',
+            'pending',
+            'active',
             'paused',
-            'dismissed',
+            'cancelled',
           ] as const"
           :key="tab"
           type="button"
@@ -404,7 +399,7 @@ function formatCurrency(amount: number): string {
 
     <!-- Empty state -->
     <div
-      v-else-if="filteredSubscriptions.length === 0"
+      v-else-if="filteredPatterns.length === 0"
       class="rounded-lg border border-border bg-surface p-8 text-center"
     >
       <p v-if="statusFilter === 'all'" class="text-muted">
@@ -412,28 +407,28 @@ function formatCurrency(amount: number): string {
         patterns will be detected automatically.
       </p>
       <p v-else class="text-muted">
-        No {{ getStatusLabel(statusFilter).toLowerCase() }} subscriptions.
+        No {{ getStatusLabel(statusFilter).toLowerCase() }} patterns.
       </p>
     </div>
 
-    <!-- Subscription list -->
+    <!-- Pattern list -->
     <div v-else class="space-y-4">
-      <SubscriptionsSubscriptionCard
-        v-for="sub in filteredSubscriptions"
-        :key="sub.id"
-        :subscription="sub"
-        @confirm="handleConfirm(sub)"
-        @dismiss="handleDismiss(sub)"
-        @pause="handlePause(sub)"
-        @restore="handleRestore(sub)"
-        @edit="handleEdit(sub)"
+      <SubscriptionsRecurringPatternCard
+        v-for="pattern in filteredPatterns"
+        :key="pattern.id"
+        :pattern="pattern"
+        @accept="handleAccept(pattern)"
+        @dismiss="handleDismiss(pattern)"
+        @pause="handlePause(pattern)"
+        @resume="handleResume(pattern)"
+        @edit="handleEdit(pattern)"
       />
     </div>
 
     <!-- Edit modal -->
-    <SubscriptionsSubscriptionEditModal
-      v-if="editingSubscription"
-      :subscription="editingSubscription"
+    <SubscriptionsRecurringPatternEditModal
+      v-if="editingPattern"
+      :pattern="editingPattern"
       :open="editModalOpen"
       @close="editModalOpen = false"
       @save="handleSaveEdit"

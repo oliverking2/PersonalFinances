@@ -32,6 +32,7 @@ from src.postgres.common.enums import (
     Provider,
     RecurringDirection,
     RecurringFrequency,
+    RecurringSource,
     RecurringStatus,
 )
 from src.postgres.core import Base
@@ -555,28 +556,30 @@ class RecurringPattern(Base):
     Stores detected and user-confirmed recurring payment patterns (subscriptions,
     bills, regular payments). Patterns can be auto-detected from transaction
     history or manually created by users.
+
+    Design philosophy: opt-in model where detection suggests patterns and users
+    accept wanted ones (pending -> active).
     """
 
     __tablename__ = "recurring_patterns"
 
+    # Identity
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-
-    # Pattern identification
-    merchant_pattern: Mapped[str] = mapped_column(String(256), nullable=False)
     account_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("accounts.id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    # Pattern characteristics
+    # Display
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Amount & scheduling
     expected_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    amount_variance: Mapped[Decimal] = mapped_column(
-        Numeric(5, 2), nullable=False, default=Decimal("0")
-    )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
     frequency: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(
@@ -592,27 +595,46 @@ class RecurringPattern(Base):
         DateTime(timezone=True),
         nullable=True,
     )
-    last_occurrence_date: Mapped[datetime | None] = mapped_column(
+    last_matched_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    end_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
-    # Detection metadata
-    confidence_score: Mapped[Decimal] = mapped_column(
-        Numeric(3, 2), nullable=False, default=Decimal("0.5")
-    )
-    occurrence_count: Mapped[int] = mapped_column(default=0, nullable=False)
-
-    # Status
+    # Status & source
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=RecurringStatus.DETECTED.value
+        String(20), nullable=False, default=RecurringStatus.PENDING.value
+    )
+    source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=RecurringSource.DETECTED.value
     )
 
-    # User customisation
-    display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Matching - common case (dedicated columns for performance)
+    merchant_contains: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    amount_tolerance_pct: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=Decimal("10.0")
+    )
 
-    # Metadata
+    # Matching - advanced (JSONB for edge cases)
+    # Schema: {"merchant_exact": str, "merchant_regex": str,
+    #          "description_contains": str, "description_not_contains": str}
+    advanced_rules: Mapped[dict[str, Any] | None] = mapped_column(_JSONType, nullable=True)
+
+    # Stats
+    match_count: Mapped[int] = mapped_column(default=0, nullable=False)
+
+    # Detection metadata (for detected patterns)
+    confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
+    occurrence_count: Mapped[int | None] = mapped_column(nullable=True)
+    detection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # AI/future extensibility
+    ai_metadata: Mapped[dict[str, Any] | None] = mapped_column(_JSONType, nullable=True)
+
+    # Audit
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -640,9 +662,9 @@ class RecurringPattern(Base):
         Index(
             "idx_recurring_patterns_user_merchant",
             "user_id",
-            "merchant_pattern",
+            "merchant_contains",
             "account_id",
-            unique=True,
+            unique=False,  # Not unique - multiple patterns can match same merchant
         ),
     )
 
@@ -661,12 +683,21 @@ class RecurringPattern(Base):
         """Get direction as RecurringDirection enum."""
         return RecurringDirection(self.direction)
 
+    @property
+    def source_enum(self) -> RecurringSource:
+        """Get source as RecurringSource enum."""
+        return RecurringSource(self.source)
+
 
 class RecurringPatternTransaction(Base):
     """Database model for pattern-transaction links.
 
-    Links detected recurring patterns to their matching transactions for
+    Links recurring patterns to their matching transactions for
     audit trail and transaction history display.
+
+    Constraint: Each transaction can only be linked to ONE pattern.
+    This prevents confusion in forecasting and ensures a recurring
+    transaction is definitionally one specific recurring charge.
     """
 
     __tablename__ = "recurring_pattern_transactions"
@@ -681,15 +712,12 @@ class RecurringPatternTransaction(Base):
         nullable=False,
     )
 
-    # Match quality
-    amount_match: Mapped[bool] = mapped_column(default=True, nullable=False)
-    date_match: Mapped[bool] = mapped_column(default=True, nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(
+    matched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=_utc_now,
     )
+    is_manual: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # Relationships
     pattern: Mapped["RecurringPattern"] = relationship(
@@ -703,10 +731,9 @@ class RecurringPatternTransaction(Base):
 
     __table_args__ = (
         Index("idx_pattern_transactions_pattern", "pattern_id"),
-        Index("idx_pattern_transactions_transaction", "transaction_id"),
+        # Unique constraint: one pattern per transaction
         Index(
-            "idx_pattern_transaction_unique",
-            "pattern_id",
+            "idx_pattern_transactions_transaction_unique",
             "transaction_id",
             unique=True,
         ),

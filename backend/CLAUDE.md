@@ -7,18 +7,31 @@ Backend-specific guidance for Claude Code. See also root `CLAUDE.md` for project
 ```
 backend/
 ├── src/
-│   ├── api/            # FastAPI endpoints
-│   ├── orchestration/  # Dagster jobs & assets
-│   ├── postgres/       # SQLAlchemy models & operations
-│   │   ├── auth/       # User authentication (users, refresh_tokens)
-│   │   ├── common/     # Provider-agnostic models (connections, accounts, institutions)
-│   │   ├── gocardless/ # GoCardless-specific raw data (requisitions, bank_accounts, balances)
+│   ├── api/            # FastAPI endpoints (see src/api/CLAUDE.md)
+│   │   ├── auth/       # Authentication (login, register, refresh)
+│   │   ├── accounts/   # Bank accounts
+│   │   ├── analytics/  # Spending analytics (queries dbt marts)
+│   │   ├── budgets/    # Tag-based budgets
+│   │   ├── connections/# Bank connections (OAuth flow)
+│   │   ├── goals/      # Savings goals
+│   │   ├── recurring/  # Recurring patterns (opt-in model)
+│   │   ├── tags/       # Tag CRUD
+│   │   └── transactions/# Transaction queries
+│   ├── orchestration/  # Dagster jobs & assets (see orchestration/CLAUDE.md)
+│   │   ├── gocardless/ # Bank sync
+│   │   ├── recurring_patterns/ # Pattern detection
+│   │   └── dbt/        # Analytics transforms
+│   ├── postgres/       # SQLAlchemy models & operations (see postgres/CLAUDE.md)
+│   │   ├── auth/       # Users, refresh tokens
+│   │   ├── common/     # Provider-agnostic models (connections, accounts, recurring)
+│   │   │   └── operations/  # CRUD operations by entity
+│   │   ├── gocardless/ # GoCardless raw data (requisitions, bank_accounts)
 │   │   └── core.py     # Base, engine, session utilities
 │   ├── providers/      # External API clients (GoCardless)
 │   └── utils/          # Shared utilities (config, logging, security)
-├── testing/            # Tests (mirrors src/ structure)
+├── testing/            # Tests (see testing/CLAUDE.md)
 ├── alembic/            # Database migrations
-├── dbt/                # dbt analytics (reads from PostgreSQL via DuckDB)
+├── dbt/                # dbt analytics (see dbt/CLAUDE.md)
 ├── .env                # Environment config (from .env_example)
 └── pyproject.toml
 ```
@@ -78,7 +91,7 @@ The database uses a two-layer approach for multi-provider support:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Standardised Tables                       │
-│  connections    accounts    institutions                     │
+│  connections    accounts    transactions    recurring_patterns│
 │  (postgres/common/)                                          │
 └───────────────────────────┬─────────────────────────────────┘
                             │ sync/backfill
@@ -91,7 +104,8 @@ The database uses a two-layer approach for multi-provider support:
 
 - **Standardised tables** (`postgres/common/`): Provider-agnostic, used by API endpoints
 - **Raw tables** (`postgres/gocardless/`): Provider-specific, source of truth for Dagster
-- **Enums** in `postgres/common/enums.py`: Provider, ConnectionStatus, AccountStatus with mapping helpers
+- **Enums** in `postgres/common/enums.py`: Provider, ConnectionStatus, AccountStatus, RecurringStatus, RecurringSource
+- **Recurring patterns**: Use opt-in model with status workflow (pending → active ⟷ paused / cancelled)
 
 ## File Placement
 
@@ -118,9 +132,17 @@ The database uses a two-layer approach for multi-provider support:
 
 ## See Also
 
+Module-specific guides:
+
+- `src/api/CLAUDE.md` - API docstring conventions, error responses
+- `src/orchestration/CLAUDE.md` - Dagster patterns, Config classes
+- `src/postgres/CLAUDE.md` - Database models, operations, enums
+- `dbt/CLAUDE.md` - dbt layer conventions, DuckDB integration
+- `testing/CLAUDE.md` - Test fixtures, patterns, coverage
+
 Detailed patterns in `.claude/rules/`:
 
 - `python.md` - Style, naming, functions, testing
 - `api.md` - FastAPI endpoints, Pydantic models
 - `database.md` - SQLAlchemy models, operations, migrations
-- `infrastructure.md` - AWS, configuration, security
+- `infrastructure.md` - Configuration, security

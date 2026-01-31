@@ -125,6 +125,9 @@ components/
 │   ├── AccountRow.vue         # Single account display
 │   ├── ConnectionCard.vue     # Connection with nested accounts
 │   └── ...
+├── subscriptions/
+│   ├── RecurringPatternCard.vue    # Pattern card with status/actions
+│   └── ...
 ├── tags/
 │   ├── TagChip.vue            # Small coloured tag pill
 │   └── TagSelector.vue        # Dropdown for selecting/creating tags
@@ -208,3 +211,11 @@ The backend API is at `http://localhost:8000`. Full API contracts are in `/docs/
 - `GET /accounts` - List bank accounts
 - `GET /connections` - List bank connections
 - `GET /transactions` - List transactions
+- `GET /recurring` - List recurring patterns (filter by status/source)
+- `POST /recurring/{id}/accept` - Accept pending pattern
+- `POST /recurring/{id}/pause` - Pause pattern
+- `POST /recurring/{id}/resume` - Resume paused pattern
+- `POST /recurring/{id}/cancel` - Cancel pattern
+- `GET /budgets` - List budgets by tag
+- `GET /goals` - List savings goals
+- `GET /analytics/datasets` - List available analytics datasets

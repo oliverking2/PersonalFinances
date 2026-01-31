@@ -1,6 +1,6 @@
 // =============================================================================
-// Subscription Types
-// TypeScript interfaces for recurring patterns/subscriptions and API contracts
+// Recurring Patterns Types
+// TypeScript interfaces for recurring patterns and API contracts
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -13,62 +13,81 @@ export type RecurringFrequency =
   | 'monthly'
   | 'quarterly'
   | 'annual'
-  | 'irregular'
 
-export type RecurringStatus =
-  | 'detected'
-  | 'confirmed'
-  | 'dismissed'
-  | 'paused'
-  | 'manual'
+export type RecurringStatus = 'pending' | 'active' | 'paused' | 'cancelled'
+
+export type RecurringSource = 'detected' | 'manual'
 
 export type RecurringDirection = 'expense' | 'income'
 
 // -----------------------------------------------------------------------------
-// Subscription (Recurring Pattern)
+// Recurring Pattern
 // Represents a detected or user-confirmed recurring payment
 // -----------------------------------------------------------------------------
 
-export interface Subscription {
+export interface RecurringPattern {
   id: string
-  merchant_pattern: string // Normalised merchant name
-  display_name: string // User-friendly name
-  expected_amount: number // Expected transaction amount (negative for expense, positive for income)
+  name: string // User-friendly name
+  notes: string | null
+  expected_amount: number // Expected transaction amount (always positive)
   currency: string
   frequency: RecurringFrequency
   direction: RecurringDirection // expense or income
   status: RecurringStatus
-  confidence_score: number // Detection confidence (0.0-1.0)
-  occurrence_count: number // Number of matched transactions
+  source: RecurringSource // detected or manual
   account_id: string | null
-  notes: string | null
-  last_occurrence_date: string | null // ISO datetime
+
+  // Matching rules
+  merchant_contains: string | null // Case-insensitive partial match
+  amount_tolerance_pct: number // Default 10.0
+
+  // Timing
+  anchor_date: string | null // ISO datetime
   next_expected_date: string | null // ISO datetime
+  last_matched_date: string | null // ISO datetime
+  end_date: string | null // ISO datetime
+
+  // Statistics
+  match_count: number // Number of linked transactions
+  confidence_score: number | null // Detection confidence (0.0-1.0)
+  occurrence_count: number | null // Number of occurrences at detection
+
+  // Detection metadata
+  detection_reason: string | null
+
+  // Computed fields from API
   monthly_equivalent: number // Amount converted to monthly
+
   created_at: string
   updated_at: string
 }
+
+// Legacy alias for backward compatibility during migration
+export type Subscription = RecurringPattern
 
 // -----------------------------------------------------------------------------
 // API Response Types
 // -----------------------------------------------------------------------------
 
-export interface SubscriptionListResponse {
-  subscriptions: Subscription[]
+export interface RecurringPatternListResponse {
+  patterns: RecurringPattern[]
   total: number
   monthly_total: number
 }
 
+// Legacy alias
+export type SubscriptionListResponse = RecurringPatternListResponse
+
 export interface UpcomingBill {
   id: string
-  display_name: string
-  merchant_pattern: string
+  name: string
+  merchant_contains: string | null
   expected_amount: number
   currency: string
   next_expected_date: string // ISO datetime
   frequency: RecurringFrequency
   direction: RecurringDirection
-  confidence_score: number
+  confidence_score: number | null
   status: RecurringStatus
   days_until: number
 }
@@ -82,67 +101,98 @@ export interface UpcomingBillsResponse {
   }
 }
 
-export interface SubscriptionSummary {
+export interface RecurringSummary {
   monthly_total: number // Net (income - expenses)
   monthly_expenses: number // Total recurring expenses
   monthly_income: number // Total recurring income
   total_count: number
   expense_count: number
   income_count: number
-  confirmed_count: number
-  detected_count: number
+  active_count: number
+  pending_count: number
   paused_count: number
 }
+
+// Legacy alias
+export type SubscriptionSummary = RecurringSummary
 
 // -----------------------------------------------------------------------------
 // API Request Types
 // -----------------------------------------------------------------------------
 
-export interface SubscriptionCreateRequest {
-  merchant_pattern: string
+export interface RecurringPatternCreateRequest {
+  name: string
   expected_amount: number
   frequency: RecurringFrequency
+  direction: RecurringDirection
   currency?: string
   account_id?: string
-  display_name?: string
   notes?: string
+  merchant_contains?: string
+  amount_tolerance_pct?: number
   anchor_date?: string // ISO date (YYYY-MM-DD)
 }
 
-export interface SubscriptionUpdateRequest {
-  status?: RecurringStatus
-  display_name?: string
+// Legacy alias
+export type SubscriptionCreateRequest = RecurringPatternCreateRequest
+
+export interface RecurringPatternUpdateRequest {
+  name?: string
   notes?: string
   expected_amount?: number
   frequency?: RecurringFrequency
+  merchant_contains?: string
+  amount_tolerance_pct?: number
+  next_expected_date?: string
+}
+
+// Legacy alias
+export type SubscriptionUpdateRequest = RecurringPatternUpdateRequest
+
+export interface CreateFromTransactionsRequest {
+  transaction_ids: string[]
+  name?: string
+  expected_amount?: number
+  frequency?: RecurringFrequency
+  merchant_contains?: string
 }
 
 // -----------------------------------------------------------------------------
 // Query Parameters
 // -----------------------------------------------------------------------------
 
-// Subscription transaction (simplified view of linked transactions)
-export interface SubscriptionTransaction {
+export interface RecurringPatternQueryParams {
+  status?: RecurringStatus
+  frequency?: RecurringFrequency
+  direction?: RecurringDirection
+  min_confidence?: number
+}
+
+// Legacy alias
+export type SubscriptionQueryParams = RecurringPatternQueryParams
+
+// Linked transaction (simplified view)
+export interface PatternTransaction {
   id: string
   booking_date: string | null
   amount: number
   currency: string
   description: string | null
   merchant_name: string | null
+  matched_at: string
+  is_manual: boolean
 }
 
-export interface SubscriptionTransactionsResponse {
-  transactions: SubscriptionTransaction[]
+// Legacy alias
+export type SubscriptionTransaction = PatternTransaction
+
+export interface PatternTransactionsResponse {
+  transactions: PatternTransaction[]
   total: number
 }
 
-export interface SubscriptionQueryParams {
-  status?: RecurringStatus
-  frequency?: RecurringFrequency
-  direction?: RecurringDirection
-  min_confidence?: number
-  include_dismissed?: boolean
-}
+// Legacy alias
+export type SubscriptionTransactionsResponse = PatternTransactionsResponse
 
 // -----------------------------------------------------------------------------
 // Helper Functions
@@ -156,7 +206,6 @@ export function getFrequencyLabel(frequency: RecurringFrequency): string {
     monthly: 'Monthly',
     quarterly: 'Quarterly',
     annual: 'Annual',
-    irregular: 'Irregular',
   }
   return labels[frequency] || frequency
 }
@@ -164,11 +213,10 @@ export function getFrequencyLabel(frequency: RecurringFrequency): string {
 // Get display label for status
 export function getStatusLabel(status: RecurringStatus): string {
   const labels: Record<RecurringStatus, string> = {
-    detected: 'Detected',
-    confirmed: 'Confirmed',
-    dismissed: 'Dismissed',
+    pending: 'Pending',
+    active: 'Active',
     paused: 'Paused',
-    manual: 'Manual',
+    cancelled: 'Cancelled',
   }
   return labels[status] || status
 }
@@ -181,7 +229,6 @@ export function getFrequencyShortLabel(frequency: RecurringFrequency): string {
     monthly: 'Mthly',
     quarterly: 'Qtrly',
     annual: 'Yrly',
-    irregular: 'Irreg',
   }
   return labels[frequency] || frequency
 }
@@ -193,4 +240,13 @@ export function getDirectionLabel(direction: RecurringDirection): string {
     income: 'Income',
   }
   return labels[direction] || direction
+}
+
+// Get display label for source
+export function getSourceLabel(source: RecurringSource): string {
+  const labels: Record<RecurringSource, string> = {
+    detected: 'Detected',
+    manual: 'Manual',
+  }
+  return labels[source] || source
 }

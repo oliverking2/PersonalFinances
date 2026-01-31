@@ -7,22 +7,28 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
-from src.postgres.common.enums import RecurringFrequency, RecurringStatus
+from src.postgres.common.enums import (
+    RecurringDirection,
+    RecurringFrequency,
+    RecurringSource,
+    RecurringStatus,
+)
 from src.postgres.common.models import Account, Transaction
 from src.postgres.common.operations.recurring_patterns import (
     _calculate_next_expected_date,
+    accept_pattern,
     calculate_monthly_total,
-    confirm_pattern,
+    cancel_pattern,
     count_patterns_by_status,
     create_pattern,
     delete_pattern,
-    dismiss_pattern,
     get_pattern_by_id,
     get_pattern_transactions,
     get_patterns_by_user_id,
     get_upcoming_patterns,
     link_transaction_to_pattern,
     pause_pattern,
+    resume_pattern,
     sync_detected_pattern,
     update_pattern,
 )
@@ -39,58 +45,65 @@ class TestPatternCRUD:
         pattern = create_pattern(
             db_session,
             user_id=test_user.id,
-            merchant_pattern="netflix",
-            expected_amount=Decimal("-15.99"),
+            name="Netflix",
+            expected_amount=Decimal("15.99"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             anchor_date=anchor,
             account_id=test_account.id,
+            merchant_contains="netflix",
         )
         db_session.commit()
 
         assert pattern.id is not None
         assert pattern.user_id == test_user.id
-        assert pattern.merchant_pattern == "netflix"
-        assert pattern.expected_amount == Decimal("-15.99")
+        assert pattern.name == "Netflix"
+        assert pattern.merchant_contains == "netflix"
+        assert pattern.expected_amount == Decimal("15.99")
         assert pattern.frequency == RecurringFrequency.MONTHLY.value
-        assert pattern.status == RecurringStatus.DETECTED.value
+        assert pattern.status == RecurringStatus.ACTIVE.value  # Default for manual
+        assert pattern.source == RecurringSource.MANUAL.value
 
     def test_create_pattern_strips_whitespace(self, db_session: Session, test_user: User) -> None:
-        """Should strip whitespace from merchant pattern."""
+        """Should strip whitespace from name."""
         pattern = create_pattern(
             db_session,
             user_id=test_user.id,
-            merchant_pattern="  netflix  ",
-            expected_amount=Decimal("-15.99"),
+            name="  Netflix  ",
+            expected_amount=Decimal("15.99"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             anchor_date=datetime.now(UTC),
         )
         db_session.commit()
 
-        assert pattern.merchant_pattern == "netflix"
+        assert pattern.name == "Netflix"
 
     def test_create_pattern_truncates_long_name(self, db_session: Session, test_user: User) -> None:
-        """Should truncate merchant pattern to 256 characters."""
-        long_name = "x" * 300
+        """Should truncate name to 100 characters."""
+        long_name = "x" * 150
         pattern = create_pattern(
             db_session,
             user_id=test_user.id,
-            merchant_pattern=long_name,
-            expected_amount=Decimal("-10.00"),
+            name=long_name,
+            expected_amount=Decimal("10.00"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             anchor_date=datetime.now(UTC),
         )
         db_session.commit()
 
-        assert len(pattern.merchant_pattern) == 256
+        assert len(pattern.name) == 100
 
     def test_get_pattern_by_id(self, db_session: Session, test_user: User) -> None:
         """Should retrieve pattern by ID."""
         pattern = create_pattern(
             db_session,
             user_id=test_user.id,
-            merchant_pattern="test",
-            expected_amount=Decimal("-10.00"),
+            name="Test",
+            expected_amount=Decimal("10.00"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             anchor_date=datetime.now(UTC),
         )
         db_session.commit()
@@ -110,17 +123,19 @@ class TestPatternCRUD:
         create_pattern(
             db_session,
             test_user.id,
-            "netflix",
-            Decimal("-15.99"),
+            "Netflix",
+            Decimal("15.99"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
         )
         create_pattern(
             db_session,
             test_user.id,
-            "spotify",
-            Decimal("-9.99"),
+            "Spotify",
+            Decimal("9.99"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
         )
         db_session.commit()
@@ -128,35 +143,45 @@ class TestPatternCRUD:
         patterns = get_patterns_by_user_id(db_session, test_user.id)
         assert len(patterns) == 2
 
-    def test_get_patterns_excludes_dismissed(self, db_session: Session, test_user: User) -> None:
-        """Should exclude dismissed patterns by default."""
+    def test_get_patterns_filters_by_status(self, db_session: Session, test_user: User) -> None:
+        """Should filter patterns by status."""
         now = datetime.now(UTC)
         create_pattern(
             db_session,
             test_user.id,
-            "dismissed",
-            Decimal("-10.00"),
+            "Active",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.DISMISSED,
+            status=RecurringStatus.ACTIVE,
+        )
+        create_pattern(
+            db_session,
+            test_user.id,
+            "Pending",
+            Decimal("10.00"),
+            RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
+            now,
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
         )
         db_session.commit()
 
-        patterns = get_patterns_by_user_id(db_session, test_user.id)
-        assert len(patterns) == 0
-
-        # Include dismissed
-        patterns = get_patterns_by_user_id(db_session, test_user.id, include_dismissed=True)
+        patterns = get_patterns_by_user_id(db_session, test_user.id, status=RecurringStatus.ACTIVE)
         assert len(patterns) == 1
+        assert patterns[0].name == "Active"
 
     def test_delete_pattern(self, db_session: Session, test_user: User) -> None:
         """Should delete a pattern."""
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         db_session.commit()
@@ -176,50 +201,36 @@ class TestPatternCRUD:
 class TestPatternStatusOperations:
     """Tests for pattern status change operations."""
 
-    def test_confirm_pattern(self, db_session: Session, test_user: User) -> None:
-        """Should confirm a detected pattern."""
+    def test_accept_pattern(self, db_session: Session, test_user: User) -> None:
+        """Should accept a pending pattern."""
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
         )
         db_session.commit()
 
-        result = confirm_pattern(db_session, pattern.id)
+        result = accept_pattern(db_session, pattern.id)
         db_session.commit()
 
         assert result is not None
-        assert result.status == RecurringStatus.CONFIRMED.value
-
-    def test_dismiss_pattern(self, db_session: Session, test_user: User) -> None:
-        """Should dismiss a pattern."""
-        pattern = create_pattern(
-            db_session,
-            test_user.id,
-            "test",
-            Decimal("-10.00"),
-            RecurringFrequency.MONTHLY,
-            datetime.now(UTC),
-        )
-        db_session.commit()
-
-        result = dismiss_pattern(db_session, pattern.id)
-        db_session.commit()
-
-        assert result is not None
-        assert result.status == RecurringStatus.DISMISSED.value
+        assert result.status == RecurringStatus.ACTIVE.value
 
     def test_pause_pattern(self, db_session: Session, test_user: User) -> None:
         """Should pause a pattern."""
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         db_session.commit()
@@ -230,45 +241,87 @@ class TestPatternStatusOperations:
         assert result is not None
         assert result.status == RecurringStatus.PAUSED.value
 
-
-class TestPatternUpdate:
-    """Tests for pattern update operations."""
-
-    def test_update_display_name(self, db_session: Session, test_user: User) -> None:
-        """Should update display name."""
+    def test_resume_pattern(self, db_session: Session, test_user: User) -> None:
+        """Should resume a paused pattern."""
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
+            datetime.now(UTC),
+        )
+        pause_pattern(db_session, pattern.id)
+        db_session.commit()
+
+        result = resume_pattern(db_session, pattern.id)
+        db_session.commit()
+
+        assert result is not None
+        assert result.status == RecurringStatus.ACTIVE.value
+
+    def test_cancel_pattern(self, db_session: Session, test_user: User) -> None:
+        """Should cancel a pattern."""
+        pattern = create_pattern(
+            db_session,
+            test_user.id,
+            "Test",
+            Decimal("10.00"),
+            RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         db_session.commit()
 
-        result = update_pattern(db_session, pattern.id, display_name="Netflix Premium")
+        result = cancel_pattern(db_session, pattern.id)
         db_session.commit()
 
         assert result is not None
-        assert result.display_name == "Netflix Premium"
+        assert result.status == RecurringStatus.CANCELLED.value
+        assert result.end_date is not None
+
+
+class TestPatternUpdate:
+    """Tests for pattern update operations."""
+
+    def test_update_name(self, db_session: Session, test_user: User) -> None:
+        """Should update display name."""
+        pattern = create_pattern(
+            db_session,
+            test_user.id,
+            "Test",
+            Decimal("10.00"),
+            RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
+            datetime.now(UTC),
+        )
+        db_session.commit()
+
+        result = update_pattern(db_session, pattern.id, name="Netflix Premium")
+        db_session.commit()
+
+        assert result is not None
+        assert result.name == "Netflix Premium"
 
     def test_update_expected_amount(self, db_session: Session, test_user: User) -> None:
         """Should update expected amount."""
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         db_session.commit()
 
-        result = update_pattern(db_session, pattern.id, expected_amount=Decimal("-15.99"))
+        result = update_pattern(db_session, pattern.id, expected_amount=Decimal("15.99"))
         db_session.commit()
 
         assert result is not None
-        assert result.expected_amount == Decimal("-15.99")
+        assert result.expected_amount == Decimal("15.99")
 
     def test_update_frequency_recalculates_next_date(
         self, db_session: Session, test_user: User
@@ -278,9 +331,10 @@ class TestPatternUpdate:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
         )
         db_session.commit()
@@ -334,21 +388,23 @@ class TestMonthlyTotal:
         create_pattern(
             db_session,
             test_user.id,
-            "netflix",
-            Decimal("-15.99"),
+            "Netflix",
+            Decimal("15.99"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.CONFIRMED,
+            status=RecurringStatus.ACTIVE,
         )
         # Weekly subscription (should be multiplied by 4.33)
         create_pattern(
             db_session,
             test_user.id,
-            "weekly",
-            Decimal("-10.00"),
+            "Weekly",
+            Decimal("10.00"),
             RecurringFrequency.WEEKLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.CONFIRMED,
+            status=RecurringStatus.ACTIVE,
         )
         db_session.commit()
 
@@ -363,9 +419,10 @@ class TestMonthlyTotal:
         create_pattern(
             db_session,
             test_user.id,
-            "paused",
-            Decimal("-100.00"),
+            "Paused",
+            Decimal("100.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
             status=RecurringStatus.PAUSED,
         )
@@ -384,11 +441,12 @@ class TestUpcomingPatterns:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "soon",
-            Decimal("-10.00"),
+            "Soon",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC) - timedelta(days=27),  # Anchor 27 days ago -> next in ~3 days
-            status=RecurringStatus.CONFIRMED,
+            status=RecurringStatus.ACTIVE,
         )
         db_session.commit()
 
@@ -404,9 +462,10 @@ class TestUpcomingPatterns:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "paused",
-            Decimal("-10.00"),
+            "Paused",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
             status=RecurringStatus.PAUSED,
         )
@@ -427,9 +486,10 @@ class TestPatternTransactionLinking:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
             account_id=test_account.id,
         )
@@ -458,9 +518,10 @@ class TestPatternTransactionLinking:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         txn = Transaction(
@@ -486,9 +547,10 @@ class TestPatternTransactionLinking:
         pattern = create_pattern(
             db_session,
             test_user.id,
-            "test",
-            Decimal("-10.00"),
+            "Test",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             datetime.now(UTC),
         )
         for i in range(3):
@@ -521,36 +583,41 @@ class TestSyncDetectedPattern:
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£15",
-            expected_amount=Decimal("-15.99"),
+            name="Netflix",
+            expected_amount=Decimal("15.99"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             confidence_score=Decimal("0.85"),
             occurrence_count=5,
             last_occurrence_date=now,
             next_expected_date=now + timedelta(days=30),
+            merchant_contains="netflix",
         )
         db_session.commit()
 
         assert created is True
-        assert pattern.merchant_pattern == "netflix_£15"
-        assert pattern.status == RecurringStatus.DETECTED.value
+        assert pattern.name == "Netflix"
+        assert pattern.status == RecurringStatus.PENDING.value
+        assert pattern.source == RecurringSource.DETECTED.value
 
-    def test_updates_existing_detected_pattern(
+    def test_updates_existing_pending_pattern(
         self, db_session: Session, test_user: User, test_account: Account
     ) -> None:
-        """Should update existing detected pattern."""
+        """Should update existing pending pattern."""
         now = datetime.now(UTC)
         pattern, _ = sync_detected_pattern(
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£15",
-            expected_amount=Decimal("-15.99"),
+            name="Netflix",
+            expected_amount=Decimal("15.99"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             confidence_score=Decimal("0.85"),
             occurrence_count=5,
             last_occurrence_date=now,
             next_expected_date=now + timedelta(days=30),
+            merchant_contains="netflix",
         )
         db_session.commit()
 
@@ -559,39 +626,43 @@ class TestSyncDetectedPattern:
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£15",
-            expected_amount=Decimal("-17.99"),  # Price increased
+            name="Netflix",
+            expected_amount=Decimal("17.99"),  # Price increased
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             confidence_score=Decimal("0.90"),
             occurrence_count=6,
             last_occurrence_date=now,
             next_expected_date=now + timedelta(days=30),
+            merchant_contains="netflix",
         )
         db_session.commit()
 
         assert created is False
         assert updated_pattern.id == pattern.id
-        assert updated_pattern.expected_amount == Decimal("-17.99")
+        assert updated_pattern.expected_amount == Decimal("17.99")
 
-    def test_does_not_update_confirmed_pattern(
+    def test_does_not_overwrite_active_pattern_status(
         self, db_session: Session, test_user: User, test_account: Account
     ) -> None:
-        """Should not update pattern if user confirmed it."""
+        """Should not change status if user has accepted the pattern."""
         now = datetime.now(UTC)
         pattern, _ = sync_detected_pattern(
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£15",
-            expected_amount=Decimal("-15.99"),
+            name="Netflix",
+            expected_amount=Decimal("15.99"),
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             confidence_score=Decimal("0.85"),
             occurrence_count=5,
             last_occurrence_date=now,
             next_expected_date=now + timedelta(days=30),
+            merchant_contains="netflix",
         )
-        # User confirms
-        confirm_pattern(db_session, pattern.id)
+        # User accepts
+        accept_pattern(db_session, pattern.id)
         db_session.commit()
 
         # Try to sync with different amount
@@ -599,20 +670,22 @@ class TestSyncDetectedPattern:
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£20",  # Amount bucket changed
-            expected_amount=Decimal("-20.00"),
+            name="Netflix",
+            expected_amount=Decimal("20.00"),  # Amount changed
             frequency=RecurringFrequency.MONTHLY,
+            direction=RecurringDirection.EXPENSE,
             confidence_score=Decimal("0.90"),
             occurrence_count=6,
             last_occurrence_date=now,
             next_expected_date=now + timedelta(days=30),
+            merchant_contains="netflix",
         )
         db_session.commit()
 
         # Should update amount for accurate forecasting, but keep status
         assert created is False
-        assert same_pattern.expected_amount == Decimal("-20.00")
-        assert same_pattern.status == RecurringStatus.CONFIRMED.value
+        assert same_pattern.expected_amount == Decimal("20.00")
+        assert same_pattern.status == RecurringStatus.ACTIVE.value
 
 
 class TestCountPatternsByStatus:
@@ -624,33 +697,38 @@ class TestCountPatternsByStatus:
         create_pattern(
             db_session,
             test_user.id,
-            "detected1",
-            Decimal("-10.00"),
+            "Pending1",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.DETECTED,
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
         )
         create_pattern(
             db_session,
             test_user.id,
-            "detected2",
-            Decimal("-10.00"),
+            "Pending2",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.DETECTED,
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
         )
         create_pattern(
             db_session,
             test_user.id,
-            "confirmed",
-            Decimal("-10.00"),
+            "Active",
+            Decimal("10.00"),
             RecurringFrequency.MONTHLY,
+            RecurringDirection.EXPENSE,
             now,
-            status=RecurringStatus.CONFIRMED,
+            status=RecurringStatus.ACTIVE,
         )
         db_session.commit()
 
         counts = count_patterns_by_status(db_session, test_user.id)
 
-        assert counts[RecurringStatus.DETECTED] == 2
-        assert counts[RecurringStatus.CONFIRMED] == 1
+        assert counts[RecurringStatus.PENDING] == 2
+        assert counts[RecurringStatus.ACTIVE] == 1

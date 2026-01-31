@@ -8,24 +8,29 @@ WITH PATTERNS AS (
         PAT.ID                 AS PATTERN_ID,
         PAT.USER_ID,
         PAT.ACCOUNT_ID,
-        PAT.MERCHANT_PATTERN,
+        PAT.NAME,
+        PAT.NOTES,
         PAT.EXPECTED_AMOUNT,
-        PAT.AMOUNT_VARIANCE,
         PAT.CURRENCY,
         PAT.FREQUENCY,
         PAT.DIRECTION,
         PAT.STATUS,
+        PAT.SOURCE,
+        PAT.MERCHANT_CONTAINS,
+        PAT.AMOUNT_TOLERANCE_PCT,
         PAT.CONFIDENCE_SCORE,
         PAT.OCCURRENCE_COUNT,
-        PAT.DISPLAY_NAME,
-        PAT.NOTES,
-        PAT.LAST_OCCURRENCE_DATE,
+        PAT.MATCH_COUNT,
+        PAT.ANCHOR_DATE,
+        PAT.LAST_MATCHED_DATE,
+        PAT.END_DATE,
         PAT.NEXT_EXPECTED_DATE AS USER_NEXT_DATE,
+        PAT.DETECTION_REASON,
         PAT.CREATED_AT,
         PAT.UPDATED_AT
     FROM {{ ref('src_unified_recurring_patterns') }} AS PAT
-    -- Exclude dismissed patterns from the mart
-    WHERE PAT.STATUS NOT IN ('dismissed')
+    -- Exclude cancelled patterns from the mart (user explicitly ended these)
+    WHERE PAT.STATUS != 'cancelled'
 ),
 
 -- Calculate next expected dates if not set by user
@@ -37,19 +42,19 @@ WITH_NEXT_DATE AS (
             WHEN PAT.USER_NEXT_DATE IS NOT NULL THEN PAT.USER_NEXT_DATE
             WHEN PAT.FREQUENCY = 'weekly'
                 THEN
-                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '7 days'
+                    PAT.LAST_MATCHED_DATE + INTERVAL '7 days'
             WHEN PAT.FREQUENCY = 'fortnightly'
                 THEN
-                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '14 days'
+                    PAT.LAST_MATCHED_DATE + INTERVAL '14 days'
             WHEN PAT.FREQUENCY = 'monthly'
                 THEN
-                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '1 month'
+                    PAT.LAST_MATCHED_DATE + INTERVAL '1 month'
             WHEN PAT.FREQUENCY = 'quarterly'
                 THEN
-                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '3 months'
+                    PAT.LAST_MATCHED_DATE + INTERVAL '3 months'
             WHEN PAT.FREQUENCY = 'annual'
                 THEN
-                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '1 year'
+                    PAT.LAST_MATCHED_DATE + INTERVAL '1 year'
         END AS NEXT_EXPECTED_DATE
     FROM PATTERNS AS PAT
 )
@@ -58,21 +63,24 @@ SELECT
     PATTERN_ID,
     USER_ID,
     ACCOUNT_ID,
-    MERCHANT_PATTERN,
-    DISPLAY_NAME,
+    NAME,
+    NOTES,
     EXPECTED_AMOUNT,
-    AMOUNT_VARIANCE,
     CURRENCY,
     FREQUENCY,
     DIRECTION,
     STATUS,
+    SOURCE,
+    MERCHANT_CONTAINS,
+    AMOUNT_TOLERANCE_PCT,
     CONFIDENCE_SCORE,
     OCCURRENCE_COUNT,
-    NOTES,
-    CAST(LAST_OCCURRENCE_DATE AS DATE)                                                   AS LAST_OCCURRENCE_DATE,
-    CAST(NEXT_EXPECTED_DATE AS DATE)                                                     AS NEXT_EXPECTED_DATE,
-    -- All patterns in this table are managed (synced from detection or user-created)
-    TRUE                                                                                 AS IS_USER_MANAGED,
+    MATCH_COUNT,
+    DETECTION_REASON,
+    CAST(ANCHOR_DATE AS DATE)                                        AS ANCHOR_DATE,
+    CAST(LAST_MATCHED_DATE AS DATE)                                  AS LAST_MATCHED_DATE,
+    CAST(END_DATE AS DATE)                                           AS END_DATE,
+    CAST(NEXT_EXPECTED_DATE AS DATE)                                 AS NEXT_EXPECTED_DATE,
     CREATED_AT,
     UPDATED_AT,
     -- Calculate monthly equivalent amount for comparison
@@ -84,9 +92,14 @@ SELECT
         WHEN 'quarterly' THEN ABS(EXPECTED_AMOUNT) / 3
         WHEN 'annual' THEN ABS(EXPECTED_AMOUNT) / 12
         ELSE ABS(EXPECTED_AMOUNT)
-    END                                                                                  AS MONTHLY_EQUIVALENT,
+    END                                                              AS MONTHLY_EQUIVALENT,
     -- Is the pattern overdue? (past expected date + 7-day grace period)
-    COALESCE(CAST(NEXT_EXPECTED_DATE AS DATE) < CURRENT_DATE - INTERVAL '7 days', FALSE) AS IS_OVERDUE,
+    -- Only active patterns can be overdue
+    COALESCE(
+        STATUS = 'active'
+        AND CAST(NEXT_EXPECTED_DATE AS DATE) < CURRENT_DATE - INTERVAL '7 days',
+        FALSE
+    )                                                                AS IS_OVERDUE,
     -- Days until next expected payment
-    DATE_DIFF('day', CURRENT_DATE, CAST(NEXT_EXPECTED_DATE AS DATE))                     AS DAYS_UNTIL_NEXT
+    DATE_DIFF('day', CURRENT_DATE, CAST(NEXT_EXPECTED_DATE AS DATE)) AS DAYS_UNTIL_NEXT
 FROM WITH_NEXT_DATE

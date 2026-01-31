@@ -1,4 +1,4 @@
-"""Tests for subscription API endpoints."""
+"""Tests for recurring patterns API endpoints."""
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -7,31 +7,40 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
-from src.postgres.common.enums import RecurringFrequency, RecurringStatus
+from src.postgres.common.enums import (
+    RecurringDirection,
+    RecurringFrequency,
+    RecurringSource,
+    RecurringStatus,
+)
 from src.postgres.common.models import RecurringPattern
 
 
 def _create_pattern(
     session: Session,
     user: User,
-    merchant: str = "netflix_£15",
-    amount: Decimal = Decimal("-15.99"),
+    name: str = "Netflix",
+    amount: Decimal = Decimal("15.99"),
     frequency: RecurringFrequency = RecurringFrequency.MONTHLY,
-    status: RecurringStatus = RecurringStatus.DETECTED,
+    status: RecurringStatus = RecurringStatus.ACTIVE,
+    source: RecurringSource = RecurringSource.MANUAL,
+    direction: RecurringDirection = RecurringDirection.EXPENSE,
 ) -> RecurringPattern:
     """Create a pattern for testing."""
     now = datetime.now(UTC)
     pattern = RecurringPattern(
         user_id=user.id,
-        merchant_pattern=merchant,
+        name=name,
         expected_amount=amount,
         currency="GBP",
         frequency=frequency.value,
+        direction=direction.value,
         status=status.value,
-        confidence_score=Decimal("0.85"),
-        occurrence_count=5,
+        source=source.value,
+        amount_tolerance_pct=Decimal("10.0"),
+        match_count=0,
         anchor_date=now,
-        last_occurrence_date=now - timedelta(days=15),
+        last_matched_date=now - timedelta(days=15),
         next_expected_date=now + timedelta(days=15),
     )
     session.add(pattern)
@@ -39,8 +48,8 @@ def _create_pattern(
     return pattern
 
 
-class TestListSubscriptions:
-    """Tests for GET /api/subscriptions endpoint."""
+class TestListPatterns:
+    """Tests for GET /api/recurring/patterns endpoint."""
 
     def test_returns_empty_list_when_no_patterns(
         self,
@@ -50,11 +59,11 @@ class TestListSubscriptions:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return empty list when user has no patterns."""
-        response = client.get("/api/subscriptions", headers=api_auth_headers)
+        response = client.get("/api/recurring/patterns", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
-        assert data["subscriptions"] == []
+        assert data["patterns"] == []
         assert data["total"] == 0
         assert float(data["monthly_total"]) == 0
 
@@ -66,50 +75,14 @@ class TestListSubscriptions:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return all patterns for the user."""
-        _create_pattern(api_db_session, test_user_in_db, "netflix_£15")
-        _create_pattern(api_db_session, test_user_in_db, "spotify_£10")
+        _create_pattern(api_db_session, test_user_in_db, "Netflix")
+        _create_pattern(api_db_session, test_user_in_db, "Spotify")
 
-        response = client.get("/api/subscriptions", headers=api_auth_headers)
+        response = client.get("/api/recurring/patterns", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
-
-    def test_excludes_dismissed_by_default(
-        self,
-        client: TestClient,
-        api_db_session: Session,
-        test_user_in_db: User,
-        api_auth_headers: dict[str, str],
-    ) -> None:
-        """Should exclude dismissed patterns by default."""
-        _create_pattern(
-            api_db_session, test_user_in_db, "dismissed", status=RecurringStatus.DISMISSED
-        )
-
-        response = client.get("/api/subscriptions", headers=api_auth_headers)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 0
-
-    def test_includes_dismissed_when_requested(
-        self,
-        client: TestClient,
-        api_db_session: Session,
-        test_user_in_db: User,
-        api_auth_headers: dict[str, str],
-    ) -> None:
-        """Should include dismissed when include_dismissed=true."""
-        _create_pattern(
-            api_db_session, test_user_in_db, "dismissed", status=RecurringStatus.DISMISSED
-        )
-
-        response = client.get("/api/subscriptions?include_dismissed=true", headers=api_auth_headers)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 1
 
     def test_filters_by_status(
         self,
@@ -119,45 +92,47 @@ class TestListSubscriptions:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should filter by status."""
+        _create_pattern(api_db_session, test_user_in_db, "Active", status=RecurringStatus.ACTIVE)
         _create_pattern(
-            api_db_session, test_user_in_db, "detected", status=RecurringStatus.DETECTED
-        )
-        _create_pattern(
-            api_db_session, test_user_in_db, "confirmed", status=RecurringStatus.CONFIRMED
+            api_db_session,
+            test_user_in_db,
+            "Pending",
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
         )
 
-        response = client.get("/api/subscriptions?status=confirmed", headers=api_auth_headers)
+        response = client.get("/api/recurring/patterns?status=active", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["subscriptions"][0]["status"] == "confirmed"
+        assert data["patterns"][0]["status"] == "active"
 
     def test_requires_authentication(self, client: TestClient) -> None:
         """Should require authentication."""
-        response = client.get("/api/subscriptions")
+        response = client.get("/api/recurring/patterns")
         assert response.status_code == 401
 
 
-class TestGetSubscription:
-    """Tests for GET /api/subscriptions/{id} endpoint."""
+class TestGetPattern:
+    """Tests for GET /api/recurring/patterns/{id} endpoint."""
 
-    def test_returns_subscription(
+    def test_returns_pattern(
         self,
         client: TestClient,
         api_db_session: Session,
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should return subscription by ID."""
+        """Should return pattern by ID."""
         pattern = _create_pattern(api_db_session, test_user_in_db)
 
-        response = client.get(f"/api/subscriptions/{pattern.id}", headers=api_auth_headers)
+        response = client.get(f"/api/recurring/patterns/{pattern.id}", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(pattern.id)
-        assert data["merchant_pattern"] == "netflix_£15"
+        assert data["name"] == "Netflix"
 
     def test_returns_404_for_not_found(
         self,
@@ -166,33 +141,40 @@ class TestGetSubscription:
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should return 404 for non-existent subscription."""
+        """Should return 404 for non-existent pattern."""
         response = client.get(
-            "/api/subscriptions/00000000-0000-0000-0000-000000000000",
+            "/api/recurring/patterns/00000000-0000-0000-0000-000000000000",
             headers=api_auth_headers,
         )
 
         assert response.status_code == 404
 
 
-class TestConfirmSubscription:
-    """Tests for PUT /api/subscriptions/{id}/confirm endpoint."""
+class TestAcceptPattern:
+    """Tests for POST /api/recurring/patterns/{id}/accept endpoint."""
 
-    def test_confirms_subscription(
+    def test_accepts_pending_pattern(
         self,
         client: TestClient,
         api_db_session: Session,
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should confirm a detected subscription."""
-        pattern = _create_pattern(api_db_session, test_user_in_db)
+        """Should accept a pending pattern."""
+        pattern = _create_pattern(
+            api_db_session,
+            test_user_in_db,
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
+        )
 
-        response = client.put(f"/api/subscriptions/{pattern.id}/confirm", headers=api_auth_headers)
+        response = client.post(
+            f"/api/recurring/patterns/{pattern.id}/accept", headers=api_auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "confirmed"
+        assert data["status"] == "active"
 
     def test_returns_404_for_not_found(
         self,
@@ -201,61 +183,104 @@ class TestConfirmSubscription:
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should return 404 for non-existent subscription."""
-        response = client.put(
-            "/api/subscriptions/00000000-0000-0000-0000-000000000000/confirm",
+        """Should return 404 for non-existent pattern."""
+        response = client.post(
+            "/api/recurring/patterns/00000000-0000-0000-0000-000000000000/accept",
             headers=api_auth_headers,
         )
 
         assert response.status_code == 404
 
 
-class TestDismissSubscription:
-    """Tests for DELETE /api/subscriptions/{id} endpoint."""
+class TestDeletePattern:
+    """Tests for DELETE /api/recurring/patterns/{id} endpoint."""
 
-    def test_dismisses_subscription(
+    def test_deletes_pattern(
         self,
         client: TestClient,
         api_db_session: Session,
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should dismiss a subscription."""
+        """Should delete a pattern."""
         pattern = _create_pattern(api_db_session, test_user_in_db)
 
-        response = client.delete(f"/api/subscriptions/{pattern.id}", headers=api_auth_headers)
+        response = client.delete(f"/api/recurring/patterns/{pattern.id}", headers=api_auth_headers)
 
         assert response.status_code == 204
 
-        # Verify it's dismissed
-        api_db_session.refresh(pattern)
-        assert pattern.status == RecurringStatus.DISMISSED.value
 
+class TestPausePattern:
+    """Tests for POST /api/recurring/patterns/{id}/pause endpoint."""
 
-class TestPauseSubscription:
-    """Tests for PUT /api/subscriptions/{id}/pause endpoint."""
-
-    def test_pauses_subscription(
+    def test_pauses_pattern(
         self,
         client: TestClient,
         api_db_session: Session,
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should pause a subscription."""
-        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.CONFIRMED)
+        """Should pause a pattern."""
+        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.ACTIVE)
 
-        response = client.put(f"/api/subscriptions/{pattern.id}/pause", headers=api_auth_headers)
+        response = client.post(
+            f"/api/recurring/patterns/{pattern.id}/pause", headers=api_auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "paused"
 
 
-class TestUpdateSubscription:
-    """Tests for PUT /api/subscriptions/{id} endpoint."""
+class TestResumePattern:
+    """Tests for POST /api/recurring/patterns/{id}/resume endpoint."""
 
-    def test_updates_display_name(
+    def test_resumes_paused_pattern(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should resume a paused pattern."""
+        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.PAUSED)
+
+        response = client.post(
+            f"/api/recurring/patterns/{pattern.id}/resume", headers=api_auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "active"
+
+
+class TestCancelPattern:
+    """Tests for POST /api/recurring/patterns/{id}/cancel endpoint."""
+
+    def test_cancels_pattern(
+        self,
+        client: TestClient,
+        api_db_session: Session,
+        test_user_in_db: User,
+        api_auth_headers: dict[str, str],
+    ) -> None:
+        """Should cancel a pattern."""
+        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.ACTIVE)
+
+        response = client.post(
+            f"/api/recurring/patterns/{pattern.id}/cancel", headers=api_auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "cancelled"
+        assert data["end_date"] is not None
+
+
+class TestUpdatePattern:
+    """Tests for PUT /api/recurring/patterns/{id} endpoint."""
+
+    def test_updates_name(
         self,
         client: TestClient,
         api_db_session: Session,
@@ -266,14 +291,14 @@ class TestUpdateSubscription:
         pattern = _create_pattern(api_db_session, test_user_in_db)
 
         response = client.put(
-            f"/api/subscriptions/{pattern.id}",
+            f"/api/recurring/patterns/{pattern.id}",
             headers=api_auth_headers,
-            json={"display_name": "Netflix Premium"},
+            json={"name": "Netflix Premium"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["display_name"] == "Netflix Premium"
+        assert data["name"] == "Netflix Premium"
 
     def test_updates_notes(
         self,
@@ -286,7 +311,7 @@ class TestUpdateSubscription:
         pattern = _create_pattern(api_db_session, test_user_in_db)
 
         response = client.put(
-            f"/api/subscriptions/{pattern.id}",
+            f"/api/recurring/patterns/{pattern.id}",
             headers=api_auth_headers,
             json={"notes": "Family plan"},
         )
@@ -296,37 +321,37 @@ class TestUpdateSubscription:
         assert data["notes"] == "Family plan"
 
 
-class TestCreateSubscription:
-    """Tests for POST /api/subscriptions endpoint."""
+class TestCreatePattern:
+    """Tests for POST /api/recurring/patterns endpoint."""
 
-    def test_creates_manual_subscription(
+    def test_creates_manual_pattern(
         self,
         client: TestClient,
         api_db_session: Session,
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should create a manual subscription."""
+        """Should create a manual pattern."""
         response = client.post(
-            "/api/subscriptions",
+            "/api/recurring/patterns",
             headers=api_auth_headers,
             json={
-                "merchant_pattern": "gym membership",
-                "expected_amount": -29.99,
+                "name": "Gym Membership",
+                "expected_amount": 29.99,
                 "frequency": "monthly",
-                "display_name": "Gym",
+                "direction": "expense",
             },
         )
 
         assert response.status_code == 201
         data = response.json()
-        assert data["merchant_pattern"] == "gym membership"
-        assert data["status"] == "manual"
-        assert data["display_name"] == "Gym"
+        assert data["name"] == "Gym Membership"
+        assert data["status"] == "active"
+        assert data["source"] == "manual"
 
 
 class TestGetUpcomingBills:
-    """Tests for GET /api/subscriptions/upcoming endpoint."""
+    """Tests for GET /api/recurring/upcoming endpoint."""
 
     def test_returns_upcoming_bills(
         self,
@@ -336,12 +361,12 @@ class TestGetUpcomingBills:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return upcoming bills within date range."""
-        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.CONFIRMED)
+        pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.ACTIVE)
         # Set next date to 3 days from now
         pattern.next_expected_date = datetime.now(UTC) + timedelta(days=3)
         api_db_session.commit()
 
-        response = client.get("/api/subscriptions/upcoming?days=7", headers=api_auth_headers)
+        response = client.get("/api/recurring/upcoming?days=7", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -356,20 +381,20 @@ class TestGetUpcomingBills:
         test_user_in_db: User,
         api_auth_headers: dict[str, str],
     ) -> None:
-        """Should exclude paused subscriptions from upcoming."""
+        """Should exclude paused patterns from upcoming."""
         pattern = _create_pattern(api_db_session, test_user_in_db, status=RecurringStatus.PAUSED)
         pattern.next_expected_date = datetime.now(UTC) + timedelta(days=3)
         api_db_session.commit()
 
-        response = client.get("/api/subscriptions/upcoming?days=7", headers=api_auth_headers)
+        response = client.get("/api/recurring/upcoming?days=7", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert len(data["upcoming"]) == 0
 
 
-class TestGetSubscriptionSummary:
-    """Tests for GET /api/subscriptions/summary endpoint."""
+class TestGetSummary:
+    """Tests for GET /api/recurring/summary endpoint."""
 
     def test_returns_summary_statistics(
         self,
@@ -379,17 +404,23 @@ class TestGetSubscriptionSummary:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should return summary statistics."""
-        _create_pattern(api_db_session, test_user_in_db, "a", status=RecurringStatus.DETECTED)
-        _create_pattern(api_db_session, test_user_in_db, "b", status=RecurringStatus.CONFIRMED)
-        _create_pattern(api_db_session, test_user_in_db, "c", status=RecurringStatus.CONFIRMED)
+        _create_pattern(
+            api_db_session,
+            test_user_in_db,
+            "a",
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
+        )
+        _create_pattern(api_db_session, test_user_in_db, "b", status=RecurringStatus.ACTIVE)
+        _create_pattern(api_db_session, test_user_in_db, "c", status=RecurringStatus.ACTIVE)
 
-        response = client.get("/api/subscriptions/summary", headers=api_auth_headers)
+        response = client.get("/api/recurring/summary", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert data["total_count"] == 3
-        assert data["confirmed_count"] == 2
-        assert data["detected_count"] == 1
+        assert data["active_count"] == 2
+        assert data["pending_count"] == 1
         assert "monthly_total" in data
 
 
@@ -405,7 +436,7 @@ class TestMinConfidenceValidation:
     ) -> None:
         """Should reject invalid min_confidence value."""
         response = client.get(
-            "/api/subscriptions?min_confidence=2.0",  # > 1.0
+            "/api/recurring/patterns?min_confidence=2.0",  # > 1.0
             headers=api_auth_headers,
         )
 
@@ -419,16 +450,30 @@ class TestMinConfidenceValidation:
         api_auth_headers: dict[str, str],
     ) -> None:
         """Should filter by minimum confidence score."""
-        pattern1 = _create_pattern(api_db_session, test_user_in_db, "high")
+        pattern1 = _create_pattern(
+            api_db_session,
+            test_user_in_db,
+            "High",
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
+        )
         pattern1.confidence_score = Decimal("0.9")
 
-        pattern2 = _create_pattern(api_db_session, test_user_in_db, "low")
+        pattern2 = _create_pattern(
+            api_db_session,
+            test_user_in_db,
+            "Low",
+            status=RecurringStatus.PENDING,
+            source=RecurringSource.DETECTED,
+        )
         pattern2.confidence_score = Decimal("0.3")
         api_db_session.commit()
 
-        response = client.get("/api/subscriptions?min_confidence=0.5", headers=api_auth_headers)
+        response = client.get(
+            "/api/recurring/patterns?min_confidence=0.5", headers=api_auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["subscriptions"][0]["merchant_pattern"] == "high"
+        assert data["patterns"][0]["name"] == "High"

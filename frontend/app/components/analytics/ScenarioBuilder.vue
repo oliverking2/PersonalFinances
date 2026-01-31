@@ -4,7 +4,7 @@ What-if scenario calculator for forecasts - exclude patterns to see impact
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { Subscription } from '~/types/subscriptions'
+import type { RecurringPattern } from '~/types/recurring'
 import type {
   CashFlowForecastResponse,
   ScenarioRequest,
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 // API
 // ---------------------------------------------------------------------------
 
-const { fetchSubscriptions } = useSubscriptionsApi()
+const { fetchPatterns } = useRecurringApi()
 const { calculateScenario } = useAnalyticsApi()
 const toast = useToastStore()
 
@@ -35,8 +35,8 @@ const toast = useToastStore()
 // State
 // ---------------------------------------------------------------------------
 
-// Subscription data for pattern selection
-const patterns = ref<Subscription[]>([])
+// Pattern data for selection
+const patterns = ref<RecurringPattern[]>([])
 const loadingPatterns = ref(true)
 
 // Selected patterns to exclude
@@ -53,30 +53,33 @@ const expanded = ref(false)
 // Computed
 // ---------------------------------------------------------------------------
 
-// Only show active patterns (confirmed/detected, not dismissed/paused)
+// Only show active patterns (not paused or cancelled)
 const activePatterns = computed(() =>
   patterns.value.filter(
-    (p) =>
-      p.status === 'confirmed' ||
-      p.status === 'detected' ||
-      p.status === 'manual',
+    (p: RecurringPattern) => p.status === 'active' || p.status === 'pending',
   ),
 )
 
 // Separate expenses and income
 const expensePatterns = computed(() =>
-  activePatterns.value.filter((p) => p.direction === 'expense'),
+  activePatterns.value.filter(
+    (p: RecurringPattern) => p.direction === 'expense',
+  ),
 )
 
 const incomePatterns = computed(() =>
-  activePatterns.value.filter((p) => p.direction === 'income'),
+  activePatterns.value.filter(
+    (p: RecurringPattern) => p.direction === 'income',
+  ),
 )
 
 // Calculate total monthly impact of excluded patterns
 const excludedMonthlyImpact = computed(() => {
   let impact = 0
   for (const patternId of excludedPatterns.value) {
-    const pattern = patterns.value.find((p) => p.id === patternId)
+    const pattern = patterns.value.find(
+      (p: RecurringPattern) => p.id === patternId,
+    )
     if (pattern) {
       // Monthly equivalent is always positive, direction tells us the sign
       impact +=
@@ -117,9 +120,9 @@ const comparison = computed(() => {
 async function loadPatterns() {
   loadingPatterns.value = true
   try {
-    // Fetch all patterns including detected ones
-    const response = await fetchSubscriptions({ include_dismissed: false })
-    patterns.value = response.subscriptions
+    // Fetch active and pending patterns for scenario building
+    const response = await fetchPatterns()
+    patterns.value = response.patterns
   } catch {
     toast.error('Failed to load recurring patterns')
   } finally {
@@ -263,7 +266,7 @@ function formatCurrency(amount: number): string {
               />
               <!-- Pattern info -->
               <div class="flex-1">
-                <span class="font-medium">{{ pattern.display_name }}</span>
+                <span class="font-medium">{{ pattern.name }}</span>
                 <span class="ml-2 text-sm text-muted">
                   {{
                     formatCurrency(Math.abs(pattern.monthly_equivalent))
@@ -303,7 +306,7 @@ function formatCurrency(amount: number): string {
               />
               <!-- Pattern info -->
               <div class="flex-1">
-                <span class="font-medium">{{ pattern.display_name }}</span>
+                <span class="font-medium">{{ pattern.name }}</span>
                 <span class="text-emerald-400 ml-2 text-sm">
                   +{{
                     formatCurrency(Math.abs(pattern.monthly_equivalent))

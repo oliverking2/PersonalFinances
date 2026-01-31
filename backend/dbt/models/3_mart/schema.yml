@@ -256,12 +256,12 @@ models:
           - not_null
       - name: account_id
         description: Associated account (optional)
-      - name: merchant_pattern
-        description: Normalised merchant name/pattern
+      - name: name
+        description: User-friendly display name for the pattern
         data_tests:
           - not_null
-      - name: display_name
-        description: User-friendly display name
+      - name: notes
+        description: User notes about this pattern
       - name: expected_amount
         description: Expected transaction amount
         data_tests:
@@ -281,15 +281,39 @@ models:
           - accepted_values:
               values: ['expense', 'income']
       - name: status
-        description: Pattern status (detected, confirmed, dismissed, paused)
+        description: Pattern status (pending, active, paused, cancelled)
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'active', 'paused', 'cancelled']
+      - name: source
+        description: How the pattern was created (detected or manual)
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['detected', 'manual']
+      - name: merchant_contains
+        description: Text to match in merchant name (case-insensitive)
+      - name: amount_tolerance_pct
+        description: Allowed percentage deviation from expected amount
         data_tests:
           - not_null
       - name: confidence_score
-        description: Detection confidence (0.0-1.0)
+        description: Detection confidence (0.0-1.0), null for manual patterns
       - name: occurrence_count
-        description: Number of matched transactions
-      - name: last_occurrence_date
+        description: Number of occurrences found during detection
+      - name: match_count
+        description: Number of transactions linked to this pattern
+        data_tests:
+          - not_null
+      - name: detection_reason
+        description: Human-readable explanation of why pattern was detected
+      - name: anchor_date
+        description: Reference date for scheduling calculations
+      - name: last_matched_date
         description: Most recent matching transaction date
+      - name: end_date
+        description: When the pattern ended (for cancelled patterns)
       - name: next_expected_date
         description: Calculated next expected payment date
       - name: monthly_equivalent
@@ -298,6 +322,10 @@ models:
         description: Whether the pattern is past expected date + grace period
       - name: days_until_next
         description: Days until next expected payment
+      - name: created_at
+        description: When the pattern was created
+      - name: updated_at
+        description: When the pattern was last updated
 
   - name: fct_daily_balance_history
     description: |

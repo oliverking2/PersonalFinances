@@ -17,7 +17,7 @@ from src.api.middleware import RequestTimingMiddleware
 from src.api.milestones.endpoints import router as milestones_router
 from src.api.notifications.endpoints import router as notifications_router
 from src.api.planned_transactions.endpoints import router as planned_transactions_router
-from src.api.subscriptions.endpoints import router as subscriptions_router
+from src.api.recurring.endpoints import router as recurring_router
 from src.api.tag_rules.endpoints import router as tag_rules_router
 from src.api.tags.endpoints import router as tags_router
 from src.api.trading212.endpoints import router as trading212_router
@@ -97,7 +97,7 @@ def create_app() -> FastAPI:
         prefix="/api/planned-transactions",
         tags=["planned-transactions"],
     )
-    app.include_router(subscriptions_router, prefix="/api/subscriptions", tags=["subscriptions"])
+    app.include_router(recurring_router, prefix="/api/recurring", tags=["recurring"])
     app.include_router(tag_rules_router, prefix="/api/tag-rules", tags=["tag-rules"])
     app.include_router(tags_router, prefix="/api/tags", tags=["tags"])
     app.include_router(trading212_router, prefix="/api/trading212", tags=["trading212"])

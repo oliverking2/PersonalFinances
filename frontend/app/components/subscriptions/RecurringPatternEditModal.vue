@@ -1,33 +1,30 @@
 <!-- ==========================================================================
-SubscriptionEditModal
-Modal for viewing subscription details, transactions, and editing
+RecurringPatternEditModal
+Modal for viewing pattern details, transactions, and editing
 ============================================================================ -->
 
 <script setup lang="ts">
-import type {
-  Subscription,
-  SubscriptionTransaction,
-} from '~/types/subscriptions'
-import { getFrequencyLabel } from '~/types/subscriptions'
+import type { RecurringPattern, PatternTransaction } from '~/types/recurring'
+import { getFrequencyLabel } from '~/types/recurring'
 
 // Props
 const props = defineProps<{
-  subscription: Subscription
+  pattern: RecurringPattern
   open: boolean
 }>()
 
 // Emits
 const emit = defineEmits<{
   close: []
-  save: [updates: SubscriptionUpdates]
+  save: [updates: PatternUpdates]
 }>()
 
 // API
-const { fetchSubscriptionTransactions } = useSubscriptionsApi()
+const { fetchPatternTransactions } = useRecurringApi()
 
 // Types
-interface SubscriptionUpdates {
-  display_name?: string
+interface PatternUpdates {
+  name?: string
   notes?: string
   expected_amount?: number
 }
@@ -35,28 +32,28 @@ interface SubscriptionUpdates {
 // Tabs
 const activeTab = ref<'details' | 'transactions'>('details')
 
-// Form state - initialise from subscription
-const displayName = ref(props.subscription.display_name)
-const notes = ref(props.subscription.notes || '')
-// Store as string for AppInput compatibility, convert to/from number when needed
+// Form state - initialise from pattern
+const name = ref(props.pattern.name)
+const notes = ref(props.pattern.notes || '')
+// Store as string for AppInput compatibility
 const expectedAmountStr = ref(
-  Math.abs(props.subscription.expected_amount).toFixed(2),
+  Math.abs(props.pattern.expected_amount).toFixed(2),
 )
 const saving = ref(false)
 
 // Transactions state
-const transactions = ref<SubscriptionTransaction[]>([])
+const transactions = ref<PatternTransaction[]>([])
 const loadingTransactions = ref(false)
 const transactionsLoaded = ref(false)
 
-// Watch for subscription changes (when opening for different subscription)
+// Watch for pattern changes (when opening for different pattern)
 watch(
-  () => props.subscription,
-  (sub) => {
-    displayName.value = sub.display_name
-    notes.value = sub.notes || ''
-    expectedAmountStr.value = Math.abs(sub.expected_amount).toFixed(2)
-    // Reset transactions when subscription changes
+  () => props.pattern,
+  (p) => {
+    name.value = p.name
+    notes.value = p.notes || ''
+    expectedAmountStr.value = Math.abs(p.expected_amount).toFixed(2)
+    // Reset transactions when pattern changes
     transactions.value = []
     transactionsLoaded.value = false
   },
@@ -73,7 +70,7 @@ watch(activeTab, async (tab) => {
 async function loadTransactions() {
   loadingTransactions.value = true
   try {
-    const response = await fetchSubscriptionTransactions(props.subscription.id)
+    const response = await fetchPatternTransactions(props.pattern.id)
     transactions.value = response.transactions
     transactionsLoaded.value = true
   } catch {
@@ -86,19 +83,18 @@ async function loadTransactions() {
 // Handle save
 function handleSave() {
   saving.value = true
-  const updates: SubscriptionUpdates = {}
+  const updates: PatternUpdates = {}
 
-  if (displayName.value !== props.subscription.display_name) {
-    updates.display_name = displayName.value
+  if (name.value !== props.pattern.name) {
+    updates.name = name.value
   }
-  if (notes.value !== (props.subscription.notes || '')) {
+  if (notes.value !== (props.pattern.notes || '')) {
     updates.notes = notes.value || undefined
   }
-  // Compare expected amount (stored as negative, edited as positive string)
+  // Compare expected amount
   const newAmount = parseFloat(expectedAmountStr.value) || 0
-  if (newAmount !== Math.abs(props.subscription.expected_amount)) {
-    // Send as negative since subscriptions are expenses
-    updates.expected_amount = -Math.abs(newAmount)
+  if (newAmount !== Math.abs(props.pattern.expected_amount)) {
+    updates.expected_amount = newAmount
   }
 
   emit('save', updates)
@@ -143,7 +139,7 @@ function formatDate(dateStr: string | null): string {
             class="flex items-center justify-between border-b border-border px-6 py-4"
           >
             <h2 class="text-lg font-semibold">
-              {{ subscription.display_name }}
+              {{ pattern.name }}
             </h2>
             <button
               type="button"
@@ -182,7 +178,7 @@ function formatDate(dateStr: string | null): string {
               "
               @click="activeTab = 'transactions'"
             >
-              Transactions ({{ subscription.occurrence_count }})
+              Transactions ({{ pattern.match_count }})
             </button>
           </div>
 
@@ -205,25 +201,18 @@ function formatDate(dateStr: string | null): string {
                   />
                   <span class="text-sm text-muted">
                     /
-                    {{
-                      getFrequencyLabel(subscription.frequency).toLowerCase()
-                    }}
+                    {{ getFrequencyLabel(pattern.frequency).toLowerCase() }}
                   </span>
                 </div>
                 <p class="mt-1 text-xs text-muted">
-                  Update if the subscription price has changed
+                  Update if the price has changed
                 </p>
               </div>
 
               <!-- Display name -->
               <div>
-                <label class="mb-1 block text-sm font-medium"
-                  >Display Name</label
-                >
-                <AppInput
-                  v-model="displayName"
-                  placeholder="e.g., Netflix, Spotify"
-                />
+                <label class="mb-1 block text-sm font-medium">Name</label>
+                <AppInput v-model="name" placeholder="e.g., Netflix, Spotify" />
               </div>
 
               <!-- Notes -->
@@ -237,39 +226,65 @@ function formatDate(dateStr: string | null): string {
                 />
               </div>
 
-              <!-- Detection info -->
+              <!-- Matching rules info -->
               <div class="rounded-lg bg-background/50 p-3">
+                <p class="mb-2 text-sm font-medium text-muted">
+                  Matching Rules
+                </p>
+                <div class="space-y-1 text-sm">
+                  <div v-if="pattern.merchant_contains">
+                    <span class="text-muted">Merchant contains:</span>
+                    <span class="ml-1 font-mono text-xs">{{
+                      pattern.merchant_contains
+                    }}</span>
+                  </div>
+                  <div>
+                    <span class="text-muted">Amount tolerance:</span>
+                    <span class="ml-1"
+                      >±{{ pattern.amount_tolerance_pct }}%</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detection info (for detected patterns) -->
+              <div
+                v-if="pattern.source === 'detected'"
+                class="rounded-lg bg-background/50 p-3"
+              >
                 <p class="mb-2 text-sm font-medium text-muted">
                   Detection Info
                 </p>
                 <div class="grid grid-cols-2 gap-2 text-sm">
-                  <div>
+                  <div v-if="pattern.confidence_score">
                     <span class="text-muted">Confidence:</span>
                     <span class="ml-1"
-                      >{{
-                        Math.round(subscription.confidence_score * 100)
-                      }}%</span
+                      >{{ Math.round(pattern.confidence_score * 100) }}%</span
                     >
                   </div>
-                  <div>
+                  <div v-if="pattern.occurrence_count">
                     <span class="text-muted">Occurrences:</span>
-                    <span class="ml-1">{{
-                      subscription.occurrence_count
-                    }}</span>
+                    <span class="ml-1">{{ pattern.occurrence_count }}</span>
                   </div>
                   <div>
                     <span class="text-muted">Last:</span>
                     <span class="ml-1">{{
-                      formatDate(subscription.last_occurrence_date)
+                      formatDate(pattern.last_matched_date)
                     }}</span>
                   </div>
                   <div>
                     <span class="text-muted">Next:</span>
                     <span class="ml-1">{{
-                      formatDate(subscription.next_expected_date)
+                      formatDate(pattern.next_expected_date)
                     }}</span>
                   </div>
                 </div>
+                <p
+                  v-if="pattern.detection_reason"
+                  class="mt-2 text-xs italic text-muted"
+                >
+                  {{ pattern.detection_reason }}
+                </p>
               </div>
             </div>
 
@@ -305,10 +320,21 @@ function formatDate(dateStr: string | null): string {
                     </p>
                     <p class="text-xs text-muted">
                       {{ formatDate(txn.booking_date) }}
+                      <span v-if="txn.is_manual" class="ml-2 text-primary"
+                        >(manual link)</span
+                      >
                     </p>
                   </div>
-                  <p class="font-medium text-negative">
-                    -{{ formatCurrency(txn.amount) }}
+                  <p
+                    :class="[
+                      'font-medium',
+                      pattern.direction === 'income'
+                        ? 'text-emerald-400'
+                        : 'text-negative',
+                    ]"
+                  >
+                    {{ pattern.direction === 'income' ? '+' : '-'
+                    }}{{ formatCurrency(txn.amount) }}
                   </p>
                 </div>
               </div>

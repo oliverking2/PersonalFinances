@@ -8,12 +8,20 @@ Dagster-specific guidance for the orchestration module.
 src/orchestration/
 ├── definitions.py           # Root Definitions combining all providers
 ├── resources.py             # Shared resources (PostgresDatabase, etc.)
-└── gocardless/
-    ├── definitions.py       # GoCardless-specific Definitions
-    ├── extraction/
-    │   └── assets.py        # Extract from GoCardless API to raw tables
-    └── sync/
-        └── assets.py        # Sync from raw tables to unified tables
+├── gocardless/
+│   ├── definitions.py       # GoCardless-specific Definitions
+│   ├── extraction/
+│   │   └── assets.py        # Extract from GoCardless API to raw tables
+│   └── sync/
+│       └── assets.py        # Sync from raw tables to unified tables
+├── recurring_patterns/
+│   └── assets.py            # Pattern detection and transaction matching
+├── trading212/              # Investment sync from Trading212
+├── exports/                 # Data export jobs (CSV, etc.)
+├── maintenance/             # Database cleanup and maintenance
+├── unified/                 # Cross-provider unified sync jobs
+└── dbt/
+    └── assets.py            # dbt model materialisation
 ```
 
 ## Key Patterns
@@ -70,6 +78,22 @@ trigger_job("gocardless_sync_job", run_config)
 ```
 
 Assets check `config.connection_id` and filter to that connection's data.
+
+## Key Modules
+
+### Recurring Patterns
+
+The `recurring_patterns/assets.py` module handles:
+
+- **Detection**: Creates `pending` patterns from dbt's `int_recurring_candidates`
+- **Matching**: Links new transactions to `active` patterns based on merchant, amount tolerance
+- **Re-linking**: When pattern rules change, unlinks old transactions and links new matches
+
+Patterns use an opt-in model:
+
+- Detection creates patterns as `pending` (not auto-confirmed)
+- Users accept patterns to make them `active`
+- Only `active` patterns are used for forecasting and matching
 
 ## Commands
 

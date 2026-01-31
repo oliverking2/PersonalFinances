@@ -1,23 +1,23 @@
 <!-- ==========================================================================
-SubscriptionCard
-Displays a single subscription/recurring pattern with actions
+RecurringPatternCard
+Displays a single recurring pattern with actions
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { Subscription } from '~/types/subscriptions'
-import { getFrequencyLabel, getStatusLabel } from '~/types/subscriptions'
+import type { RecurringPattern } from '~/types/recurring'
+import { getFrequencyLabel, getStatusLabel } from '~/types/recurring'
 
 // Props
 const props = defineProps<{
-  subscription: Subscription
+  pattern: RecurringPattern
 }>()
 
 // Emits
 const emit = defineEmits<{
-  confirm: []
+  accept: []
   dismiss: []
   pause: []
-  restore: []
+  resume: []
   edit: []
 }>()
 
@@ -54,24 +54,24 @@ function formatDate(dateStr: string | null): string {
 
 // Status badge colours
 const statusBadgeClass = computed(() => {
-  switch (props.subscription.status) {
-    case 'confirmed':
-    case 'manual':
+  switch (props.pattern.status) {
+    case 'active':
       return 'bg-primary/20 text-primary border-primary/40'
-    case 'detected':
-      return 'bg-gray-700/50 text-gray-300 border-gray-600'
-    case 'paused':
+    case 'pending':
       return 'bg-warning/20 text-warning border-warning/40'
-    case 'dismissed':
+    case 'paused':
+      return 'bg-gray-700/50 text-gray-300 border-gray-600'
+    case 'cancelled':
       return 'bg-negative/20 text-negative border-negative/40'
     default:
       return 'bg-gray-700 text-gray-300 border-gray-600'
   }
 })
 
-// Confidence indicator
+// Confidence indicator (for pending/detected patterns)
 const confidenceClass = computed(() => {
-  const score = props.subscription.confidence_score
+  const score = props.pattern.confidence_score
+  if (!score) return 'text-muted'
   if (score >= 0.8) return 'text-positive'
   if (score >= 0.5) return 'text-warning'
   return 'text-negative'
@@ -79,21 +79,35 @@ const confidenceClass = computed(() => {
 </script>
 
 <template>
-  <div class="subscription-card">
+  <div class="pattern-card">
     <!-- Header row: name + amount -->
     <div class="flex items-start justify-between gap-4">
       <!-- Left: name and badges -->
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <h3 class="truncate text-lg font-semibold">
-            {{ subscription.display_name }}
+            {{ pattern.name }}
           </h3>
           <!-- Status badge -->
           <span
             class="flex-shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium"
             :class="statusBadgeClass"
           >
-            {{ getStatusLabel(subscription.status) }}
+            {{ getStatusLabel(pattern.status) }}
+          </span>
+          <!-- Source badge (small icon for detected vs manual) -->
+          <span
+            v-if="pattern.source === 'detected'"
+            class="text-xs text-muted"
+            title="Automatically detected"
+          >
+            <svg class="inline h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </span>
         </div>
 
@@ -102,18 +116,22 @@ const confidenceClass = computed(() => {
           <span
             class="rounded bg-gray-700/50 px-1.5 py-0.5 text-xs font-medium text-gray-300"
           >
-            {{ getFrequencyLabel(subscription.frequency) }}
+            {{ getFrequencyLabel(pattern.frequency) }}
           </span>
           <!-- Direction badge -->
           <span
             :class="[
               'rounded px-1.5 py-0.5 text-xs font-medium',
-              subscription.direction === 'income'
+              pattern.direction === 'income'
                 ? 'bg-emerald-500/20 text-emerald-400'
                 : 'bg-red-500/20 text-red-400',
             ]"
           >
-            {{ subscription.direction === 'income' ? 'Income' : 'Expense' }}
+            {{ pattern.direction === 'income' ? 'Income' : 'Expense' }}
+          </span>
+          <!-- Match count -->
+          <span class="text-xs text-muted">
+            {{ pattern.match_count }} transactions
           </span>
         </div>
       </div>
@@ -123,16 +141,16 @@ const confidenceClass = computed(() => {
         <p
           :class="[
             'text-lg font-semibold',
-            subscription.direction === 'income'
+            pattern.direction === 'income'
               ? 'text-emerald-400'
               : 'text-red-400',
           ]"
         >
-          {{ subscription.direction === 'income' ? '+' : '-'
-          }}{{ formatCurrency(subscription.expected_amount) }}
+          {{ pattern.direction === 'income' ? '+' : '-'
+          }}{{ formatCurrency(pattern.expected_amount) }}
         </p>
         <p class="text-sm text-muted">
-          ~{{ formatCurrency(subscription.monthly_equivalent) }}/mo
+          ~{{ formatCurrency(pattern.monthly_equivalent) }}/mo
         </p>
       </div>
     </div>
@@ -141,38 +159,45 @@ const confidenceClass = computed(() => {
     <div class="mt-3 flex items-center gap-6 text-sm">
       <div>
         <span class="text-muted">Last:</span>
-        <span class="ml-1">{{
-          formatDate(subscription.last_occurrence_date)
-        }}</span>
+        <span class="ml-1">{{ formatDate(pattern.last_matched_date) }}</span>
       </div>
       <div>
         <span class="text-muted">Next:</span>
-        <span class="ml-1">{{
-          formatDate(subscription.next_expected_date)
-        }}</span>
+        <span class="ml-1">{{ formatDate(pattern.next_expected_date) }}</span>
       </div>
-      <!-- Confidence (for detected patterns) -->
-      <div v-if="subscription.status === 'detected'" class="text-sm">
+      <!-- Confidence (for pending patterns) -->
+      <div
+        v-if="pattern.status === 'pending' && pattern.confidence_score"
+        class="text-sm"
+      >
         <span class="text-muted">Confidence:</span>
         <span class="ml-1" :class="confidenceClass">
-          {{ Math.round(subscription.confidence_score * 100) }}%
+          {{ Math.round(pattern.confidence_score * 100) }}%
         </span>
       </div>
     </div>
 
+    <!-- Detection reason (for pending patterns) -->
+    <p
+      v-if="pattern.status === 'pending' && pattern.detection_reason"
+      class="mt-2 text-sm italic text-muted"
+    >
+      {{ pattern.detection_reason }}
+    </p>
+
     <!-- Notes (if any) -->
-    <p v-if="subscription.notes" class="mt-2 text-sm italic text-muted">
-      {{ subscription.notes }}
+    <p v-if="pattern.notes" class="mt-2 text-sm italic text-muted">
+      {{ pattern.notes }}
     </p>
 
     <!-- Actions row -->
     <div class="mt-4 flex items-center gap-2">
-      <!-- Confirm button (for detected patterns) -->
+      <!-- Accept button (for pending patterns) -->
       <button
-        v-if="subscription.status === 'detected'"
+        v-if="pattern.status === 'pending'"
         type="button"
         class="action-btn action-btn-primary"
-        @click="emit('confirm')"
+        @click="emit('accept')"
       >
         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -181,15 +206,12 @@ const confidenceClass = computed(() => {
             clip-rule="evenodd"
           />
         </svg>
-        Confirm
+        Accept
       </button>
 
-      <!-- Pause/Resume button -->
+      <!-- Pause button (for active patterns) -->
       <button
-        v-if="
-          subscription.status !== 'paused' &&
-          subscription.status !== 'dismissed'
-        "
+        v-if="pattern.status === 'active'"
         type="button"
         class="action-btn action-btn-secondary"
         @click="emit('pause')"
@@ -202,12 +224,12 @@ const confidenceClass = computed(() => {
         Pause
       </button>
 
-      <!-- Resume button (for paused) -->
+      <!-- Resume button (for paused patterns) -->
       <button
-        v-if="subscription.status === 'paused'"
+        v-if="pattern.status === 'paused'"
         type="button"
         class="action-btn action-btn-primary"
-        @click="emit('confirm')"
+        @click="emit('resume')"
       >
         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -217,9 +239,9 @@ const confidenceClass = computed(() => {
         Resume
       </button>
 
-      <!-- Dismiss button -->
+      <!-- Dismiss button (for pending patterns - deletes them) -->
       <button
-        v-if="subscription.status !== 'dismissed'"
+        v-if="pattern.status === 'pending'"
         type="button"
         class="action-btn action-btn-danger"
         @click="emit('dismiss')"
@@ -230,23 +252,6 @@ const confidenceClass = computed(() => {
           />
         </svg>
         Dismiss
-      </button>
-
-      <!-- Restore button (for dismissed subscriptions) -->
-      <button
-        v-if="subscription.status === 'dismissed'"
-        type="button"
-        class="action-btn action-btn-primary"
-        @click="emit('restore')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fill-rule="evenodd"
-            d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
-            clip-rule="evenodd"
-          />
-        </svg>
-        Restore
       </button>
 
       <!-- Spacer -->
@@ -269,7 +274,7 @@ const confidenceClass = computed(() => {
 </template>
 
 <style scoped>
-.subscription-card {
+.pattern-card {
   @apply rounded-lg border border-border bg-surface p-4;
 }
 

@@ -53,6 +53,11 @@ This section provides a high-level overview of how the system works, intended as
 │  • Refresh token   │  • OAuth callback  │  • Tag/update    │  • Trends      │
 │  • User info       │  • Sync accounts   │  • Date range    │  • Categories  │
 │                                                                             │
+│  /recurring        │  /budgets          │  /goals          │  /notifications│
+│  • Pattern CRUD    │  • Budget CRUD     │  • Goal tracking │  • In-app      │
+│  • Accept/pause    │  • Tag-based       │  • Progress      │  • Mark read   │
+│  • Transaction link│  • Thresholds      │  • Link accounts │  • Alert types │
+│                                                                             │
 │  Thin layer: validation, error handling, delegates to domain modules        │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -166,15 +171,30 @@ backend/src/
 │   ├── auth/            # Login, logout, refresh, registration
 │   ├── accounts/        # Account listing, balances
 │   ├── analytics/       # Spending analytics (queries dbt marts)
+│   ├── budgets/         # Tag-based budget tracking
 │   ├── connections/     # OAuth flow, connection management
+│   ├── goals/           # Savings goals and progress tracking
+│   ├── jobs/            # Background job status API
+│   ├── milestones/      # Goal milestones
+│   ├── notifications/   # In-app notifications
+│   ├── planned_transactions/  # Future planned transactions
+│   ├── recurring/       # Recurring patterns (opt-in detection)
+│   ├── tag_rules/       # Automatic tag application rules
 │   ├── tags/            # Tag CRUD
-│   └── transactions/    # Transaction queries and tagging
+│   ├── trading212/      # Trading212 investment integration
+│   ├── transactions/    # Transaction queries and tagging
+│   └── user/            # User settings and preferences
 ├── orchestration/       # Dagster definitions
-│   ├── gocardless/      # Sync assets & jobs
-│   └── dbt/             # dbt asset definitions
+│   ├── dbt/             # dbt asset definitions
+│   ├── exports/         # Data export jobs
+│   ├── gocardless/      # Bank sync assets & jobs
+│   ├── maintenance/     # Database maintenance jobs
+│   ├── recurring_patterns/  # Pattern detection and matching
+│   ├── trading212/      # Investment sync assets
+│   └── unified/         # Cross-provider unified sync
 ├── postgres/            # Database layer
 │   ├── auth/            # Users, refresh tokens
-│   ├── common/          # Standardised models (connections, accounts, transactions)
+│   ├── common/          # Standardised models (connections, accounts, transactions, recurring)
 │   └── gocardless/      # Raw provider data (requisitions, bank accounts)
 ├── providers/           # External API clients
 │   └── gocardless/      # GoCardless API wrapper

@@ -30,7 +30,7 @@ RECURRING_CASH_FLOWS AS (
     SELECT
         USER_ID,
         PATTERN_ID,
-        DISPLAY_NAME,
+        NAME                             AS DISPLAY_NAME,
         DIRECTION,
         -- Keep actual sign: income positive, expense negative
         CASE
@@ -44,7 +44,7 @@ RECURRING_CASH_FLOWS AS (
         'recurring'                      AS SOURCE_TYPE
     FROM {{ ref('fct_recurring_patterns') }}
     WHERE
-        STATUS NOT IN ('dismissed', 'paused')
+        STATUS = 'active'
         AND NEXT_EXPECTED_DATE IS NOT NULL
 ),
 

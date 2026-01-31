@@ -4,8 +4,8 @@ Shows upcoming bills/subscriptions for the next N days on the home page
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { UpcomingBill, UpcomingBillsResponse } from '~/types/subscriptions'
-import { getFrequencyLabel } from '~/types/subscriptions'
+import type { UpcomingBill, UpcomingBillsResponse } from '~/types/recurring'
+import { getFrequencyLabel } from '~/types/recurring'
 
 // Props
 const props = withDefaults(
@@ -18,7 +18,7 @@ const props = withDefaults(
 )
 
 // API
-const { fetchUpcomingBills } = useSubscriptionsApi()
+const { fetchUpcomingBills } = useRecurringApi()
 
 // State
 const upcomingBills = ref<UpcomingBill[]>([])
@@ -149,12 +149,12 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
             </span>
 
             <!-- Name -->
-            <span class="truncate font-medium">{{ bill.display_name }}</span>
+            <span class="truncate font-medium">{{ bill.name }}</span>
 
-            <!-- Detected badge (for unconfirmed) with tooltip -->
+            <!-- Pending badge (for unconfirmed) with tooltip -->
             <span
-              v-if="bill.status === 'detected'"
-              class="group relative flex-shrink-0 cursor-help rounded bg-gray-700/50 px-1 py-0.5 text-xs text-gray-400"
+              v-if="bill.status === 'pending'"
+              class="group relative flex-shrink-0 cursor-help rounded bg-warning/20 px-1 py-0.5 text-xs text-warning"
             >
               ?
               <!-- Tooltip -->
@@ -162,13 +162,13 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
                 class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-48 -translate-x-1/2 rounded-lg bg-graphite p-2 text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
               >
                 <span class="block font-medium text-foreground"
-                  >Auto-detected</span
+                  >Pending review</span
                 >
-                <span class="block text-muted">
+                <span v-if="bill.confidence_score" class="block text-muted">
                   Confidence: {{ Math.round(bill.confidence_score * 100) }}%
                 </span>
                 <span class="block text-muted">
-                  Visit Recurring to confirm or dismiss
+                  Visit Recurring to accept or dismiss
                 </span>
                 <!-- Arrow -->
                 <span

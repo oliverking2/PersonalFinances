@@ -7,7 +7,7 @@ Click to select for bulk operations
 <script setup lang="ts">
 import type { Transaction } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
-import type { RecurringFrequency, RecurringStatus } from '~/types/subscriptions'
+import type { RecurringFrequency, RecurringStatus } from '~/types/recurring'
 
 // ---------------------------------------------------------------------------
 // Props & Emits

@@ -5,8 +5,8 @@ Shows a repeat icon with optional frequency label
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { RecurringFrequency, RecurringStatus } from '~/types/subscriptions'
-import { getFrequencyShortLabel } from '~/types/subscriptions'
+import type { RecurringFrequency, RecurringStatus } from '~/types/recurring'
+import { getFrequencyShortLabel } from '~/types/recurring'
 
 // Props
 const props = defineProps<{
@@ -23,28 +23,29 @@ const tooltipText = computed(() => {
     monthly: 'Monthly',
     quarterly: 'Quarterly',
     annual: 'Annual',
-    irregular: 'Irregular',
   }
   const statusLabel =
-    props.status === 'detected'
-      ? ' (detected)'
+    props.status === 'pending'
+      ? ' (pending)'
       : props.status === 'paused'
         ? ' (paused)'
-        : ''
+        : props.status === 'cancelled'
+          ? ' (cancelled)'
+          : ''
   return `Recurring: ${freqLabels[props.frequency]}${statusLabel}`
 })
 
 // Badge colour varies by status
 const badgeClass = computed(() => {
-  // Confirmed patterns get solid styling
-  if (props.status === 'confirmed' || props.status === 'manual') {
+  // Active patterns get solid styling
+  if (props.status === 'active') {
     return 'bg-primary/20 border-primary/40 text-primary'
   }
-  // Detected patterns get muted styling
-  if (props.status === 'detected') {
+  // Pending patterns get muted styling
+  if (props.status === 'pending') {
     return 'bg-gray-700/50 border-gray-600 text-gray-400'
   }
-  // Paused patterns get dimmed styling
+  // Paused and cancelled patterns get dimmed styling
   return 'bg-gray-800/50 border-gray-700 text-gray-500'
 })
 </script>
