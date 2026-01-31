@@ -268,10 +268,8 @@ async function handleSave() {
     if (editingRule.value) {
       // Update existing rule
       const updated = await updateRule(editingRule.value.id, data)
-      const index = rules.value.findIndex((r) => r.id === updated.id)
-      if (index >= 0) {
-        rules.value[index] = updated
-      }
+      // Update in list immutably
+      rules.value = rules.value.map((r) => (r.id === updated.id ? updated : r))
       toast.success(`Rule "${updated.name}" updated`)
     } else {
       // Create new rule

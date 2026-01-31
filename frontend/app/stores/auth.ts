@@ -12,8 +12,8 @@ import { defineStore } from 'pinia'
 interface User {
   id: string
   username: string
-  first_name: string // TODO: Backend will add these fields
-  last_name: string
+  first_name?: string
+  last_name?: string
 }
 
 interface LoginResponse {

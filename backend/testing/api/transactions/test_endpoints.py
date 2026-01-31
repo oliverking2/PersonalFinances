@@ -214,21 +214,26 @@ class TestListTransactions:
         client: TestClient,
         api_auth_headers: dict[str, str],
         test_transactions_in_db: list[Transaction],
+        test_account_in_db: Account,
     ) -> None:
-        """Should return transactions in expected format."""
+        """Should return transactions in expected format with correct values."""
         response = client.get("/api/transactions", headers=api_auth_headers)
 
         assert response.status_code == 200
         data = response.json()
+        # First transaction is most recent (2024-01-15, Tesco)
         txn = data["transactions"][0]
 
-        # Check all expected fields are present
-        assert "id" in txn
-        assert "account_id" in txn
-        assert "booking_date" in txn
-        assert "value_date" in txn
-        assert "amount" in txn
-        assert "currency" in txn
-        assert "description" in txn
-        assert "merchant_name" in txn
-        assert "category" in txn
+        # Verify actual values match fixture data, not just key presence
+        assert txn["id"] == str(test_transactions_in_db[0].id)
+        assert txn["account_id"] == str(test_account_in_db.id)
+        assert txn["booking_date"] == "2024-01-15"
+        assert txn["value_date"] == "2024-01-15"
+        assert float(txn["amount"]) == -50.00
+        assert txn["currency"] == "GBP"
+        assert txn["description"] == "Groceries"
+        assert txn["merchant_name"] == "Tesco"
+        assert txn["category"] == "groceries"
+        # Check tags and splits are arrays (even if empty)
+        assert isinstance(txn["tags"], list)
+        assert isinstance(txn["splits"], list)

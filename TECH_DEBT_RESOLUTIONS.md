@@ -221,58 +221,6 @@ def test_account_in_db(db_session: Session, test_connection_in_db: Connection) -
 
 ---
 
-### FE-005: Silent Error Handling
-
-**Files:**
-
-- `frontend/app/pages/planning/forecast.vue:57-59`
-- `frontend/app/pages/index.vue:449-454`
-- `frontend/app/pages/settings/accounts.vue` (multiple)
-
-**Problem:**
-
-```typescript
-fetchForecast().catch(() => null)  // Silent failure
-```
-
-**Fix:** Add proper error logging or user feedback:
-
-```typescript
-fetchForecast().catch((e) => {
-  console.error('Failed to fetch forecast:', e)
-  return null
-})
-```
-
----
-
-### FE-006: Console.log in Production Code
-
-**Files:**
-
-- `frontend/app/pages/index.vue:457, 470, 478, 489`
-- `frontend/app/pages/transactions.vue`
-- `frontend/app/stores/auth.ts:110, 133, 161`
-- `frontend/app/components/notifications/NotificationBell.vue`
-- `frontend/app/pages/settings/accounts.vue`
-
-**Fix:** Remove or replace with proper logging that can be disabled in production.
-
----
-
-### FE-007: Type Safety Gaps
-
-**File:** `frontend/app/composables/useAuthenticatedFetch.ts:50, 87-90`
-
-**Problem:**
-
-```typescript
-body?: Record<string, any>  // Weak typing
-const response = error.response as { ... }  // Type assertion
-```
-
-**Fix:** Create proper interfaces for request/response types per endpoint.
-
 ---
 
 ### DB-001: Missing CHECK Constraints
@@ -308,45 +256,6 @@ const response = error.response as { ... }  // Type assertion
 
 ---
 
-### DB-003: Missing Composite Index
-
-**File:** `backend/alembic/versions/b07a1a168df0_add_planned_transactions_table.py:42-43`
-
-**Problem:** No index for frequent query pattern `(user_id, enabled)`.
-
-**Fix:** Add migration:
-
-```python
-op.create_index(
-    "idx_planned_transactions_user_enabled",
-    "planned_transactions",
-    ["user_id", "enabled"]
-)
-```
-
----
-
-### DBT-004: Inefficient EXISTS Subquery
-
-**File:** `backend/dbt/models/3_mart/fct_monthly_trends.sql:38-47`
-
-**Problem:**
-
-```sql
-WHERE OUTGOING.AMOUNT < 0
-AND EXISTS (
-    SELECT 1 FROM TRANSACTIONS_WITH_USER AS INCOMING
-    WHERE INCOMING.BOOKING_DATE = OUTGOING.BOOKING_DATE
-    AND INCOMING.AMOUNT = -OUTGOING.AMOUNT
-)
-```
-
-O(n²) complexity for internal transfer detection.
-
-**Fix:** Use window function or self-join with explicit pairing.
-
----
-
 ### DBT-005: Inconsistent NULL Handling
 
 **Files:**
@@ -356,40 +265,6 @@ O(n²) complexity for internal transfer detection.
 - `backend/dbt/models/3_mart/fct_cash_flow_forecast.sql:217-220` - `COALESCE(..., 0)`
 
 **Fix:** Document standard NULL handling strategy in CLAUDE.md and apply consistently.
-
----
-
-### DBT-006: Missing Calculation Rationale Comments
-
-**File:** `backend/dbt/models/3_mart/int_recurring_candidates.sql:137-145`
-
-**Problem:** Magic numbers without explanation:
-
-```sql
-WHEN STS.AVG_INTERVAL BETWEEN 5 AND 10 THEN 'weekly'
-WHEN STS.AVG_INTERVAL BETWEEN 12 AND 20 THEN 'fortnightly'
-```
-
-**Fix:** Add comments explaining why these ranges were chosen.
-
----
-
-### TEST-005: Weak Test Assertions
-
-**File:** `backend/testing/api/transactions/test_endpoints.py:262-285`
-
-**Problem:**
-
-```python
-assert "id" in txn  # Only checks key exists, not value correctness
-```
-
-**Fix:** Assert actual values:
-
-```python
-assert txn["id"] == str(expected_transaction.id)
-assert Decimal(txn["amount"]) == expected_transaction.amount
-```
 
 ---
 
@@ -439,40 +314,6 @@ def test_returns_forecast_data(self, ...):
 
 ---
 
-### FE-008: Direct Array Index Assignment
-
-**Files:**
-
-- `frontend/app/pages/settings/accounts.vue:253`
-- `frontend/app/pages/settings/tags.vue:169`
-- `frontend/app/pages/settings/rules.vue:273`
-
-**Problem:**
-
-```typescript
-connections.value[index] = updated
-```
-
-**Fix:** Use immutable update:
-
-```typescript
-connections.value = connections.value.map((c, i) => i === index ? updated : c)
-```
-
----
-
-### FE-009: TODO in Auth Store
-
-**File:** `frontend/app/stores/auth.ts:15`
-
-```typescript
-first_name: string // TODO: Backend will add these fields
-```
-
-**Fix:** Resolve with backend or make fields optional.
-
----
-
 ### DB-005: Inconsistent Index Naming
 
 **Problem:** Most use `idx_{table}_{columns}` but some abbreviate.
@@ -514,6 +355,15 @@ first_name: string // TODO: Backend will add these fields
 - ✅ DBT-002: Moved balance normalization to staging layer (`stg_unified_accounts.sql`)
 - ✅ FE-001/FE-003: Created shared `useFormatting` composable with formatCurrency, parseAmount, formatDateLabel
 - ✅ FE-002: Reviewed - frontend aggregation is appropriate display logic, not duplicate analytics
+- ✅ FE-005: Added proper error logging to silent `.catch(() => null)` handlers
+- ✅ FE-006: Reviewed - only `console.error` remains (appropriate for error logging)
+- ✅ FE-007: Reviewed - `Record<string, any>` is intentional for flexible body types (has eslint-disable)
+- ✅ FE-008: Replaced direct array index assignment with immutable `.map()` updates
+- ✅ FE-009: Fixed TODO - made `first_name` and `last_name` optional in User interface
+- ✅ DB-003: Added composite index `idx_planned_transactions_user_enabled` via migration
+- ✅ DBT-004: Optimized O(n²) EXISTS subquery to efficient equi-join for internal transfer detection
+- ✅ DBT-006: Added detailed comments explaining frequency detection interval ranges
+- ✅ TEST-005: Improved weak test assertions to verify actual values, not just key presence
 
 ---
 

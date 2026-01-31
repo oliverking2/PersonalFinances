@@ -152,14 +152,17 @@ SELECT
     STS.FIRST_OCCURRENCE,
     -- Transaction IDs that belong to this pattern (for linking)
     STS.TRANSACTION_IDS,
-    -- Detect frequency from average interval with tolerance
-    -- Ranges widened to catch real-world billing patterns (bills vary a few days)
+    -- Detect frequency from average interval (in days) with tolerance for real-world variation
+    -- Ranges are wider than exact intervals because:
+    -- - Payment processing can delay transactions by 1-3 days
+    -- - Weekends/holidays shift payment dates
+    -- - Some merchants have variable billing cycles
     CASE
-        WHEN STS.AVG_INTERVAL BETWEEN 5 AND 10 THEN 'weekly'
-        WHEN STS.AVG_INTERVAL BETWEEN 12 AND 20 THEN 'fortnightly'
-        WHEN STS.AVG_INTERVAL BETWEEN 25 AND 38 THEN 'monthly'
-        WHEN STS.AVG_INTERVAL BETWEEN 75 AND 105 THEN 'quarterly'
-        WHEN STS.AVG_INTERVAL BETWEEN 330 AND 400 THEN 'annual'
+        WHEN STS.AVG_INTERVAL BETWEEN 5 AND 10 THEN 'weekly'      -- 7 days ± 2-3 day tolerance
+        WHEN STS.AVG_INTERVAL BETWEEN 12 AND 20 THEN 'fortnightly' -- 14 days ± 2-6 day tolerance
+        WHEN STS.AVG_INTERVAL BETWEEN 25 AND 38 THEN 'monthly'    -- ~30 days ± 5-8 day tolerance
+        WHEN STS.AVG_INTERVAL BETWEEN 75 AND 105 THEN 'quarterly' -- ~90 days ± 15 day tolerance
+        WHEN STS.AVG_INTERVAL BETWEEN 330 AND 400 THEN 'annual'   -- ~365 days ± 35 day tolerance
         ELSE 'irregular'
     END AS DETECTED_FREQUENCY,
     -- Calculate confidence score using weighted average (not multiplication)

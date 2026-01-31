@@ -163,12 +163,10 @@ async function handleSave() {
       name: trimmed,
       colour: editColour.value,
     })
-    // Update in list
-    const index = tags.value.findIndex((t) => t.id === updated.id)
-    if (index >= 0) {
-      tags.value[index] = updated
-    }
-    tags.value.sort((a, b) => a.name.localeCompare(b.name))
+    // Update in list immutably and sort
+    tags.value = tags.value
+      .map((t) => (t.id === updated.id ? updated : t))
+      .sort((a, b) => a.name.localeCompare(b.name))
     toast.success(`Tag "${updated.name}" updated`)
     closeEditModal()
   } catch (e) {

@@ -247,11 +247,10 @@ function closeAccountSettingsModal() {
 async function handleSaveConnectionName(id: string, newName: string) {
   try {
     const updated = await updateConnection(id, { friendly_name: newName })
-    // Update local state
-    const index = connections.value.findIndex((c) => c.id === id)
-    if (index !== -1) {
-      connections.value[index] = updated
-    }
+    // Update local state immutably
+    connections.value = connections.value.map((c) =>
+      c.id === id ? updated : c,
+    )
     closeEditConnectionModal()
   } catch (e) {
     console.error('Failed to save:', e)

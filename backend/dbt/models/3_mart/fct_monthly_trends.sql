@@ -29,52 +29,35 @@ TRANSACTIONS_WITH_USER AS (
     INNER JOIN ACCOUNTS AS ACC ON TXN.ACCOUNT_ID = ACC.ACCOUNT_ID
 ),
 
--- Identify internal transfer pairs (both sides):
--- An outgoing transfer has a matching incoming on same day, same absolute amount, same user, different account
-INTERNAL_TRANSFER_SPENDING_IDS AS (
-    SELECT DISTINCT OUTGOING.TRANSACTION_ID
+-- Identify internal transfer pairs using a single equi-join (more efficient than correlated EXISTS)
+-- An internal transfer has matching transactions: same user, different accounts, same date, opposite amounts
+INTERNAL_TRANSFER_PAIRS AS (
+    SELECT
+        OUTGOING.TRANSACTION_ID AS OUTGOING_ID,
+        INCOMING.TRANSACTION_ID AS INCOMING_ID
     FROM TRANSACTIONS_WITH_USER AS OUTGOING
-    WHERE
-        OUTGOING.AMOUNT < 0  -- Outgoing
-        AND EXISTS (
-            SELECT 1
-            FROM TRANSACTIONS_WITH_USER AS INCOMING
-            WHERE
-                INCOMING.USER_ID = OUTGOING.USER_ID
-                AND INCOMING.ACCOUNT_ID != OUTGOING.ACCOUNT_ID
-                AND INCOMING.BOOKING_DATE = OUTGOING.BOOKING_DATE
-                AND INCOMING.AMOUNT = -OUTGOING.AMOUNT  -- Opposite amount
-        )
+    INNER JOIN TRANSACTIONS_WITH_USER AS INCOMING
+        ON
+            OUTGOING.USER_ID = INCOMING.USER_ID
+            AND OUTGOING.ACCOUNT_ID != INCOMING.ACCOUNT_ID
+            AND OUTGOING.BOOKING_DATE = INCOMING.BOOKING_DATE
+            AND OUTGOING.AMOUNT = -INCOMING.AMOUNT
+    WHERE OUTGOING.AMOUNT < 0  -- Outgoing has negative amount
 ),
 
--- Also identify the income side of internal transfers
-INTERNAL_TRANSFER_INCOME_IDS AS (
-    SELECT DISTINCT INCOMING.TRANSACTION_ID
-    FROM TRANSACTIONS_WITH_USER AS INCOMING
-    WHERE
-        INCOMING.AMOUNT > 0  -- Incoming
-        AND EXISTS (
-            SELECT 1
-            FROM TRANSACTIONS_WITH_USER AS OUTGOING
-            WHERE
-                OUTGOING.USER_ID = INCOMING.USER_ID
-                AND OUTGOING.ACCOUNT_ID != INCOMING.ACCOUNT_ID
-                AND OUTGOING.BOOKING_DATE = INCOMING.BOOKING_DATE
-                AND OUTGOING.AMOUNT = -INCOMING.AMOUNT  -- Opposite amount
-        )
+-- Collect all transaction IDs that are part of internal transfers (both sides)
+INTERNAL_TRANSFER_IDS AS (
+    SELECT OUTGOING_ID AS TRANSACTION_ID FROM INTERNAL_TRANSFER_PAIRS
+    UNION
+    SELECT INCOMING_ID AS TRANSACTION_ID FROM INTERNAL_TRANSFER_PAIRS
 ),
 
--- Filter out both sides of internal transfers
+-- Filter out internal transfers using anti-join pattern
 FILTERED_TRANSACTIONS AS (
-    SELECT *
-    FROM TRANSACTIONS_WITH_USER
-    WHERE
-        TRANSACTION_ID NOT IN (
-            SELECT SPEND.TRANSACTION_ID FROM INTERNAL_TRANSFER_SPENDING_IDS AS SPEND
-        )
-        AND TRANSACTION_ID NOT IN (
-            SELECT INC.TRANSACTION_ID FROM INTERNAL_TRANSFER_INCOME_IDS AS INC
-        )
+    SELECT TXN.*
+    FROM TRANSACTIONS_WITH_USER AS TXN
+    LEFT JOIN INTERNAL_TRANSFER_IDS AS ITR ON TXN.TRANSACTION_ID = ITR.TRANSACTION_ID
+    WHERE ITR.TRANSACTION_ID IS NULL
 ),
 
 MONTHLY_DATA AS (

@@ -105,8 +105,14 @@ async function loadData() {
 
     // Fetch both forecast views in parallel with date range params
     const [dailyForecast, weekly] = await Promise.all([
-      fetchForecast(dateRangeParams.value).catch(() => null),
-      fetchWeeklyForecast(dateRangeParams.value).catch(() => null),
+      fetchForecast(dateRangeParams.value).catch((e) => {
+        console.error('Failed to fetch daily forecast:', e)
+        return null
+      }),
+      fetchWeeklyForecast(dateRangeParams.value).catch((e) => {
+        console.error('Failed to fetch weekly forecast:', e)
+        return null
+      }),
     ])
 
     forecastData.value = dailyForecast
@@ -247,7 +253,12 @@ async function loadWeekEvents(weekNumber: number) {
   try {
     // Fetch events for each uncached date
     const results = await Promise.all(
-      uncachedDates.map((date) => fetchForecastEvents(date).catch(() => null)),
+      uncachedDates.map((date) =>
+        fetchForecastEvents(date).catch((e) => {
+          console.error(`Failed to fetch forecast events for ${date}:`, e)
+          return null
+        }),
+      ),
     )
 
     // Cache the results
