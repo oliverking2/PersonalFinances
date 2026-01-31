@@ -435,6 +435,9 @@ def reauthorise_connection(
 )
 def trigger_connection_sync(
     connection_id: UUID,
+    full_sync: bool = Query(
+        False, description="If true, ignore transaction watermark and fetch all history"
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobResponse:
@@ -468,7 +471,7 @@ def trigger_connection_sync(
         run_id = trigger_job(TRADING212_SYNC_JOB, run_config)
     else:
         # GoCardless uses the connection ID
-        run_config = build_gocardless_run_config(str(connection_id))
+        run_config = build_gocardless_run_config(str(connection_id), full_sync=full_sync)
         run_id = trigger_job(GOCARDLESS_CONNECTION_SYNC_JOB, run_config)
 
     if run_id:

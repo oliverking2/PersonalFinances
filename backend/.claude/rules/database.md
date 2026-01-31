@@ -49,7 +49,7 @@ def create_item(session: Session, name: str) -> Item:
 
 ## Migrations
 
-**ALWAYS use `--autogenerate`** - never write migrations manually:
+**ALWAYS use `--autogenerate`** - NEVER write migration files manually:
 
 ```bash
 poetry run alembic revision --autogenerate -m "description"
@@ -63,11 +63,14 @@ Why autogenerate matters:
 - Detects added/removed columns, index changes, constraint changes
 - Avoids duplicate column errors and revision ID conflicts
 
+**Data-only migrations** (no schema changes): Still use autogenerate, then edit the generated file to add your data operations. This ensures correct revision chain.
+
 After autogeneration, you may need to edit the migration for:
 
 1. **Data migration**: Copy data before dropping columns
 2. **NOT NULL columns**: Add as nullable first, populate data, then alter to NOT NULL
 3. **Unique constraints**: Clean up duplicates before adding constraint
+4. **Data-only operations**: Add `op.execute()` statements for DELETE/UPDATE
 
 Example pattern for schema changes with data:
 

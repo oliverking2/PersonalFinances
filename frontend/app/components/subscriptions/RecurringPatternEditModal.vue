@@ -4,8 +4,11 @@ Modal for viewing pattern details, transactions, and editing
 ============================================================================ -->
 
 <script setup lang="ts">
-import type { RecurringPattern, PatternTransaction } from '~/types/recurring'
-import { getFrequencyLabel } from '~/types/recurring'
+import type {
+  RecurringPattern,
+  RecurringFrequency,
+  PatternTransaction,
+} from '~/types/recurring'
 
 // Props
 const props = defineProps<{
@@ -27,7 +30,17 @@ interface PatternUpdates {
   name?: string
   notes?: string
   expected_amount?: number
+  frequency?: RecurringFrequency
 }
+
+// Frequency options for the dropdown
+const frequencyOptions = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'fortnightly', label: 'Fortnightly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'annual', label: 'Annual' },
+]
 
 // Tabs
 const activeTab = ref<'details' | 'transactions'>('details')
@@ -39,6 +52,7 @@ const notes = ref(props.pattern.notes || '')
 const expectedAmountStr = ref(
   Math.abs(props.pattern.expected_amount).toFixed(2),
 )
+const frequency = ref<RecurringFrequency>(props.pattern.frequency)
 const saving = ref(false)
 
 // Transactions state
@@ -53,6 +67,7 @@ watch(
     name.value = p.name
     notes.value = p.notes || ''
     expectedAmountStr.value = Math.abs(p.expected_amount).toFixed(2)
+    frequency.value = p.frequency
     // Reset transactions when pattern changes
     transactions.value = []
     transactionsLoaded.value = false
@@ -95,6 +110,10 @@ function handleSave() {
   const newAmount = parseFloat(expectedAmountStr.value) || 0
   if (newAmount !== Math.abs(props.pattern.expected_amount)) {
     updates.expected_amount = newAmount
+  }
+  // Compare frequency
+  if (frequency.value !== props.pattern.frequency) {
+    updates.frequency = frequency.value
   }
 
   emit('save', updates)
@@ -199,13 +218,22 @@ function formatDate(dateStr: string | null): string {
                     class="flex-1"
                     placeholder="0.00"
                   />
-                  <span class="text-sm text-muted">
-                    /
-                    {{ getFrequencyLabel(pattern.frequency).toLowerCase() }}
-                  </span>
                 </div>
                 <p class="mt-1 text-xs text-muted">
                   Update if the price has changed
+                </p>
+              </div>
+
+              <!-- Frequency (editable) -->
+              <div>
+                <label class="mb-1 block text-sm font-medium">Frequency</label>
+                <AppSelect
+                  v-model="frequency"
+                  :options="frequencyOptions"
+                  placeholder="Select frequency"
+                />
+                <p class="mt-1 text-xs text-muted">
+                  Change if the detected frequency is incorrect
                 </p>
               </div>
 

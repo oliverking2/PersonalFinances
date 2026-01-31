@@ -480,7 +480,7 @@ async function handleRefresh() {
     } else {
       // Start a new refresh
       toast.info('Starting analytics refresh...')
-      const refreshResponse = await triggerRefresh()
+      const refreshResponse = await triggerRefresh('/insights/analytics')
 
       // Check if Dagster is unavailable
       if (refreshResponse.status === 'failed') {

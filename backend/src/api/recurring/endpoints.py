@@ -122,7 +122,14 @@ def get_upcoming_bills(
     now = datetime.now(UTC)
     end_date = now + timedelta(days=days)
 
-    total_expected = sum((abs(p.expected_amount) for p in patterns), Decimal("0"))
+    # Sum with sign: expenses negative, income positive
+    total_expected = sum(
+        (
+            p.expected_amount if p.direction == "income" else -abs(p.expected_amount)
+            for p in patterns
+        ),
+        Decimal("0"),
+    )
 
     return UpcomingBillsResponse(
         upcoming=[_to_upcoming_response(p) for p in patterns],
@@ -482,15 +489,17 @@ def relink_transactions(
 )
 def get_transactions_for_pattern(
     pattern_id: UUID,
+    limit: int = Query(default=50, ge=1, le=200, description="Max transactions to return"),
+    offset: int = Query(default=0, ge=0, description="Number of transactions to skip"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PatternTransactionsResponse:
-    """Get all transactions linked to a pattern."""
+    """Get transactions linked to a pattern with pagination."""
     pattern = get_pattern_by_id(db, pattern_id)
     if not pattern or pattern.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Pattern not found: {pattern_id}")
 
-    transactions = get_pattern_transactions(db, pattern_id)
+    transactions, total = get_pattern_transactions(db, pattern_id, limit=limit, offset=offset)
 
     # Get is_manual flag for each transaction
     links = (
@@ -513,7 +522,7 @@ def get_transactions_for_pattern(
             )
             for txn in transactions
         ],
-        total=len(transactions),
+        total=total,
     )
 
 
@@ -545,7 +554,7 @@ def link_transaction(
     logger.info(f"Linked transaction {transaction_id} to pattern {pattern_id}")
 
     # Return updated transaction list
-    return get_transactions_for_pattern(pattern_id, db, current_user)
+    return get_transactions_for_pattern(pattern_id=pattern_id, db=db, current_user=current_user)
 
 
 @router.delete(

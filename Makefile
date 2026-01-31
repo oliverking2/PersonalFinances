@@ -160,7 +160,7 @@ up-frontend:
 	@cd frontend && npm run dev
 
 up-dagster:
-	@cd backend && poetry run dagster dev --port 3001
+	@set -a && . backend/.env && set +a && cd backend && poetry run dagster dev --port 3001
 
 up-telegram:
 	@cd backend && poetry run python -m src.telegram

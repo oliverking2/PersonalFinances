@@ -567,8 +567,9 @@ class TestPatternTransactionLinking:
             link_transaction_to_pattern(db_session, pattern.id, txn.id)
         db_session.commit()
 
-        transactions = get_pattern_transactions(db_session, pattern.id)
+        transactions, total = get_pattern_transactions(db_session, pattern.id)
         assert len(transactions) == 3
+        assert total == 3
 
 
 class TestSyncDetectedPattern:

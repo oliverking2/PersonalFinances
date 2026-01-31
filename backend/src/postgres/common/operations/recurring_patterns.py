@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from dateutil.relativedelta import relativedelta
+from rapidfuzz import fuzz
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -75,6 +76,33 @@ def normalize_for_matching(text: str) -> str:
 # =============================================================================
 
 
+def merchant_fuzzy_matches(
+    pattern_merchant: str,
+    txn_merchant: str,
+    threshold: int = 75,
+) -> bool:
+    """Check if transaction merchant fuzzy-matches pattern merchant.
+
+    Uses rapidfuzz partial_ratio for substring matching, which handles
+    variations like "Netflix" matching "NETFLIX.COM*ABC123".
+
+    :param pattern_merchant: Merchant string from pattern.
+    :param txn_merchant: Merchant string from transaction.
+    :param threshold: Minimum similarity score (0-100).
+    :returns: True if similarity exceeds threshold.
+    """
+    # Normalise both strings
+    pattern_norm = normalize_for_matching(pattern_merchant)
+    txn_norm = normalize_for_matching(txn_merchant)
+
+    if not pattern_norm or not txn_norm:
+        return False
+
+    # Use partial_ratio for substring matching
+    # This handles cases like "netflix" matching "netflix.com*12345"
+    return fuzz.partial_ratio(pattern_norm, txn_norm) >= threshold
+
+
 def transaction_matches_pattern(  # noqa: PLR0911
     txn: Transaction, pattern: RecurringPattern
 ) -> bool:
@@ -108,10 +136,13 @@ def transaction_matches_pattern(  # noqa: PLR0911
     if actual < expected * (1 - tolerance) or actual > expected * (1 + tolerance):
         return False
 
-    # 4. Merchant matching with normalisation
-    merchant = normalize_for_matching(txn.counterparty_name or txn.description or "")
+    # 4. Merchant matching with fuzzy matching
+    # Use fuzzy matching to handle variations in merchant names
+    merchant = txn.counterparty_name or txn.description or ""
 
-    if pattern.merchant_contains and pattern.merchant_contains.lower() not in merchant:
+    if pattern.merchant_contains and not merchant_fuzzy_matches(
+        pattern.merchant_contains, merchant
+    ):
         return False
 
     # 5. Advanced rules (if present)
@@ -705,12 +736,20 @@ def relink_pattern_transactions(session: Session, pattern_id: UUID) -> int:
     return pattern.match_count
 
 
-def get_pattern_transactions(session: Session, pattern_id: UUID) -> list[Transaction]:
-    """Get all transactions linked to a pattern.
+def get_pattern_transactions(
+    session: Session,
+    pattern_id: UUID,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> tuple[list[Transaction], int]:
+    """Get transactions linked to a pattern with pagination.
 
     :param session: SQLAlchemy session.
     :param pattern_id: Pattern's UUID.
-    :returns: List of transactions ordered by booking date (descending).
+    :param limit: Maximum transactions to return (None for all).
+    :param offset: Number of transactions to skip.
+    :returns: Tuple of (transactions list, total count).
     """
     links = (
         session.query(RecurringPatternTransaction)
@@ -719,15 +758,23 @@ def get_pattern_transactions(session: Session, pattern_id: UUID) -> list[Transac
     )
 
     if not links:
-        return []
+        return [], 0
 
     transaction_ids = [link.transaction_id for link in links]
-    return (
+    total = len(transaction_ids)
+
+    query = (
         session.query(Transaction)
         .filter(Transaction.id.in_(transaction_ids))
         .order_by(Transaction.booking_date.desc())
-        .all()
     )
+
+    if offset:
+        query = query.offset(offset)
+    if limit:
+        query = query.limit(limit)
+
+    return query.all(), total
 
 
 # =============================================================================

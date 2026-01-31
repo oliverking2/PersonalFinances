@@ -303,7 +303,6 @@ function formatDate(dateStr: string | null): string {
         v-for="txn in filteredTransactions"
         :key="txn.id"
         class="flex items-center gap-4 px-6 py-4 hover:bg-border/10"
-        :class="!txn.enabled && 'opacity-50'"
       >
         <!-- Direction indicator -->
         <div
@@ -312,6 +311,7 @@ function formatDate(dateStr: string | null): string {
             txn.direction === 'income'
               ? 'bg-emerald-500/20 text-emerald-400'
               : 'bg-red-500/20 text-red-400',
+            !txn.enabled && 'opacity-50',
           ]"
         >
           <svg
@@ -345,7 +345,7 @@ function formatDate(dateStr: string | null): string {
         </div>
 
         <!-- Transaction details -->
-        <div class="flex-1">
+        <div class="flex-1" :class="!txn.enabled && 'opacity-50'">
           <p class="font-medium">{{ txn.name }}</p>
           <p class="text-sm text-muted">
             {{ getFrequencyLabel(txn.frequency) }}
@@ -361,6 +361,7 @@ function formatDate(dateStr: string | null): string {
           :class="[
             'text-right font-semibold',
             txn.direction === 'income' ? 'text-emerald-400' : 'text-red-400',
+            !txn.enabled && 'opacity-50',
           ]"
         >
           {{ txn.direction === 'income' ? '+' : '-'

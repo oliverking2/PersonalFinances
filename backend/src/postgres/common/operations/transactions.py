@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import selectinload
 
+from src.postgres.common.enums import TransactionStatus
 from src.postgres.common.models import (
     RecurringPatternTransaction,
     Transaction,
@@ -56,6 +57,7 @@ def get_transactions_for_user(
     min_amount: Decimal | None = None,
     max_amount: Decimal | None = None,
     search: str | None = None,
+    include_reconciled: bool = False,
     page: int = 1,
     page_size: int = 50,
 ) -> TransactionQueryResult:
@@ -69,6 +71,7 @@ def get_transactions_for_user(
     :param min_amount: Minimum transaction amount.
     :param max_amount: Maximum transaction amount.
     :param search: Search term for description/counterparty.
+    :param include_reconciled: If False (default), excludes reconciled transactions.
     :param page: Page number (1-indexed).
     :param page_size: Number of items per page.
     :return: TransactionQueryResult with transactions and pagination info.
@@ -96,6 +99,10 @@ def get_transactions_for_user(
             ),
         )
     )
+
+    # Filter out reconciled transactions unless explicitly requested
+    if not include_reconciled:
+        query = query.filter(Transaction.status == TransactionStatus.ACTIVE.value)
 
     # Apply tag filter (join with transaction_splits if needed)
     # Uses OR logic: transactions with ANY of the specified tags

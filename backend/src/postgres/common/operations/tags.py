@@ -29,7 +29,7 @@ STANDARD_TAGS = [
     {"name": "Health", "colour": "#ef4444"},
     {"name": "Travel", "colour": "#0ea5e9"},
     {"name": "Income", "colour": "#10b981"},
-    {"name": "Transfers", "colour": "#6b7280"},
+    {"name": "Internal Transfers", "colour": "#6b7280"},
     {"name": "Fees", "colour": "#f59e0b"},
 ]
 

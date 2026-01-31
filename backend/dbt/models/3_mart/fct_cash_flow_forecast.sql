@@ -1,10 +1,10 @@
 -- Cash flow forecast model
 -- Projects future balances based on recurring patterns and planned transactions
 -- Combines detected income/expenses with user-defined planned transactions
--- 90-day forward projection by default
+-- 1 year forward projection (365 days) to support all frontend date range options
 
 -- Configuration for forecast horizon
-{% set forecast_days = 90 %}
+{% set forecast_days = 365 %}
 
 WITH CURRENT_NET_WORTH AS (
     -- Get the latest net worth for each user as starting point

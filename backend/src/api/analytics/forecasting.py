@@ -84,8 +84,8 @@ class CashFlowForecastResponse(BaseModel):
     daily: list[ForecastDayResponse] = Field(..., description="Daily forecast data")
 
 
-# Default forecast range in days
-DEFAULT_FORECAST_DAYS = 90
+# Default forecast range in days (1 year to match dbt model)
+DEFAULT_FORECAST_DAYS = 365
 # Maximum forecast range in days (2 years)
 MAX_FORECAST_DAYS = 730
 
@@ -136,7 +136,7 @@ def get_forecast(
 def _get_forecast_from_cache(
     current_user: User, start_date: date, end_date: date
 ) -> CashFlowForecastResponse:
-    """Get forecast from dbt-cached data (for ranges within 90 days from today)."""
+    """Get forecast from dbt-cached data (for ranges within 1 year from today)."""
     query = """
         SELECT
             forecast_date,

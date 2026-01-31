@@ -227,6 +227,17 @@ class GoalTrackingMode(StrEnum):
     TARGET_BALANCE = "target_balance"
 
 
+class TransactionStatus(StrEnum):
+    """Status of a transaction in the unified table.
+
+    - ACTIVE: Normal transaction, visible in all views
+    - RECONCILED: Pending transaction replaced by booked version, kept for audit
+    """
+
+    ACTIVE = "active"
+    RECONCILED = "reconciled"
+
+
 class NotificationType(StrEnum):
     """Type of in-app notification.
 
@@ -238,9 +249,13 @@ class NotificationType(StrEnum):
     - EXPORT_COMPLETE: Data export finished successfully
     - EXPORT_FAILED: Data export failed with an error
 
-    Sync notifications:
-    - SYNC_COMPLETE: Data sync finished successfully
-    - SYNC_FAILED: Data sync failed with an error
+    Sync notifications (bank data):
+    - SYNC_COMPLETE: Bank data sync finished successfully
+    - SYNC_FAILED: Bank data sync failed with an error
+
+    Analytics refresh notifications (dbt):
+    - ANALYTICS_REFRESH_COMPLETE: Analytics refresh finished successfully
+    - ANALYTICS_REFRESH_FAILED: Analytics refresh failed with an error
     """
 
     BUDGET_WARNING = "budget_warning"
@@ -249,3 +264,5 @@ class NotificationType(StrEnum):
     EXPORT_FAILED = "export_failed"
     SYNC_COMPLETE = "sync_complete"
     SYNC_FAILED = "sync_failed"
+    ANALYTICS_REFRESH_COMPLETE = "analytics_refresh_complete"
+    ANALYTICS_REFRESH_FAILED = "analytics_refresh_failed"

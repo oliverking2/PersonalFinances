@@ -34,6 +34,7 @@ from src.postgres.common.enums import (
     RecurringFrequency,
     RecurringSource,
     RecurringStatus,
+    TransactionStatus,
 )
 from src.postgres.core import Base
 
@@ -315,6 +316,13 @@ class Transaction(Base):
         DateTime(timezone=True),
         nullable=False,
         default=_utc_now,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=TransactionStatus.ACTIVE.value
+    )
+    reconciled_by_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("transactions.id"),
+        nullable=True,
     )
 
     # Relationships
@@ -1026,6 +1034,7 @@ class PlannedTransaction(Base):
     __table_args__ = (
         Index("idx_planned_transactions_user_id", "user_id"),
         Index("idx_planned_transactions_next_date", "next_expected_date"),
+        Index("idx_planned_transactions_user_enabled", "user_id", "enabled"),
     )
 
     @property

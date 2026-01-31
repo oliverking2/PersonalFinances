@@ -13,11 +13,14 @@ import type {
 
 useHead({ title: 'Forecasting | Finances' })
 
+const toast = useToastStore()
+const { fetchJob } = useAccountsApi()
 const {
   fetchForecast,
   fetchWeeklyForecast,
   fetchForecastEvents,
   fetchAnalyticsStatus,
+  triggerRefresh,
 } = useAnalyticsApi()
 
 // ---------------------------------------------------------------------------
@@ -45,6 +48,7 @@ const weeklyData = ref<WeeklyForecastResponse | null>(null)
 
 // Loading states
 const loading = ref(true)
+const refreshing = ref(false)
 const error = ref('')
 const analyticsAvailable = ref(false)
 
@@ -123,6 +127,60 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+// Trigger dbt refresh then reload data
+async function handleRefresh() {
+  refreshing.value = true
+  try {
+    toast.info('Starting forecast refresh...')
+
+    // Trigger dbt to regenerate forecast data
+    const response = await triggerRefresh('/planning/forecast')
+
+    // Check if Dagster is unavailable
+    if (response.status === 'failed') {
+      toast.error(response.message || 'Failed to start forecast refresh')
+      return
+    }
+
+    // Poll for job completion
+    await pollJobStatus(response.job_id)
+
+    // Then load the fresh data
+    await loadData()
+    toast.success('Forecast refreshed successfully')
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : 'Failed to refresh forecast'
+    toast.error(message)
+  } finally {
+    refreshing.value = false
+  }
+}
+
+// Poll for job completion
+async function pollJobStatus(jobId: string) {
+  const maxAttempts = 60 // 5 minutes max
+  let attempts = 0
+
+  while (attempts < maxAttempts) {
+    const job = await fetchJob(jobId)
+
+    if (job.status === 'completed') {
+      return
+    }
+
+    if (job.status === 'failed') {
+      throw new Error('Refresh job failed')
+    }
+
+    // Wait 5 seconds before next poll
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+    attempts++
+  }
+
+  throw new Error('Refresh timed out')
 }
 
 // Reload data when date range changes
@@ -388,14 +446,14 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Refresh button -->
+        <!-- Refresh button - triggers dbt to regenerate forecast data -->
         <button
           class="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted transition-colors hover:text-foreground"
-          :disabled="loading"
-          @click="loadData"
+          :disabled="loading || refreshing"
+          @click="handleRefresh"
         >
           <svg
-            :class="['h-4 w-4', loading && 'animate-spin']"
+            :class="['h-4 w-4', (loading || refreshing) && 'animate-spin']"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

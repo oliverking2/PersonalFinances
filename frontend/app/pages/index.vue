@@ -7,11 +7,7 @@ Main dashboard showing net worth, spending metrics, and recent transactions
 import type { Account } from '~/types/accounts'
 import type { Transaction, SplitRequest } from '~/types/transactions'
 import type { Tag } from '~/types/tags'
-import type {
-  Dataset,
-  DatasetQueryResponse,
-  CashFlowForecastResponse,
-} from '~/types/analytics'
+import type { Dataset, DatasetQueryResponse } from '~/types/analytics'
 import type { BudgetSummaryResponse } from '~/types/budgets'
 import type { GoalSummaryResponse } from '~/types/goals'
 
@@ -29,13 +25,8 @@ const {
 const { fetchTransactions, setSplits, clearSplits, updateNote } =
   useTransactionsApi()
 const { fetchTags, createTag } = useTagsApi()
-const {
-  fetchDatasets,
-  queryDataset,
-  fetchAnalyticsStatus,
-  triggerRefresh,
-  fetchForecast,
-} = useAnalyticsApi()
+const { fetchDatasets, queryDataset, fetchAnalyticsStatus, triggerRefresh } =
+  useAnalyticsApi()
 const { fetchBudgetSummary } = useBudgetsApi()
 const { fetchGoalSummary } = useGoalsApi()
 
@@ -52,7 +43,6 @@ const dailySpendingByTag = ref<DatasetQueryResponse | null>(null)
 const budgetSummary = ref<BudgetSummaryResponse | null>(null)
 const goalSummary = ref<GoalSummaryResponse | null>(null)
 const netWorthHistory = ref<DatasetQueryResponse | null>(null)
-const forecast = ref<CashFlowForecastResponse | null>(null)
 
 // Detail modal state
 const detailModalTransaction = ref<Transaction | null>(null)
@@ -444,14 +434,6 @@ async function loadAnalytics() {
         end_date: today.value,
       })
     }
-
-    // Fetch cash flow forecast for runway widget
-    try {
-      forecast.value = await fetchForecast()
-    } catch {
-      // Forecast is optional, don't fail if unavailable
-      forecast.value = null
-    }
   } catch (e) {
     // Analytics errors are non-fatal - we still show net worth from accounts
     console.error('Failed to load analytics:', e)
@@ -703,7 +685,7 @@ async function handleRefreshAnalytics() {
     } else {
       // Start a new refresh
       toast.info('Starting analytics refresh...')
-      const response = await triggerRefresh()
+      const response = await triggerRefresh('/')
 
       // Check if Dagster is unavailable
       if (response.status === 'failed') {
@@ -911,7 +893,7 @@ onMounted(() => {
         to="/planning/net-worth"
       />
 
-      <!-- This Month Spending - links to analytics page -->
+      <!-- This Month Spending - links to transactions for this month -->
       <HomeMetricCard
         label="Spent This Month"
         :value="
@@ -919,10 +901,10 @@ onMounted(() => {
         "
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
-        :to="analyticsAvailable ? '/analytics' : undefined"
+        :to="transactionsLink"
       />
 
-      <!-- vs Last Month (positive = spending more = bad = red) - links to analytics page -->
+      <!-- vs Last Month (positive = spending more = bad = red) - links to transactions -->
       <HomeMetricCard
         label="vs Last Month"
         :value="
@@ -946,7 +928,7 @@ onMounted(() => {
         "
         :loading="loadingAnalytics"
         :muted="!analyticsAvailable && !loadingAnalytics"
-        :to="analyticsAvailable ? '/analytics' : undefined"
+        :to="transactionsLink"
       />
 
       <!-- Top Category (this month) - links to transactions filtered by tag -->
@@ -1000,7 +982,6 @@ onMounted(() => {
         :summary="goalSummary"
         :loading="loadingGoals"
       />
-      <HomeRunwayWidget :forecast="forecast" :loading="loadingAnalytics" />
     </div>
 
     <!-- Recent Transactions Section -->

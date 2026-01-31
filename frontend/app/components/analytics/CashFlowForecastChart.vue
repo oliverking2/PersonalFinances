@@ -195,44 +195,6 @@ const runwayAnnotation = computed(() => {
   ]
 })
 
-// Minimum balance marker
-const minBalanceAnnotation = computed(() => {
-  if (!props.summary.min_balance_date) return []
-
-  const minDate = new Date(props.summary.min_balance_date).getTime()
-  const minBalance = parseFloat(props.summary.min_balance)
-
-  // Only show if minimum is significantly lower than ending balance
-  const endBalance = parseFloat(props.summary.ending_balance)
-  if (minBalance >= endBalance * 0.95) return []
-
-  return [
-    {
-      x: minDate,
-      y: minBalance,
-      marker: {
-        size: 5,
-        fillColor: '#f59e0b',
-        strokeColor: '#f59e0b',
-      },
-      label: {
-        borderColor: '#f59e0b',
-        style: {
-          color: '#fff',
-          background: '#f59e0b',
-          fontSize: '9px',
-          padding: { left: 4, right: 4, top: 2, bottom: 2 },
-        },
-        text: `Min: ${formatCompactCurrency(minBalance)}`,
-        // Position label below and to the right to avoid overlap with line
-        position: 'right',
-        offsetX: 5,
-        offsetY: 15,
-      },
-    },
-  ]
-})
-
 // ---------------------------------------------------------------------------
 // Computed: Chart configuration
 // ---------------------------------------------------------------------------
@@ -353,7 +315,6 @@ const chartOptions = computed<ApexOptions>(() => ({
           ]
         : [],
     xaxis: runwayAnnotation.value,
-    points: minBalanceAnnotation.value,
   },
 }))
 

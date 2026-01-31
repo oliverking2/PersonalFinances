@@ -116,9 +116,14 @@ export function useAnalyticsApi() {
   /**
    * Trigger an analytics refresh (dbt rebuild).
    * Returns a job ID that can be polled for status.
+   *
+   * @param redirectTo - URL to redirect to in the notification (defaults to /insights/analytics)
    */
-  async function triggerRefresh(): Promise<RefreshResponse> {
-    return authFetch<RefreshResponse>('/api/analytics/refresh', {
+  async function triggerRefresh(redirectTo?: string): Promise<RefreshResponse> {
+    const params = redirectTo
+      ? `?redirect_to=${encodeURIComponent(redirectTo)}`
+      : ''
+    return authFetch<RefreshResponse>(`/api/analytics/refresh${params}`, {
       method: 'POST',
     })
   }

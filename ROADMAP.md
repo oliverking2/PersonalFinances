@@ -353,15 +353,16 @@ Shifted from opt-out (detection creates patterns, user dismisses) to opt-in (det
 
 ### Remaining Tasks
 
-- [ ] Improve confidence calculation (current formula too harsh for consistent payments)
-- [ ] Separate patterns by amount bucket (Apple £4.99 and £2.99 should be different)
-- [ ] Allow editing expected amount when subscription price changes
-- [ ] Fuzzy merchant name matching (handle slight variations in merchant names)
-- [ ] Add pagination to pattern transactions endpoint (currently returns all)
-- [ ] Allow adjusting detected frequency (e.g., detected fortnightly but actually weekly)
-- [ ] Add "Edit Pattern" button to subscription detail view
-- [ ] Add "Create Pattern" button to subscription list view
-- [ ] Migration to clear out old patterns
+- [x] Improve confidence calculation (current formula too harsh for consistent payments)
+- [x] Separate patterns by amount bucket (Apple £4.99 and £2.99 should be different) - Already in dbt
+- [x] Allow editing expected amount when subscription price changes - Already supported
+- [x] Fuzzy merchant name matching (handle slight variations in merchant names)
+- [x] Add pagination to pattern transactions endpoint (currently returns all)
+- [x] Allow adjusting detected frequency (e.g., detected fortnightly but actually weekly)
+- [x] Add "Edit Pattern" button to subscription detail view - Already exists
+- [x] Add "Create Pattern" button to subscription list view
+- [x] Migration to clear out old patterns (run after applying changes above)
+- [x] New subscriptions don't get picked up soon enough - Solved by Create Pattern button
 
 ### Addressed by Redesign
 
@@ -411,7 +412,6 @@ Items to tackle when higher priority work is complete.
 
 - [ ] Multi-rule match notifications (alert when transaction matches multiple rules)
 - [ ] Smart tag suggestions (ML-based, learn from user corrections)
-- [ ] new subscriptions don't get picked up soon enough, i need a way of adding/adjusting subscriptions. E.g. I have a simmer eats subscription which has been picked up as fortnightly even though it is weekly  
 
 ### AI Features
 

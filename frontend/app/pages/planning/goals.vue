@@ -273,7 +273,7 @@ function formatCurrency(amount: number): string {
       </div>
       <button
         type="button"
-        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
         @click="openCreateModal"
       >
         + New Goal
@@ -462,7 +462,7 @@ function formatCurrency(amount: number): string {
                 <button
                   type="submit"
                   :disabled="contributeAmount <= 0"
-                  class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                  class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
                 >
                   Add Funds
                 </button>

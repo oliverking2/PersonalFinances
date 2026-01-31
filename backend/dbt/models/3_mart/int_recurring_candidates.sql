@@ -167,13 +167,15 @@ SELECT
     END AS DETECTED_FREQUENCY,
     -- Calculate confidence score using weighted average (not multiplication)
     -- This prevents one weak factor from destroying the whole score
-    -- Weights: occurrences=25%, interval consistency=35%, amount consistency=40%
-    -- Lowered thresholds to catch patterns with limited data (1 month of history)
+    -- Weights: occurrences=20%, interval consistency=30%, amount consistency=50%
+    -- Occurrence: max at 4 (not 3) to reward longer history
+    -- Interval: tolerance 0.35 (more forgiving than 0.5)
+    -- Amount: higher weight (50%) for consistent pricing, tolerance 0.15
     LEAST(
         1.0,
-        (0.25 * LEAST(1.0, CAST(STS.OCCURRENCE_COUNT AS DOUBLE) / 3.0))
-        + (0.35 * (1.0 - LEAST(1.0, COALESCE(STS.INTERVAL_STDDEV, 0) / NULLIF(STS.AVG_INTERVAL, 0) / 0.5)))
-        + (0.40 * (1.0 - LEAST(1.0, COALESCE(STS.AMOUNT_STDDEV, 0) / NULLIF(ABS(STS.AVG_AMOUNT), 0) / 0.2)))
+        (0.20 * LEAST(1.0, CAST(STS.OCCURRENCE_COUNT AS DOUBLE) / 4.0))
+        + (0.30 * (1.0 - LEAST(1.0, COALESCE(STS.INTERVAL_STDDEV, 0) / NULLIF(STS.AVG_INTERVAL, 0) / 0.35)))
+        + (0.50 * (1.0 - LEAST(1.0, COALESCE(STS.AMOUNT_STDDEV, 0) / NULLIF(ABS(STS.AVG_AMOUNT), 0) / 0.15)))
     )   AS CONFIDENCE_SCORE,
     -- Calculate amount variance as percentage
     CASE

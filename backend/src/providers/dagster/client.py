@@ -49,18 +49,18 @@ DATASET_EXPORT_JOB = "dataset_export_job"
 DATASET_EXPORT_OPS = ["export_dataset"]
 
 
-def build_gocardless_run_config(connection_id: str) -> dict[str, Any]:
+def build_gocardless_run_config(connection_id: str, *, full_sync: bool = False) -> dict[str, Any]:
     """Build run config for GoCardless connection sync job.
 
     :param connection_id: Connection UUID as string.
+    :param full_sync: If True, ignore watermark and fetch all transactions.
     :returns: Run config dict for Dagster.
     """
-    return {
-        "ops": {
-            op_name: {"config": {"connection_id": connection_id}}
-            for op_name in GOCARDLESS_CONNECTION_SYNC_OPS
-        }
-    }
+    config: dict[str, Any] = {"connection_id": connection_id}
+    if full_sync:
+        config["full_sync"] = True
+
+    return {"ops": {op_name: {"config": config} for op_name in GOCARDLESS_CONNECTION_SYNC_OPS}}
 
 
 def build_trading212_run_config(api_key_id: str | None = None) -> dict[str, Any]:

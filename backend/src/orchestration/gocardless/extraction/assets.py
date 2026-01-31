@@ -52,6 +52,7 @@ class ConnectionScopeConfig(Config):
     """Config for scoping extraction to a specific connection."""
 
     connection_id: Optional[str] = None
+    full_sync: bool = False  # If True, ignore watermark and fetch all transactions
 
 
 def _get_requisition_id_for_connection(
@@ -106,13 +107,18 @@ def gocardless_extract_transactions(
                 return  # Error already logged
 
         for account in get_active_accounts(session, requisition_id):
-            watermark = get_transaction_watermark(session, account.id)
-
-            context.log.info(f"Watermark for account {account.id}: {watermark}")
-            date_start = today + relativedelta(days=-90) if watermark is None else watermark
-
-            # Go a few days further back to add some overlap in case any data was missed
-            date_start += relativedelta(days=-3)
+            # If full_sync requested, ignore watermark and go back 2 years
+            if config.full_sync:
+                context.log.info(
+                    f"Full sync requested for account {account.id}, ignoring watermark"
+                )
+                date_start = today + relativedelta(years=-2)
+            else:
+                watermark = get_transaction_watermark(session, account.id)
+                context.log.info(f"Watermark for account {account.id}: {watermark}")
+                date_start = today + relativedelta(days=-90) if watermark is None else watermark
+                # Go a few days further back to add some overlap in case any data was missed
+                date_start += relativedelta(days=-3)
 
             context.log.info(
                 f"Extracting transactions for account {account.id} from {date_start} to {today}"

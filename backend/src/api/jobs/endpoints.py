@@ -39,14 +39,42 @@ def _create_sync_notification(
     :param success: Whether the sync succeeded.
     :param error_message: Error message if sync failed.
     """
-    # Determine entity name based on job type
+    # Handle analytics refresh separately with its own notification types
+    if job.entity_type == "analytics":
+        redirect_to = job.job_metadata.get("redirect_to", "/insights/analytics")
+        if success:
+            create_notification(
+                db,
+                job.user_id,
+                NotificationType.ANALYTICS_REFRESH_COMPLETE,
+                title="Analytics Refreshed",
+                message="Your analytics data has been updated.",
+                metadata={
+                    "job_id": str(job.id),
+                    "redirect_to": redirect_to,
+                },
+            )
+        else:
+            create_notification(
+                db,
+                job.user_id,
+                NotificationType.ANALYTICS_REFRESH_FAILED,
+                title="Analytics Refresh Failed",
+                message="Failed to refresh analytics data. Please try again.",
+                metadata={
+                    "job_id": str(job.id),
+                    "redirect_to": redirect_to,
+                    "error_message": error_message,
+                },
+            )
+        return
+
+    # Handle bank sync notifications
     entity_name = "data"
     if job.entity_type == "connection" and job.entity_id:
         connection = db.get(Connection, job.entity_id)
         if connection:
             entity_name = connection.friendly_name
-    elif job.entity_type == "analytics":
-        entity_name = "analytics"
 
     if success:
         create_notification(

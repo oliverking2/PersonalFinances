@@ -313,6 +313,9 @@ def query_dataset(
     responses=UNAUTHORIZED,
 )
 def trigger_refresh(
+    redirect_to: str | None = Query(
+        None, description="URL to redirect to after completion (for notifications)"
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> RefreshResponse:
@@ -324,6 +327,7 @@ def trigger_refresh(
         user_id=current_user.id,
         entity_type="analytics",
         entity_id=None,
+        job_metadata={"redirect_to": redirect_to} if redirect_to else {},
     )
     db.add(job)
     db.flush()

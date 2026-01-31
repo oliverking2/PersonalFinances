@@ -1039,7 +1039,7 @@ onMounted(async () => {
         <div class="relative">
           <button
             type="button"
-            class="rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-primary/80 disabled:opacity-50"
+            class="rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
             :disabled="selectedCount === 0"
             @click="toggleBulkTagSelector"
           >

@@ -215,7 +215,7 @@ onUnmounted(() => {
       class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all"
       :class="
         selected
-          ? 'bg-primary text-background'
+          ? 'bg-primary text-white'
           : 'border border-gray-600 bg-transparent'
       "
     >

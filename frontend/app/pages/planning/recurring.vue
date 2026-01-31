@@ -6,8 +6,10 @@ Manage recurring expenses (subscriptions, bills) and income (salary, transfers)
 <script setup lang="ts">
 import type {
   RecurringPattern,
+  RecurringPatternCreateRequest,
   RecurringStatus,
   RecurringDirection,
+  RecurringFrequency,
   RecurringSummary,
 } from '~/types/recurring'
 import { getStatusLabel } from '~/types/recurring'
@@ -23,6 +25,7 @@ const {
   pausePattern,
   resumePattern,
   updatePattern,
+  createPattern,
 } = useRecurringApi()
 
 const toast = useToastStore()
@@ -44,6 +47,9 @@ const sortBy = ref<'amount' | 'name' | 'next'>('amount')
 // Edit modal state
 const editModalOpen = ref(false)
 const editingPattern = ref<RecurringPattern | null>(null)
+
+// Create modal state
+const createModalOpen = ref(false)
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -201,6 +207,7 @@ interface PatternUpdates {
   name?: string
   notes?: string
   expected_amount?: number
+  frequency?: RecurringFrequency
 }
 
 async function handleSaveEdit(updates: PatternUpdates) {
@@ -221,6 +228,22 @@ async function handleSaveEdit(updates: PatternUpdates) {
   }
 }
 
+// Create a new pattern manually
+async function handleCreate(request: RecurringPatternCreateRequest) {
+  try {
+    const created = await createPattern(request)
+    // Add to list
+    patterns.value.push(created)
+    toast.success(`Created: ${created.name}`)
+    createModalOpen.value = false
+    // Reload summary to update counts
+    const summaryResponse = await fetchSummary()
+    summary.value = summaryResponse
+  } catch {
+    toast.error('Failed to create pattern')
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
@@ -237,9 +260,24 @@ function formatCurrency(amount: number): string {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-bold sm:text-3xl">Recurring Patterns</h1>
-      <p class="mt-1 text-muted">Manage recurring expenses and income</p>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">Recurring Patterns</h1>
+        <p class="mt-1 text-muted">Manage recurring expenses and income</p>
+      </div>
+      <!-- Create Pattern button -->
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+        @click="createModalOpen = true"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"
+          />
+        </svg>
+        Create Pattern
+      </button>
     </div>
 
     <!-- Summary cards -->
@@ -432,6 +470,13 @@ function formatCurrency(amount: number): string {
       :open="editModalOpen"
       @close="editModalOpen = false"
       @save="handleSaveEdit"
+    />
+
+    <!-- Create modal -->
+    <SubscriptionsRecurringPatternCreateModal
+      :open="createModalOpen"
+      @close="createModalOpen = false"
+      @create="handleCreate"
     />
   </div>
 </template>

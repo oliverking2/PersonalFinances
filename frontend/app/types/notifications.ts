@@ -14,6 +14,8 @@ export type NotificationType =
   | 'export_failed'
   | 'sync_complete'
   | 'sync_failed'
+  | 'analytics_refresh_complete'
+  | 'analytics_refresh_failed'
 
 // -----------------------------------------------------------------------------
 // Metadata Types (type-specific data stored in notification.metadata)
@@ -38,6 +40,12 @@ export interface ExportNotificationMetadata {
 export interface SyncNotificationMetadata {
   job_id: string
   connection_name: string
+  error_message?: string
+}
+
+export interface AnalyticsRefreshNotificationMetadata {
+  job_id: string
+  redirect_to: string
   error_message?: string
 }
 
@@ -86,6 +94,8 @@ export function getNotificationTypeLabel(
     export_failed: 'Export Failed',
     sync_complete: 'Sync Complete',
     sync_failed: 'Sync Failed',
+    analytics_refresh_complete: 'Analytics Refreshed',
+    analytics_refresh_failed: 'Analytics Refresh Failed',
   }
   return labels[notificationType] || notificationType
 }
@@ -101,6 +111,8 @@ export function getNotificationTypeColour(
     export_failed: 'text-red-400',
     sync_complete: 'text-emerald-400',
     sync_failed: 'text-red-400',
+    analytics_refresh_complete: 'text-emerald-400',
+    analytics_refresh_failed: 'text-red-400',
   }
   return colours[notificationType] || 'text-gray-400'
 }
@@ -116,6 +128,8 @@ export function getNotificationTypeBgColour(
     export_failed: 'bg-red-500/20',
     sync_complete: 'bg-emerald-500/20',
     sync_failed: 'bg-red-500/20',
+    analytics_refresh_complete: 'bg-emerald-500/20',
+    analytics_refresh_failed: 'bg-red-500/20',
   }
   return colours[notificationType] || 'bg-gray-500/20'
 }
@@ -124,9 +138,12 @@ export function getNotificationTypeBgColour(
 export function isErrorNotification(
   notificationType: NotificationType,
 ): boolean {
-  return ['budget_exceeded', 'export_failed', 'sync_failed'].includes(
-    notificationType,
-  )
+  return [
+    'budget_exceeded',
+    'export_failed',
+    'sync_failed',
+    'analytics_refresh_failed',
+  ].includes(notificationType)
 }
 
 export function isWarningNotification(
@@ -138,7 +155,11 @@ export function isWarningNotification(
 export function isSuccessNotification(
   notificationType: NotificationType,
 ): boolean {
-  return ['export_complete', 'sync_complete'].includes(notificationType)
+  return [
+    'export_complete',
+    'sync_complete',
+    'analytics_refresh_complete',
+  ].includes(notificationType)
 }
 
 // Format relative time for notification display

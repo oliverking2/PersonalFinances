@@ -116,10 +116,14 @@ export function useAccountsApi() {
   // ---------------------------------------------------------------------------
 
   // Trigger a sync for a specific connection
+  // Always uses full_sync=true to ignore watermark and fetch all transaction history
   async function triggerConnectionSync(connectionId: string): Promise<Job> {
-    return authFetch<Job>(`/api/connections/${connectionId}/sync`, {
-      method: 'POST',
-    })
+    return authFetch<Job>(
+      `/api/connections/${connectionId}/sync?full_sync=true`,
+      {
+        method: 'POST',
+      },
+    )
   }
 
   // Get a job by ID (also updates status from Dagster if running)

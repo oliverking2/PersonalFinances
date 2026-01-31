@@ -95,7 +95,7 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
             clip-rule="evenodd"
           />
         </svg>
-        <h3 class="font-semibold">Upcoming Bills</h3>
+        <h3 class="font-semibold">Upcoming Payments</h3>
       </div>
       <span class="text-sm text-muted">Next {{ days }} days</span>
     </div>
@@ -121,7 +121,7 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
       v-else-if="!hasUpcomingBills"
       class="p-4 text-center text-sm text-muted"
     >
-      No upcoming bills in the next {{ days }} days
+      No upcoming payments in the next {{ days }} days
     </div>
 
     <!-- Bills list -->
@@ -184,19 +184,39 @@ const hasUpcomingBills = computed(() => upcomingBills.value.length > 0)
           </p>
         </div>
 
-        <!-- Right: amount -->
-        <span class="flex-shrink-0 font-medium text-foreground">
-          -{{ formatCurrency(bill.expected_amount) }}
+        <!-- Right: amount (negative = expense, positive = income) -->
+        <span
+          class="flex-shrink-0 font-medium"
+          :class="
+            bill.expected_amount < 0
+              ? 'text-negative'
+              : bill.expected_amount > 0
+                ? 'text-positive'
+                : 'text-foreground'
+          "
+        >
+          {{ bill.expected_amount < 0 ? '-' : '+'
+          }}{{ formatCurrency(bill.expected_amount) }}
         </span>
       </div>
 
       <!-- Footer: total + link -->
       <div class="flex items-center justify-between bg-background/30 px-4 py-3">
         <span class="text-sm text-muted">
-          Total expected:
-          <span class="font-medium text-foreground"
-            >-{{ formatCurrency(totalExpected) }}</span
+          Net expected:
+          <span
+            class="font-medium"
+            :class="
+              totalExpected < 0
+                ? 'text-negative'
+                : totalExpected > 0
+                  ? 'text-positive'
+                  : 'text-foreground'
+            "
           >
+            {{ totalExpected < 0 ? '-' : '+'
+            }}{{ formatCurrency(totalExpected) }}
+          </span>
         </span>
         <NuxtLink
           to="/planning/recurring"

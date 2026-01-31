@@ -7,6 +7,7 @@ This module provides operations to sync data from raw GoCardless tables
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from uuid import UUID
 
 from dagster import get_dagster_logger
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from src.postgres.common.enums import (
     AccountStatus,
     AccountType,
     Provider,
+    TransactionStatus,
     map_gc_account_status,
     map_gc_requisition_status,
 )
@@ -29,6 +31,9 @@ from src.postgres.gocardless.models import (
 )
 
 logger = get_dagster_logger()
+
+# Maximum days difference between pending and booked transaction dates for reconciliation
+RECONCILIATION_DATE_TOLERANCE_DAYS = 5
 
 
 def sync_gocardless_connection(
@@ -385,6 +390,56 @@ def sync_all_gocardless_institutions(session: Session) -> list[Institution]:
     return synced
 
 
+def _find_matching_pending_transaction(
+    session: Session,
+    account_id: UUID,
+    amount: Decimal,
+    booking_date: datetime | None,
+    counterparty_name: str | None,
+) -> Transaction | None:
+    """Find a pending transaction that matches the given booked transaction.
+
+    Matches on: same account, same amount, booking date within 5 days,
+    and similar counterparty name (if both present).
+
+    :param session: SQLAlchemy session.
+    :param account_id: Account UUID.
+    :param amount: Transaction amount.
+    :param booking_date: Booking datetime.
+    :param counterparty_name: Counterparty name.
+    :returns: Matching pending transaction or None.
+    """
+    # Query for active (non-reconciled) transactions with matching amount
+    query = session.query(Transaction).filter(
+        Transaction.account_id == account_id,
+        Transaction.amount == amount,
+        Transaction.status == TransactionStatus.ACTIVE.value,
+    )
+
+    candidates = query.all()
+
+    for candidate in candidates:
+        # Check booking date is within 5 days
+        if booking_date and candidate.booking_date:
+            date_diff = abs((booking_date - candidate.booking_date).days)
+            if date_diff > RECONCILIATION_DATE_TOLERANCE_DAYS:
+                continue
+
+        # Check counterparty similarity (simple substring match)
+        if counterparty_name and candidate.counterparty_name:
+            # Normalise for comparison
+            booked_name = counterparty_name.lower().replace(" ", "")
+            pending_name = candidate.counterparty_name.lower().replace(" ", "")
+            # Check if one contains the other (handles "NETFLIX" vs "NETFLIX.COM*123")
+            if booked_name not in pending_name and pending_name not in booked_name:
+                continue
+
+        # Found a match
+        return candidate
+
+    return None
+
+
 def sync_gocardless_transaction(
     session: Session,
     gc_transaction: GoCardlessTransaction,
@@ -458,6 +513,22 @@ def sync_gocardless_transaction(
     )
     session.add(transaction)
     session.flush()
+
+    # If this is a booked transaction, look for matching pending to reconcile
+    if gc_transaction.status == "booked":
+        pending = _find_matching_pending_transaction(
+            session,
+            account.id,
+            gc_transaction.transaction_amount,
+            booking_datetime,
+            counterparty_name,
+        )
+        if pending and pending.id != transaction.id:
+            pending.status = TransactionStatus.RECONCILED.value
+            pending.reconciled_by_id = transaction.id
+            session.flush()
+            logger.info(f"Reconciled pending transaction {pending.id} with booked {transaction.id}")
+
     return transaction
 
 

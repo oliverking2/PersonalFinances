@@ -7,6 +7,7 @@ Displays a single notification with icon, message, and actions
 import type {
   Notification,
   ExportNotificationMetadata,
+  AnalyticsRefreshNotificationMetadata,
 } from '~/types/notifications'
 import {
   getNotificationTypeColour,
@@ -89,6 +90,16 @@ const action = computed<NotificationAction | null>(() => {
         label: 'View Accounts',
         href: '/settings/accounts',
       }
+
+    case 'analytics_refresh_complete':
+    case 'analytics_refresh_failed': {
+      const analyticsMeta =
+        metadata as unknown as AnalyticsRefreshNotificationMetadata
+      return {
+        label: 'View',
+        href: analyticsMeta.redirect_to || '/insights/analytics',
+      }
+    }
 
     default:
       return null

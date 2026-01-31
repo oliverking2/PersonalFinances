@@ -47,6 +47,7 @@ httpx = "^0.28.1"
 telegramify-markdown = "^0.5.4"
 humanize = "^4.15.0"
 pydantic-settings = "^2.8.1"
+rapidfuzz = "^3.10.0"
 
 [tool.poetry.group.dev]
 optional = true
