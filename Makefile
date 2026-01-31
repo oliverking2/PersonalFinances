@@ -1,4 +1,4 @@
-.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs
+.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs clone-prod
 
 # Default target
 help:
@@ -17,6 +17,9 @@ help:
 	@echo "  make up           Start all services (docker-compose)"
 	@echo "  make down         Stop all services"
 	@echo "  make reset        Destroy all data and run setup again"
+	@echo ""
+	@echo "Database:"
+	@echo "  make clone-prod   Clone prod database to local (requires .env.prod)"
 	@echo ""
 	@echo "  make check        Run all validation checks"
 
@@ -161,6 +164,64 @@ up-dagster:
 
 up-telegram:
 	@cd backend && poetry run python -m src.telegram
+
+# =============================================================================
+# Database Operations
+# =============================================================================
+clone-prod:
+	@# Install postgresql-client-17 if pg_dump is not available or wrong version
+	@if ! command -v pg_dump > /dev/null 2>&1 || ! pg_dump --version | grep -q "pg_dump (PostgreSQL) 17"; then \
+		echo "=== Installing postgresql-client-17 ==="; \
+		sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $$(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
+		wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
+		sudo apt-get update && sudo apt-get install -y postgresql-client-17; \
+	fi
+	@# Create .env.prod from example if it doesn't exist
+	@if [ ! -f .env.prod ]; then \
+		cp .env.prod.example .env.prod; \
+		echo ""; \
+		echo "Created .env.prod from .env.prod.example"; \
+		echo "Please edit .env.prod with your production database credentials, then run 'make clone-prod' again."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "=== Loading prod credentials ==="
+	@set -a && . ./.env.prod && . ./.env.compose && set +a && \
+	echo "=== Dumping prod database ===" && \
+	PGPASSWORD=$$PROD_POSTGRES_PASSWORD pg_dump \
+		-h $$PROD_POSTGRES_HOSTNAME \
+		-p $${PROD_POSTGRES_PORT:-5432} \
+		-U $${PROD_POSTGRES_USERNAME:-personal_finances} \
+		-d $${PROD_POSTGRES_DATABASE:-personal_finances} \
+		-Fc \
+		--no-owner \
+		--no-acl \
+		> .prod_backup.dump && \
+	echo "=== Ensuring local database is running ===" && \
+	$(COMPOSE) up -d --wait postgres && \
+	echo "=== Dropping and recreating local database ===" && \
+	docker exec postgres psql -U $$POSTGRES_USERNAME -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$$POSTGRES_DATABASE' AND pid <> pg_backend_pid();" > /dev/null && \
+	docker exec postgres psql -U $$POSTGRES_USERNAME -d postgres -c "DROP DATABASE IF EXISTS $$POSTGRES_DATABASE;" && \
+	docker exec postgres psql -U $$POSTGRES_USERNAME -d postgres -c "CREATE DATABASE $$POSTGRES_DATABASE;" && \
+	echo "=== Restoring dump to local database ===" && \
+	PGPASSWORD=$$POSTGRES_PASSWORD pg_restore \
+		-h localhost \
+		-p $${POSTGRES_PORT:-5432} \
+		-U $$POSTGRES_USERNAME \
+		-d $$POSTGRES_DATABASE \
+		--no-owner \
+		--no-acl \
+		.prod_backup.dump && \
+	rm .prod_backup.dump && \
+	echo "=== Running migrations ===" && \
+	cd backend && poetry run alembic upgrade head && cd .. && \
+	echo "=== Rebuilding DuckDB ===" && \
+	cd backend && poetry run bootstrap-duckdb && cd .. && \
+	echo "=== Running dbt models ===" && \
+	set -a && . backend/.env && set +a && cd backend/dbt && poetry run dbt run --profiles-dir . --profile duckdb_local && \
+	echo "" && \
+	echo "=== Clone complete! ===" && \
+	echo "Local database now mirrors prod."
 
 # =============================================================================
 # Other

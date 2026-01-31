@@ -90,6 +90,10 @@ desktop.ini
 # Infrastructure secrets (Docker Compose)
 .env.compose
 
+# Production database credentials
+.env.prod
+.prod_backup.dump
+
 # Backend secrets
 backend/.env
 
