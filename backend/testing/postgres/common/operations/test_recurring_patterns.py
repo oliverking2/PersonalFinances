@@ -599,7 +599,7 @@ class TestSyncDetectedPattern:
             db_session,
             user_id=test_user.id,
             account_id=test_account.id,
-            merchant_pattern="netflix_£15",
+            merchant_pattern="netflix_£20",  # Amount bucket changed
             expected_amount=Decimal("-20.00"),
             frequency=RecurringFrequency.MONTHLY,
             confidence_score=Decimal("0.90"),
@@ -609,9 +609,10 @@ class TestSyncDetectedPattern:
         )
         db_session.commit()
 
-        # Should not update since it's confirmed
+        # Should update amount for accurate forecasting, but keep status
         assert created is False
-        assert same_pattern.expected_amount == Decimal("-15.99")
+        assert same_pattern.expected_amount == Decimal("-20.00")
+        assert same_pattern.status == RecurringStatus.CONFIRMED.value
 
 
 class TestCountPatternsByStatus:

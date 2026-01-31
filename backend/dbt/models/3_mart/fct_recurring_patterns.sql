@@ -1,32 +1,9 @@
 -- Fact table for recurring payment patterns
--- Merges detected patterns with user-managed patterns from the database
+-- Reads from PostgreSQL recurring_patterns table (synced from detection)
 -- Provides next expected dates and monthly equivalents for display
 
-WITH DETECTED AS (
-    -- Auto-detected patterns from transaction analysis
-    SELECT
-        ACCOUNT_ID,
-        USER_ID,
-        MERCHANT_KEY,
-        MERCHANT_NAME,
-        DIRECTION,
-        CURRENCY,
-        OCCURRENCE_COUNT,
-        -- Use latest transaction amount (reflects current price after any changes)
-        LATEST_AMOUNT      AS EXPECTED_AMOUNT,
-        AMOUNT_VARIANCE_PCT,
-        DETECTED_FREQUENCY AS FREQUENCY,
-        CONFIDENCE_SCORE,
-        LAST_OCCURRENCE,
-        FIRST_OCCURRENCE
-    FROM {{ ref('int_recurring_candidates') }}
-    WHERE
-        CONFIDENCE_SCORE >= 0.2  -- Very low threshold to catch patterns with limited data
-        AND DETECTED_FREQUENCY != 'irregular'  -- Still exclude truly irregular patterns
-),
-
-USER_PATTERNS AS (
-    -- User-managed patterns from the database
+WITH PATTERNS AS (
+    -- All patterns from PostgreSQL (detection syncs here, users manage status here)
     SELECT
         PAT.ID                 AS PATTERN_ID,
         PAT.USER_ID,
@@ -47,64 +24,34 @@ USER_PATTERNS AS (
         PAT.CREATED_AT,
         PAT.UPDATED_AT
     FROM {{ ref('src_unified_recurring_patterns') }} AS PAT
+    -- Exclude dismissed patterns from the mart
+    WHERE PAT.STATUS NOT IN ('dismissed')
 ),
 
--- Merge detected and user patterns (user patterns take precedence)
-MERGED AS (
-    SELECT
-        COALESCE(USR.PATTERN_ID, GEN_RANDOM_UUID())             AS PATTERN_ID,
-        COALESCE(USR.USER_ID, DET.USER_ID)                      AS USER_ID,
-        COALESCE(USR.ACCOUNT_ID, DET.ACCOUNT_ID)                AS ACCOUNT_ID,
-        COALESCE(USR.MERCHANT_PATTERN, DET.MERCHANT_KEY)        AS MERCHANT_PATTERN,
-        COALESCE(USR.EXPECTED_AMOUNT, DET.EXPECTED_AMOUNT)      AS EXPECTED_AMOUNT,
-        COALESCE(USR.AMOUNT_VARIANCE, DET.AMOUNT_VARIANCE_PCT)  AS AMOUNT_VARIANCE,
-        COALESCE(USR.CURRENCY, DET.CURRENCY, 'GBP')             AS CURRENCY,
-        COALESCE(USR.FREQUENCY, DET.FREQUENCY)                  AS FREQUENCY,
-        COALESCE(USR.DIRECTION, DET.DIRECTION, 'expense')       AS DIRECTION,
-        COALESCE(USR.STATUS, 'detected')                        AS STATUS,
-        COALESCE(USR.CONFIDENCE_SCORE, DET.CONFIDENCE_SCORE)    AS CONFIDENCE_SCORE,
-        COALESCE(USR.OCCURRENCE_COUNT, DET.OCCURRENCE_COUNT)    AS OCCURRENCE_COUNT,
-        COALESCE(USR.DISPLAY_NAME, DET.MERCHANT_NAME)           AS DISPLAY_NAME,
-        USR.NOTES,
-        COALESCE(USR.LAST_OCCURRENCE_DATE, DET.LAST_OCCURRENCE) AS LAST_OCCURRENCE_DATE,
-        USR.USER_NEXT_DATE,
-        DET.LAST_OCCURRENCE                                     AS DETECTED_LAST_OCCURRENCE,
-        USR.CREATED_AT,
-        USR.UPDATED_AT,
-        -- Flag whether this is from user patterns or detection
-        COALESCE(USR.PATTERN_ID IS NOT NULL, FALSE)             AS IS_USER_MANAGED
-    FROM DETECTED AS DET
-    FULL OUTER JOIN USER_PATTERNS AS USR
-        ON
-            DET.ACCOUNT_ID = USR.ACCOUNT_ID
-            AND DET.MERCHANT_KEY = USR.MERCHANT_PATTERN
-    WHERE COALESCE(USR.STATUS, 'detected') NOT IN ('dismissed')
-),
-
--- Calculate next expected dates
+-- Calculate next expected dates if not set by user
 WITH_NEXT_DATE AS (
     SELECT
-        MRG.*,
-        -- Calculate next expected date based on frequency
+        PAT.*,
+        -- Use user-set date if available, otherwise calculate from frequency
         CASE
-            WHEN MRG.USER_NEXT_DATE IS NOT NULL THEN MRG.USER_NEXT_DATE
-            WHEN MRG.FREQUENCY = 'weekly'
+            WHEN PAT.USER_NEXT_DATE IS NOT NULL THEN PAT.USER_NEXT_DATE
+            WHEN PAT.FREQUENCY = 'weekly'
                 THEN
-                    MRG.LAST_OCCURRENCE_DATE + INTERVAL '7 days'
-            WHEN MRG.FREQUENCY = 'fortnightly'
+                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '7 days'
+            WHEN PAT.FREQUENCY = 'fortnightly'
                 THEN
-                    MRG.LAST_OCCURRENCE_DATE + INTERVAL '14 days'
-            WHEN MRG.FREQUENCY = 'monthly'
+                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '14 days'
+            WHEN PAT.FREQUENCY = 'monthly'
                 THEN
-                    MRG.LAST_OCCURRENCE_DATE + INTERVAL '1 month'
-            WHEN MRG.FREQUENCY = 'quarterly'
+                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '1 month'
+            WHEN PAT.FREQUENCY = 'quarterly'
                 THEN
-                    MRG.LAST_OCCURRENCE_DATE + INTERVAL '3 months'
-            WHEN MRG.FREQUENCY = 'annual'
+                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '3 months'
+            WHEN PAT.FREQUENCY = 'annual'
                 THEN
-                    MRG.LAST_OCCURRENCE_DATE + INTERVAL '1 year'
+                    PAT.LAST_OCCURRENCE_DATE + INTERVAL '1 year'
         END AS NEXT_EXPECTED_DATE
-    FROM MERGED AS MRG
+    FROM PATTERNS AS PAT
 )
 
 SELECT
@@ -124,7 +71,8 @@ SELECT
     NOTES,
     CAST(LAST_OCCURRENCE_DATE AS DATE)                                                   AS LAST_OCCURRENCE_DATE,
     CAST(NEXT_EXPECTED_DATE AS DATE)                                                     AS NEXT_EXPECTED_DATE,
-    IS_USER_MANAGED,
+    -- All patterns in this table are managed (synced from detection or user-created)
+    TRUE                                                                                 AS IS_USER_MANAGED,
     CREATED_AT,
     UPDATED_AT,
     -- Calculate monthly equivalent amount for comparison

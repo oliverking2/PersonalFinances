@@ -5,6 +5,7 @@ pattern-transaction linking.
 """
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -539,6 +540,17 @@ def count_patterns_by_status(session: Session, user_id: UUID) -> dict[RecurringS
     return {RecurringStatus(status): count for status, count in results}
 
 
+def _extract_merchant_base_key(merchant_pattern: str) -> str:
+    """Extract base key from merchant pattern by removing amount bucket suffix.
+
+    Handles keys like "merchant_exp_£16" -> "merchant_exp".
+
+    :param merchant_pattern: Full merchant pattern with amount bucket.
+    :returns: Base key without amount bucket.
+    """
+    return re.sub(r"_£\d+$", "", merchant_pattern)
+
+
 def sync_detected_pattern(
     session: Session,
     user_id: UUID,
@@ -559,10 +571,13 @@ def sync_detected_pattern(
     Creates new patterns or updates existing detected ones. Patterns with
     user-managed status (confirmed, dismissed, paused, manual) are not modified.
 
+    Matching is done on the base merchant key (without amount bucket) to handle
+    price changes without creating duplicates.
+
     :param session: SQLAlchemy session.
     :param user_id: User's UUID.
     :param account_id: Account's UUID.
-    :param merchant_pattern: Normalised merchant name.
+    :param merchant_pattern: Normalised merchant name (with amount bucket).
     :param expected_amount: Expected transaction amount.
     :param frequency: Detected payment frequency.
     :param confidence_score: Detection confidence (0.0-1.0).
@@ -574,20 +589,31 @@ def sync_detected_pattern(
     :param amount_variance: Amount variance percentage.
     :return: Tuple of (pattern, created) where created is True if new.
     """
-    # Check for existing pattern by merchant + account
-    existing = (
+    # Extract base key (without amount bucket) for flexible matching
+    base_key = _extract_merchant_base_key(merchant_pattern)
+
+    # Find existing patterns for this account and check for base key match
+    account_patterns = (
         session.query(RecurringPattern)
         .filter(
             RecurringPattern.user_id == user_id,
             RecurringPattern.account_id == account_id,
-            RecurringPattern.merchant_pattern == merchant_pattern,
         )
-        .first()
+        .all()
     )
+
+    # Find pattern with matching base key
+    existing = None
+    for pat in account_patterns:
+        if _extract_merchant_base_key(pat.merchant_pattern) == base_key:
+            existing = pat
+            break
 
     if existing:
         # Only update if status is still 'detected' (user hasn't acted on it)
         if existing.status == RecurringStatus.DETECTED.value:
+            # Update merchant_pattern to reflect current amount bucket
+            existing.merchant_pattern = merchant_pattern[:256]
             existing.expected_amount = expected_amount
             existing.frequency = frequency.value
             existing.confidence_score = confidence_score
@@ -600,6 +626,16 @@ def sync_detected_pattern(
                 existing.display_name = display_name[:100]
             session.flush()
             logger.info(f"Updated detected pattern: id={existing.id}, merchant={merchant_pattern}")
+        # For user-managed patterns, still update amount if it changed
+        # This ensures the forecast uses current pricing
+        elif existing.expected_amount != expected_amount:
+            existing.expected_amount = expected_amount
+            existing.merchant_pattern = merchant_pattern[:256]
+            session.flush()
+            logger.info(
+                f"Updated amount for user-managed pattern: id={existing.id}, "
+                f"new_amount={expected_amount}"
+            )
         else:
             logger.debug(
                 f"Skipped pattern with user status: id={existing.id}, status={existing.status}"

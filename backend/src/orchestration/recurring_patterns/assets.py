@@ -150,26 +150,26 @@ def sync_recurring_patterns(context: AssetExecutionContext) -> None:
     with postgres_database.get_session() as session:
         for row in patterns:
             try:
-                # Parse frequency enum (DuckDB returns uppercase column names)
-                frequency_str = row["FREQUENCY"]
+                # Parse frequency enum (column names match SELECT clause - lowercase)
+                frequency_str = row["frequency"]
                 try:
                     frequency = RecurringFrequency(frequency_str)
                 except ValueError:
                     context.log.warning(
-                        f"Unknown frequency '{frequency_str}' for {row['MERCHANT_PATTERN']}"
+                        f"Unknown frequency '{frequency_str}' for {row['merchant_pattern']}"
                     )
                     skipped_count += 1
                     continue
 
                 # Parse dates - DuckDB returns datetime objects with timezone
-                last_occurrence = row["LAST_OCCURRENCE_DATE"]
+                last_occurrence = row["last_occurrence_date"]
                 if isinstance(last_occurrence, str):
                     last_occurrence = datetime.fromisoformat(last_occurrence)
                 elif not isinstance(last_occurrence, datetime):
                     # It's a date, convert to datetime
                     last_occurrence = datetime.combine(last_occurrence, datetime.min.time())
 
-                next_expected = row["NEXT_EXPECTED_DATE"]
+                next_expected = row["next_expected_date"]
                 if next_expected:
                     if isinstance(next_expected, str):
                         next_expected = datetime.fromisoformat(next_expected)
@@ -179,18 +179,18 @@ def sync_recurring_patterns(context: AssetExecutionContext) -> None:
                 # Sync the pattern
                 pattern, created = sync_detected_pattern(
                     session=session,
-                    user_id=UUID(str(row["USER_ID"])),
-                    account_id=UUID(str(row["ACCOUNT_ID"])),
-                    merchant_pattern=str(row["MERCHANT_PATTERN"]),
-                    expected_amount=Decimal(str(row["EXPECTED_AMOUNT"])),
+                    user_id=UUID(str(row["user_id"])),
+                    account_id=UUID(str(row["account_id"])),
+                    merchant_pattern=str(row["merchant_pattern"]),
+                    expected_amount=Decimal(str(row["expected_amount"])),
                     frequency=frequency,
-                    confidence_score=Decimal(str(row["CONFIDENCE_SCORE"])),
-                    occurrence_count=int(row["OCCURRENCE_COUNT"]),
+                    confidence_score=Decimal(str(row["confidence_score"])),
+                    occurrence_count=int(row["occurrence_count"]),
                     last_occurrence_date=last_occurrence,
                     next_expected_date=next_expected,
-                    display_name=row.get("DISPLAY_NAME"),
-                    currency=str(row.get("CURRENCY", "GBP")),
-                    amount_variance=Decimal(str(row.get("AMOUNT_VARIANCE", 0))),
+                    display_name=row.get("display_name"),
+                    currency=str(row.get("currency", "GBP")),
+                    amount_variance=Decimal(str(row.get("amount_variance", 0))),
                 )
 
                 # Link matching transactions to this pattern
@@ -203,7 +203,7 @@ def sync_recurring_patterns(context: AssetExecutionContext) -> None:
 
             except Exception as e:
                 context.log.warning(
-                    f"Failed to sync pattern for {row.get('MERCHANT_PATTERN')}: {e}"
+                    f"Failed to sync pattern for {row.get('merchant_pattern')}: {e}"
                 )
                 skipped_count += 1
 
