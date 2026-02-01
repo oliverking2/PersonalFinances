@@ -464,7 +464,7 @@ Items to tackle when higher priority work is complete.
 
 - [ ] Historical data backfill tooling
 - [x] Rate limiting for logging in, and add lock user after 10 failed attempts
-- [ ] Update the seed data to include all the new features
+- [x] Update the seed data to include all the new features
 
 ---
 
