@@ -432,7 +432,7 @@ const isValid = computed(() => {
 }
 
 .modal-content {
-  @apply flex max-h-[85vh] w-full max-w-md flex-col rounded-xl border border-border bg-surface p-6 shadow-xl;
+  @apply flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-border bg-surface p-6 shadow-xl;
   /* Allow form to scroll if content overflows */
   & form {
     @apply overflow-y-auto;

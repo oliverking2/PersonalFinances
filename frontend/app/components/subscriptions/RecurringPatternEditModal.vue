@@ -151,7 +151,7 @@ function formatDate(dateStr: string | null): string {
       >
         <!-- Modal content -->
         <div
-          class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border border-border bg-surface shadow-xl"
+          class="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border border-border bg-surface shadow-xl"
         >
           <!-- Header -->
           <div

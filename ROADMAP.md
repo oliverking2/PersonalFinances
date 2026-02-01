@@ -380,7 +380,6 @@ The following issues from the previous architecture have been resolved:
 
 More flexible budgeting options.
 
-- [ ] Rollover/flexible budgets (unused budget carries forward)
 - [ ] Weekly/annual budget periods
 - [ ] Incorporate budgets into cash flow forecast (project when budgets will be exceeded)
 
@@ -392,16 +391,17 @@ Items to tackle when higher priority work is complete.
 
 ### Manual Assets & Liabilities
 
-- [ ] Student loan balance tracking
-- [ ] Mortgage balance tracking
-- [ ] Property valuations (manual entry with date)
-- [ ] Vehicle values
-- [ ] Other assets/liabilities
+- [x] Student loan balance tracking
+- [x] Mortgage balance tracking
+- [x] Property valuations (manual entry with date)
+- [x] Vehicle values
+- [x] Other assets/liabilities
+- [x] Manual assets integrated with dbt net worth calculations
 
 ### Settings - Jobs
 
-- [ ] See current jobs without going into Dagster UI
-- [ ] Trigger manual syncs - remove from the front UI
+- [x] See current jobs without going into Dagster UI
+- [x] Trigger manual syncs - remove from the front UI
 
 ### Telegram Notifications
 

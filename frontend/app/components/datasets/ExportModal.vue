@@ -602,7 +602,7 @@ function handleClose() {
 }
 
 .modal-content {
-  @apply flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-border bg-surface p-6 shadow-xl;
+  @apply flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-border bg-surface p-6 shadow-xl;
 
   /* Clip horizontal overflow from button scale effects */
   @apply overflow-x-hidden;

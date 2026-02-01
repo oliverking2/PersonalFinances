@@ -1,6 +1,7 @@
 <!-- ==========================================================================
 AppInput
 Reusable text input component with consistent styling
+Supports both text and number types with proper value handling
 ============================================================================ -->
 
 <script setup lang="ts">
@@ -8,24 +9,45 @@ Reusable text input component with consistent styling
 // Props
 // modelValue + emit enable v-model on this component
 // Usage: <AppInput v-model="myValue" type="email" placeholder="Email" />
+// For numbers: <AppInput v-model="numValue" type="number" :min="0" :step="0.01" />
 // ---------------------------------------------------------------------------
-defineProps<{
-  modelValue: string
+const props = defineProps<{
+  modelValue: string | number | null
   type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   required?: boolean
   prefix?: string
+  autofocus?: boolean
+  // Number-specific props (accept string or number since HTML attributes are strings)
+  min?: number | string
+  max?: number | string
+  step?: number | string
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | number | null]
 }>()
 
 // Handle input events and emit to parent
+// For number types, emit as number (or null if empty)
 function onInput(event: Event) {
   const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
+  if (props.type === 'number') {
+    // For number inputs, emit number or null if empty
+    emit('update:modelValue', target.value === '' ? null : Number(target.value))
+  } else {
+    emit('update:modelValue', target.value)
+  }
 }
+
+// Compute the display value for the input
+// Numbers need to be converted to string, null shows empty
+const displayValue = computed(() => {
+  if (props.modelValue === null || props.modelValue === undefined) {
+    return ''
+  }
+  return String(props.modelValue)
+})
 </script>
 
 <template>
@@ -34,9 +56,13 @@ function onInput(event: Event) {
 
     <input
       :type="type ?? 'text'"
-      :value="modelValue"
+      :value="displayValue"
       :placeholder="placeholder"
       :required="required"
+      :autofocus="autofocus"
+      :min="min"
+      :max="max"
+      :step="step"
       @input="onInput"
     />
   </div>
