@@ -703,6 +703,16 @@ class RecurringPattern(Base):
         """Get source as RecurringSource enum."""
         return RecurringSource(self.source)
 
+    @property
+    def signed_amount(self) -> Decimal:
+        """Get expected amount with sign applied based on direction.
+
+        Income is positive, expense is negative.
+        """
+        if self.direction_enum == RecurringDirection.INCOME:
+            return abs(self.expected_amount)
+        return -abs(self.expected_amount)
+
 
 class RecurringPatternTransaction(Base):
     """Database model for pattern-transaction links.

@@ -122,14 +122,7 @@ def get_upcoming_bills(
     now = datetime.now(UTC)
     end_date = now + timedelta(days=days)
 
-    # Sum with sign: expenses negative, income positive
-    total_expected = sum(
-        (
-            p.expected_amount if p.direction == "income" else -abs(p.expected_amount)
-            for p in patterns
-        ),
-        Decimal("0"),
-    )
+    total_expected = sum((p.signed_amount for p in patterns), Decimal("0"))
 
     return UpcomingBillsResponse(
         upcoming=[_to_upcoming_response(p) for p in patterns],
@@ -639,7 +632,7 @@ def _to_upcoming_response(pattern: RecurringPattern) -> UpcomingBillResponse:
     return UpcomingBillResponse(
         id=str(pattern.id),
         name=pattern.name,
-        expected_amount=pattern.expected_amount,
+        expected_amount=pattern.signed_amount,
         currency=pattern.currency,
         next_expected_date=pattern.next_expected_date,  # type: ignore[arg-type]
         frequency=pattern.frequency_enum,
