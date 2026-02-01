@@ -82,6 +82,36 @@ models:
       - name: created_at
       - name: updated_at
 
+  - name: src_manual_assets
+    description: Source model for manually tracked assets and liabilities
+    columns:
+      - name: id
+      - name: user_id
+      - name: asset_type
+      - name: custom_type
+      - name: is_liability
+      - name: name
+      - name: notes
+      - name: current_value
+      - name: currency
+      - name: interest_rate
+      - name: acquisition_date
+      - name: acquisition_value
+      - name: is_active
+      - name: value_updated_at
+      - name: created_at
+      - name: updated_at
+
+  - name: src_manual_asset_value_snapshots
+    description: Source model for manual asset value history
+    columns:
+      - name: id
+      - name: asset_id
+      - name: value
+      - name: currency
+      - name: notes
+      - name: captured_at
+
   - name: src_unified_accounts
     description: Unified account data from all providers
     columns:
@@ -284,3 +314,31 @@ sources:
           - name: enabled
           - name: created_at
           - name: updated_at
+      - name: manual_assets
+        description: Manually tracked assets and liabilities (property, vehicles, loans)
+        columns:
+          - name: id
+          - name: user_id
+          - name: asset_type
+          - name: custom_type
+          - name: is_liability
+          - name: name
+          - name: notes
+          - name: current_value
+          - name: currency
+          - name: interest_rate
+          - name: acquisition_date
+          - name: acquisition_value
+          - name: is_active
+          - name: value_updated_at
+          - name: created_at
+          - name: updated_at
+      - name: manual_asset_value_snapshots
+        description: Historical value snapshots for manual assets
+        columns:
+          - name: id
+          - name: asset_id
+          - name: value
+          - name: currency
+          - name: notes
+          - name: captured_at

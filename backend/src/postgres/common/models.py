@@ -28,6 +28,7 @@ from src.postgres.common.enums import (
     GoalTrackingMode,
     JobStatus,
     JobType,
+    ManualAssetType,
     NotificationType,
     Provider,
     RecurringDirection,
@@ -35,6 +36,7 @@ from src.postgres.common.enums import (
     RecurringSource,
     RecurringStatus,
     TransactionStatus,
+    get_default_is_liability,
 )
 from src.postgres.core import Base
 
@@ -1096,3 +1098,142 @@ class FinancialMilestone(Base):
     )
 
     __table_args__ = (Index("idx_financial_milestones_user_id", "user_id"),)
+
+
+class ManualAsset(Base):
+    """Database model for manually tracked assets and liabilities.
+
+    Allows users to track assets (property, vehicles, pensions) and liabilities
+    (student loans, mortgages) that aren't connected via banking APIs. These
+    integrate with net worth calculations and support historical value tracking.
+
+    The is_liability field determines whether the asset counts positively or
+    negatively towards net worth. It defaults based on asset_type but can be
+    overridden (e.g., for negative equity property).
+    """
+
+    __tablename__ = "manual_assets"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Type and classification
+    asset_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    custom_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    is_liability: Mapped[bool] = mapped_column(nullable=False)
+
+    # Display
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Value tracking
+    current_value: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
+
+    # Optional financial details
+    interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    acquisition_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    acquisition_value: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    # Timestamps
+    value_updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+        onupdate=_utc_now,
+    )
+
+    # Relationships
+    value_snapshots: Mapped[list["ManualAssetValueSnapshot"]] = relationship(
+        "ManualAssetValueSnapshot",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("idx_manual_assets_user_id", "user_id"),
+        Index("idx_manual_assets_user_active", "user_id", "is_active"),
+    )
+
+    @property
+    def asset_type_enum(self) -> ManualAssetType:
+        """Get asset_type as ManualAssetType enum."""
+        return ManualAssetType(self.asset_type)
+
+    @property
+    def display_type(self) -> str:
+        """Get the display name for the asset type.
+
+        Returns custom_type if set, otherwise a formatted version of asset_type.
+        """
+        if self.custom_type:
+            return self.custom_type
+        return self.asset_type.replace("_", " ").title()
+
+    @classmethod
+    def default_is_liability(cls, asset_type: ManualAssetType) -> bool:
+        """Get the default is_liability value for an asset type.
+
+        :param asset_type: The manual asset type.
+        :returns: True if this type is typically a liability.
+        """
+        return get_default_is_liability(asset_type)
+
+
+class ManualAssetValueSnapshot(Base):
+    """Database model for manual asset value history.
+
+    Append-only table tracking value changes over time. Each update to a
+    manual asset's value creates a new snapshot for historical tracking.
+    """
+
+    __tablename__ = "manual_asset_value_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    asset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("manual_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Value at this point in time
+    value: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+
+    # Optional note for why the value changed
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # When this snapshot was captured
+    captured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utc_now,
+    )
+
+    # Relationships
+    asset: Mapped["ManualAsset"] = relationship(
+        "ManualAsset",
+        back_populates="value_snapshots",
+    )
+
+    __table_args__ = (
+        Index("idx_manual_asset_snapshots_asset_captured", "asset_id", "captured_at"),
+    )

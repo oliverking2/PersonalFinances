@@ -32,12 +32,25 @@ const dateRangeOptions = [
   { label: '1 year', days: 365 },
 ] as const
 
+// Manual assets API for including assets in forecast
+const { fetchManualAssetsSummary } = useManualAssetsApi()
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 // Selected date range (days from today)
 const selectedDays = ref(90)
+
+// Include manual assets toggle
+const includeManualAssets = ref(true)
+
+// Manual assets data
+const manualAssetsSummary = ref<{
+  total_assets: number
+  total_liabilities: number
+  net_impact: number
+} | null>(null)
 
 // Forecast data from API
 const forecastData = ref<CashFlowForecastResponse | null>(null)
@@ -103,8 +116,8 @@ async function loadData() {
       return
     }
 
-    // Fetch both forecast views in parallel with date range params
-    const [dailyForecast, weekly] = await Promise.all([
+    // Fetch forecast views and manual assets summary in parallel
+    const [dailyForecast, weekly, assetsSummary] = await Promise.all([
       fetchForecast(dateRangeParams.value).catch((e) => {
         console.error('Failed to fetch daily forecast:', e)
         return null
@@ -113,10 +126,15 @@ async function loadData() {
         console.error('Failed to fetch weekly forecast:', e)
         return null
       }),
+      fetchManualAssetsSummary().catch((e) => {
+        console.error('Failed to fetch manual assets summary:', e)
+        return null
+      }),
     ])
 
     forecastData.value = dailyForecast
     weeklyData.value = weekly
+    manualAssetsSummary.value = assetsSummary
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load forecast'
     analyticsAvailable.value = false
@@ -151,12 +169,25 @@ const weeklyBreakdown = computed(() => {
 // Computed: Summary cards data
 // ---------------------------------------------------------------------------
 
+// Calculate asset adjustment based on toggle
+// The dbt models already include manual assets, so we SUBTRACT when toggle is OFF
+const assetAdjustment = computed(() => {
+  if (includeManualAssets.value || !manualAssetsSummary.value) return 0
+  // Subtract assets when toggle is OFF to show only bank accounts
+  return -manualAssetsSummary.value.net_impact
+})
+
 const summaryCards = computed(() => {
   if (!forecastData.value) return []
 
   const summary = forecastData.value.summary
-  const startBalance = parseFloat(summary.starting_balance)
-  const endBalance = parseFloat(summary.ending_balance)
+  const baseStartBalance = parseFloat(summary.starting_balance)
+  const baseEndBalance = parseFloat(summary.ending_balance)
+
+  // Adjust balances based on toggle (subtract assets when excluded)
+  const startBalance = baseStartBalance + assetAdjustment.value
+  const endBalance = baseEndBalance + assetAdjustment.value
+
   const netChange = parseFloat(summary.net_change)
   const percentChange =
     startBalance !== 0 ? (netChange / startBalance) * 100 : 0
@@ -340,7 +371,7 @@ onMounted(() => {
         </p>
       </div>
 
-      <!-- Controls: date range + view toggle -->
+      <!-- Controls: date range + view toggle + refresh -->
       <div
         v-if="!loading && analyticsAvailable"
         class="flex flex-wrap items-center gap-3"
@@ -387,6 +418,41 @@ onMounted(() => {
             Weekly
           </button>
         </div>
+
+        <!-- Include assets toggle -->
+        <label
+          v-if="manualAssetsSummary"
+          class="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+        >
+          <input
+            v-model="includeManualAssets"
+            type="checkbox"
+            class="h-4 w-4 rounded border-border bg-background text-primary focus:ring-primary"
+          />
+          <span class="text-muted">Include Assets</span>
+        </label>
+
+        <!-- Refresh button -->
+        <button
+          class="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted transition-colors hover:bg-gray-700/50 hover:text-foreground"
+          :disabled="loading"
+          @click="loadData"
+        >
+          <svg
+            :class="['h-4 w-4', loading && 'animate-spin']"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <span class="hidden sm:inline">Refresh</span>
+        </button>
       </div>
     </div>
 

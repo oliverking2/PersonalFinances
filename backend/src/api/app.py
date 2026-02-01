@@ -13,6 +13,7 @@ from src.api.connections.endpoints import router as connections_router
 from src.api.goals.endpoints import router as goals_router
 from src.api.institutions.endpoints import router as institutions_router
 from src.api.jobs.endpoints import router as jobs_router
+from src.api.manual_assets.endpoints import router as manual_assets_router
 from src.api.middleware import RequestTimingMiddleware
 from src.api.milestones.endpoints import router as milestones_router
 from src.api.notifications.endpoints import router as notifications_router
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(goals_router, prefix="/api/goals", tags=["goals"])
     app.include_router(institutions_router, prefix="/api/institutions", tags=["institutions"])
     app.include_router(jobs_router, prefix="/api/jobs", tags=["jobs"])
+    app.include_router(manual_assets_router, prefix="/api/manual-assets", tags=["manual-assets"])
     app.include_router(milestones_router, prefix="/api/milestones", tags=["milestones"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
     app.include_router(

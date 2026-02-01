@@ -266,3 +266,59 @@ class NotificationType(StrEnum):
     SYNC_FAILED = "sync_failed"
     ANALYTICS_REFRESH_COMPLETE = "analytics_refresh_complete"
     ANALYTICS_REFRESH_FAILED = "analytics_refresh_failed"
+
+
+class ManualAssetType(StrEnum):
+    """Type of manually tracked asset or liability.
+
+    Liabilities (typically negative impact on net worth):
+    - STUDENT_LOAN: Student loan debt
+    - MORTGAGE: Mortgage on property
+
+    Assets (typically positive impact on net worth):
+    - VEHICLE: Cars, motorcycles, etc.
+    - PROPERTY: Real estate, land
+    - SAVINGS_ACCOUNT: Manual savings accounts not connected via banking API
+    - PENSION: Pension funds, retirement accounts
+    - INVESTMENTS: Investment accounts (stocks, funds, ISAs)
+    - CRYPTO: Cryptocurrency holdings
+
+    Other:
+    - OTHER_ASSET: Any other asset type
+    - OTHER_LIABILITY: Any other liability type
+    """
+
+    STUDENT_LOAN = "student_loan"
+    MORTGAGE = "mortgage"
+    VEHICLE = "vehicle"
+    PROPERTY = "property"
+    SAVINGS_ACCOUNT = "savings_account"
+    PENSION = "pension"
+    INVESTMENTS = "investments"
+    CRYPTO = "crypto"
+    OTHER_ASSET = "other_asset"
+    OTHER_LIABILITY = "other_liability"
+
+
+# Default liability status for each asset type
+_MANUAL_ASSET_TYPE_IS_LIABILITY: dict[ManualAssetType, bool] = {
+    ManualAssetType.STUDENT_LOAN: True,
+    ManualAssetType.MORTGAGE: True,
+    ManualAssetType.VEHICLE: False,
+    ManualAssetType.PROPERTY: False,
+    ManualAssetType.SAVINGS_ACCOUNT: False,
+    ManualAssetType.PENSION: False,
+    ManualAssetType.INVESTMENTS: False,
+    ManualAssetType.CRYPTO: False,
+    ManualAssetType.OTHER_ASSET: False,
+    ManualAssetType.OTHER_LIABILITY: True,
+}
+
+
+def get_default_is_liability(asset_type: ManualAssetType) -> bool:
+    """Get the default is_liability value for a manual asset type.
+
+    :param asset_type: The manual asset type.
+    :returns: True if this type is typically a liability, False if an asset.
+    """
+    return _MANUAL_ASSET_TYPE_IS_LIABILITY.get(asset_type, False)
