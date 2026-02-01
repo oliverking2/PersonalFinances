@@ -126,7 +126,7 @@ export function useAccountsApi() {
     )
   }
 
-  // Get a job by ID (also updates status from Dagster if running)
+  // Get a job by ID (also updates status from job runner if running)
   async function fetchJob(jobId: string): Promise<Job> {
     return authFetch<Job>(`/api/jobs/${jobId}`)
   }
@@ -136,13 +136,17 @@ export function useAccountsApi() {
     entity_type?: string
     entity_id?: string
     job_type?: string
+    status?: string
     limit?: number
+    offset?: number
   }): Promise<JobListResponse> {
     const query = new URLSearchParams()
     if (params?.entity_type) query.set('entity_type', params.entity_type)
     if (params?.entity_id) query.set('entity_id', params.entity_id)
     if (params?.job_type) query.set('job_type', params.job_type)
+    if (params?.status) query.set('status', params.status)
     if (params?.limit) query.set('limit', params.limit.toString())
+    if (params?.offset) query.set('offset', params.offset.toString())
 
     const queryString = query.toString()
     const url = queryString ? `/api/jobs?${queryString}` : '/api/jobs'

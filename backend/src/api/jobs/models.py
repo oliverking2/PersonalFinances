@@ -15,7 +15,7 @@ class JobResponse(BaseModel):
     status: JobStatus = Field(..., description="Job status")
     entity_type: str | None = Field(None, description="Type of related entity")
     entity_id: str | None = Field(None, description="ID of related entity")
-    dagster_run_id: str | None = Field(None, description="Dagster run ID")
+    dagster_run_id: str | None = Field(None, description="Job run ID")
     error_message: str | None = Field(None, description="Error message if failed")
     created_at: datetime = Field(..., description="When the job was created")
     started_at: datetime | None = Field(None, description="When the job started")

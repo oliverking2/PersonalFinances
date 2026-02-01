@@ -14,19 +14,11 @@ import type { GoalSummaryResponse } from '~/types/goals'
 useHead({ title: 'Home | Finances' })
 
 const authStore = useAuthStore()
-const toast = useToastStore()
-const {
-  fetchAccounts,
-  fetchConnections,
-  triggerConnectionSync,
-  fetchJob,
-  fetchJobs,
-} = useAccountsApi()
+const { fetchAccounts } = useAccountsApi()
 const { fetchTransactions, setSplits, clearSplits, updateNote } =
   useTransactionsApi()
 const { fetchTags, createTag } = useTagsApi()
-const { fetchDatasets, queryDataset, fetchAnalyticsStatus, triggerRefresh } =
-  useAnalyticsApi()
+const { fetchDatasets, queryDataset, fetchAnalyticsStatus } = useAnalyticsApi()
 const { fetchBudgetSummary } = useBudgetsApi()
 const { fetchGoalSummary } = useGoalsApi()
 
@@ -64,10 +56,6 @@ const analyticsAvailable = ref(false)
 const monthlyTrendsDatasetId = ref<string | null>(null)
 const dailySpendingDatasetId = ref<string | null>(null)
 const netWorthDatasetId = ref<string | null>(null)
-
-// Refresh states
-const refreshingAll = ref(false)
-const refreshingAnalytics = ref(false)
 
 // ---------------------------------------------------------------------------
 // Computed: Date ranges
@@ -617,120 +605,6 @@ function handleCloseDetail() {
   detailModalTransaction.value = null
 }
 
-// ---------------------------------------------------------------------------
-// Refresh handlers
-// ---------------------------------------------------------------------------
-
-// Sync all bank connections to get latest transactions
-async function handleRefreshAll() {
-  if (refreshingAll.value) return
-
-  refreshingAll.value = true
-  try {
-    // Get all connections
-    const { connections } = await fetchConnections()
-
-    if (connections.length === 0) {
-      toast.info('No bank connections to sync')
-      return
-    }
-
-    toast.info(`Syncing ${connections.length} bank connection(s)...`)
-
-    // Trigger sync for each connection and wait for completion
-    const syncPromises = connections.map(async (conn) => {
-      const job = await triggerConnectionSync(conn.id)
-      await pollJobStatus(job.id)
-    })
-
-    await Promise.all(syncPromises)
-
-    // Reload data after sync
-    await Promise.all([loadAccounts(), loadRecentTransactions()])
-    toast.success('Bank connections synced successfully')
-  } catch (e) {
-    console.error('Failed to refresh:', e)
-    const message =
-      e instanceof Error ? e.message : 'Failed to sync connections'
-    errorAccounts.value = message
-    toast.error(message)
-  } finally {
-    refreshingAll.value = false
-  }
-}
-
-// Trigger analytics rebuild (dbt)
-async function handleRefreshAnalytics() {
-  if (refreshingAnalytics.value) return
-
-  refreshingAnalytics.value = true
-  try {
-    // Check if there's already a running analytics refresh job
-    // Backend creates these with job_type='sync' and entity_type='analytics'
-    const existingJobs = await fetchJobs({
-      entity_type: 'analytics',
-      job_type: 'sync',
-      limit: 5,
-    })
-    const runningJob = existingJobs.jobs.find(
-      (job) => job.status === 'pending' || job.status === 'running',
-    )
-
-    if (runningJob) {
-      // Poll the existing job instead of starting a new one
-      toast.info(
-        'Analytics refresh already in progress, waiting for it to complete...',
-      )
-      await pollJobStatus(runningJob.id)
-    } else {
-      // Start a new refresh
-      toast.info('Starting analytics refresh...')
-      const response = await triggerRefresh('/')
-
-      // Check if Dagster is unavailable
-      if (response.status === 'failed') {
-        toast.error(response.message || 'Failed to start analytics refresh')
-        return
-      }
-
-      await pollJobStatus(response.job_id)
-    }
-
-    // Reload analytics after refresh
-    await loadAnalytics()
-    toast.success('Analytics refreshed successfully')
-  } catch (e) {
-    console.error('Failed to refresh analytics:', e)
-    toast.error(e instanceof Error ? e.message : 'Failed to refresh analytics')
-  } finally {
-    refreshingAnalytics.value = false
-  }
-}
-
-// Poll job status until completed or failed
-async function pollJobStatus(jobId: string) {
-  const maxAttempts = 60 // 5 minutes max
-  let attempts = 0
-
-  while (attempts < maxAttempts) {
-    const job = await fetchJob(jobId)
-
-    if (job.status === 'completed') {
-      return
-    }
-
-    if (job.status === 'failed') {
-      throw new Error('Job failed')
-    }
-
-    // Wait 5 seconds before next poll
-    await new Promise((resolve) => setTimeout(resolve, 5000))
-    attempts++
-  }
-
-  throw new Error('Job timed out')
-}
-
 // Load all data on mount
 onMounted(() => {
   loadAccounts()
@@ -744,114 +618,13 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Page header with refresh buttons -->
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">
-          Welcome back,
-          {{ authStore.user?.first_name || authStore.user?.username }}
-        </h1>
-        <p class="mt-1 text-muted">Here's your financial overview</p>
-      </div>
-
-      <!-- Refresh buttons -->
-      <div class="flex gap-2">
-        <!-- Refresh Analytics button -->
-        <AppButton
-          :disabled="refreshingAnalytics || refreshingAll"
-          @click="handleRefreshAnalytics"
-        >
-          <span class="flex items-center gap-2">
-            <!-- Spinner when refreshing -->
-            <svg
-              v-if="refreshingAnalytics"
-              class="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <!-- Chart icon -->
-            <svg
-              v-else
-              class="h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            {{ refreshingAnalytics ? 'Refreshing...' : 'Refresh Analytics' }}
-          </span>
-        </AppButton>
-
-        <!-- Refresh All button (sync bank connections) -->
-        <AppButton
-          :disabled="refreshingAll || refreshingAnalytics"
-          @click="handleRefreshAll"
-        >
-          <span class="flex items-center gap-2">
-            <!-- Spinner when refreshing -->
-            <svg
-              v-if="refreshingAll"
-              class="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <!-- Refresh icon -->
-            <svg
-              v-else
-              class="h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {{ refreshingAll ? 'Syncing...' : 'Refresh All' }}
-          </span>
-        </AppButton>
-      </div>
+    <!-- Page header -->
+    <div>
+      <h1 class="text-2xl font-bold sm:text-3xl">
+        Welcome back,
+        {{ authStore.user?.first_name || authStore.user?.username }}
+      </h1>
+      <p class="mt-1 text-muted">Here's your financial overview</p>
     </div>
 
     <!-- Error states -->

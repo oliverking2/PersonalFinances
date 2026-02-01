@@ -294,8 +294,8 @@ def create_export(
         logger.info(f"Export job created: job_id={job.id}, run_id={run_id}")
     else:
         job.status = JobStatus.FAILED.value
-        job.error_message = "Dagster unavailable"
-        message = "Failed to create export - Dagster unavailable"
+        job.error_message = "Job runner unavailable"
+        message = "Failed to create export - Job runner unavailable"
         logger.warning(f"Export job failed to trigger: job_id={job.id}")
 
     db.commit()

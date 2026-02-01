@@ -343,9 +343,9 @@ def trigger_refresh(
         logger.info(f"Analytics refresh triggered: job_id={job.id}, run_id={run_id}")
     else:
         job.status = JobStatus.FAILED.value
-        job.error_message = "Dagster unavailable"
-        message = "Failed to trigger refresh - Dagster unavailable"
-        logger.warning(f"Analytics refresh failed: job_id={job.id}, dagster unavailable")
+        job.error_message = "Job runner unavailable"
+        message = "Failed to trigger refresh - Job runner unavailable"
+        logger.warning(f"Analytics refresh failed: job_id={job.id}, job runner unavailable")
 
     db.commit()
 

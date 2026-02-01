@@ -145,9 +145,11 @@ def oauth_callback(
                     f"Auto-triggered sync for connection {connection.id}: job={job.id}, run={run_id}"
                 )
             else:
-                update_job_status(db, job.id, JobStatus.FAILED, error_message="Dagster unavailable")
+                update_job_status(
+                    db, job.id, JobStatus.FAILED, error_message="Job runner unavailable"
+                )
                 logger.warning(
-                    f"Failed to auto-trigger sync for connection {connection.id}: Dagster unavailable"
+                    f"Failed to auto-trigger sync for connection {connection.id}: Job runner unavailable"
                 )
 
         elif new_status in ("EX", "RJ", "SA", "GA"):
@@ -478,9 +480,9 @@ def trigger_connection_sync(
         update_job_status(db, job.id, JobStatus.RUNNING, dagster_run_id=run_id)
         logger.info(f"Triggered sync for connection {connection_id}: job={job.id}, run={run_id}")
     else:
-        update_job_status(db, job.id, JobStatus.FAILED, error_message="Dagster unavailable")
+        update_job_status(db, job.id, JobStatus.FAILED, error_message="Job runner unavailable")
         logger.warning(
-            f"Failed to trigger sync for connection {connection_id}: Dagster unavailable"
+            f"Failed to trigger sync for connection {connection_id}: Job runner unavailable"
         )
 
     db.commit()

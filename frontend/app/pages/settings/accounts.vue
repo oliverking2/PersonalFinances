@@ -345,7 +345,7 @@ async function handleSync(connection: Connection) {
     const job = await triggerConnectionSync(connection.id)
     syncJobs.value.set(connection.id, job)
 
-    // If job failed immediately (e.g., Dagster unavailable), show error
+    // If job failed immediately (e.g., job runner unavailable), show error
     if (job.status === 'failed') {
       toast.error(`Sync failed: ${job.error_message || 'Unknown error'}`)
       syncingConnections.value.delete(connection.id)

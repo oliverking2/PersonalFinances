@@ -107,6 +107,13 @@ cd backend && make check    # Backend validation
 cd frontend && make check   # Frontend validation
 ```
 
+After validation passes, review for tech debt:
+
+- **Unused code** - Dead imports, functions, or files that were created but not used
+- **Duplication** - Same logic implemented in multiple places
+- **Convention violations** - Check `CLAUDE.md` and `frontend/CLAUDE.md` for patterns that should be followed (e.g., use `AppSelect` not native `<select>`)
+- **Missing cleanup** - Removed features that left behind orphaned state, handlers, or imports
+
 ## After Completing Work
 
 1. **Run validation** in affected directories

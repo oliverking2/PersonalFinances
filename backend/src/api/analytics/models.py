@@ -98,7 +98,7 @@ class RefreshResponse(BaseModel):
     """Response for analytics refresh trigger."""
 
     job_id: str = Field(..., description="Job UUID for tracking")
-    dagster_run_id: str | None = Field(None, description="Dagster run ID if available")
+    dagster_run_id: str | None = Field(None, description="Job run ID if available")
     status: str = Field(..., description="Job status")
     message: str = Field(..., description="Status message")
 

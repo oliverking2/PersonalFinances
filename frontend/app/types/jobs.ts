@@ -23,7 +23,7 @@ export interface Job {
   status: JobStatus
   entity_type: string | null // e.g. "connection"
   entity_id: string | null // UUID of related entity
-  dagster_run_id: string | null // Dagster run ID for tracking
+  dagster_run_id: string | null // Job runner run ID for tracking
   error_message: string | null // Error details if failed
   created_at: string // ISO timestamp
   started_at: string | null // ISO timestamp

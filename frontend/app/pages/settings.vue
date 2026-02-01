@@ -11,6 +11,7 @@ const route = useRoute()
 // ---------------------------------------------------------------------------
 const tabs = [
   { to: '/settings/accounts', label: 'Accounts' },
+  { to: '/settings/jobs', label: 'Jobs' },
   { to: '/settings/tags', label: 'Tags' },
   { to: '/settings/rules', label: 'Rules' },
   { to: '/settings/profile', label: 'Profile' },

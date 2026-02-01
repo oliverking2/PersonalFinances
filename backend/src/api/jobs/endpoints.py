@@ -155,7 +155,7 @@ def get_job(
             db.refresh(job)
             logger.info(f"Job {job_id} completed (Dagster status: SUCCESS)")
         elif dagster_status in ("FAILURE", "CANCELED"):
-            error_msg = f"Dagster run {dagster_status.lower()}"
+            error_msg = f"Job {dagster_status.lower()}"
             update_job_status(
                 db,
                 job.id,
