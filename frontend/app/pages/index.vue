@@ -751,10 +751,7 @@ onMounted(() => {
         :summary="budgetSummary"
         :loading="loadingBudgets"
       />
-      <GoalsGoalsProgressWidget
-        :summary="goalSummary"
-        :loading="loadingGoals"
-      />
+      <GoalsProgressWidget :summary="goalSummary" :loading="loadingGoals" />
     </div>
 
     <!-- Recent Transactions Section -->

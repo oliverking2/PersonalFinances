@@ -61,7 +61,7 @@ function formatCurrency(amount: number, currency: string = 'GBP'): string {
 
     <!-- Progress bar -->
     <div class="mt-3">
-      <BudgetsProgressBar
+      <BudgetsBudgetProgressBar
         :percentage="budget.percentage_used"
         :status="budget.status"
         :show-label="true"

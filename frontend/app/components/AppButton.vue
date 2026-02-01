@@ -6,11 +6,13 @@ Reusable button component with consistent styling
 <script setup lang="ts">
 defineProps<{
   type?: 'submit' | 'button' | 'reset'
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger'
+  disabled?: boolean
 }>()
 </script>
 
 <template>
-  <button :type="type">
+  <button :type="type" :disabled="disabled">
     <slot />
   </button>
 </template>
