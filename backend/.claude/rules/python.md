@@ -48,7 +48,7 @@
 
 - pytest with pytest-mock
 - Tests in `testing/` mirroring `src/` structure
-- 80% coverage minimum, ideally 90%
+- 80% coverage minimum per file
 - One assertion focus per test
 - Mock at boundaries (HTTP, database), not internal functions
 - Use fixtures for shared setup

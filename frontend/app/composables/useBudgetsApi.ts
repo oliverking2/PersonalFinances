@@ -10,6 +10,7 @@ import type {
   BudgetUpdateRequest,
   BudgetWithSpending,
   BudgetSummaryResponse,
+  BudgetForecastResponse,
 } from '~/types/budgets'
 import {
   useAuthenticatedFetch,
@@ -73,6 +74,15 @@ export function useBudgetsApi() {
   }
 
   // ---------------------------------------------------------------------------
+  // Forecast
+  // ---------------------------------------------------------------------------
+
+  // Fetch budget forecasts (projections for when budgets will be exhausted)
+  async function fetchBudgetForecasts(): Promise<BudgetForecastResponse> {
+    return authFetch<BudgetForecastResponse>('/api/budgets/forecast')
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
   return {
@@ -85,6 +95,9 @@ export function useBudgetsApi() {
 
     // Summary
     fetchBudgetSummary,
+
+    // Forecast
+    fetchBudgetForecasts,
 
     // Export ApiError for error type checking
     ApiError,

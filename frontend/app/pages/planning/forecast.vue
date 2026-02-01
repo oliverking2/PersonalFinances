@@ -13,11 +13,13 @@ import type {
 
 useHead({ title: 'Forecasting | Finances' })
 
+const toast = useToastStore()
 const {
   fetchForecast,
   fetchWeeklyForecast,
   fetchForecastEvents,
   fetchAnalyticsStatus,
+  triggerRefresh,
 } = useAnalyticsApi()
 
 // ---------------------------------------------------------------------------
@@ -76,6 +78,9 @@ const eventsCache = ref<Map<string, ForecastEvent[]>>(new Map())
 // Loading state for expanded weeks
 const loadingWeekEvents = ref<Set<number>>(new Set())
 
+// Refresh state (for triggering analytics rebuild)
+const refreshing = ref(false)
+
 // ---------------------------------------------------------------------------
 // Computed: Date range params for API calls
 // ---------------------------------------------------------------------------
@@ -88,6 +93,7 @@ const dateRangeParams = computed<ForecastQueryParams>(() => {
   return {
     start_date: today.toISOString().split('T')[0],
     end_date: endDate.toISOString().split('T')[0],
+    include_manual_assets: includeManualAssets.value,
   }
 })
 
@@ -149,6 +155,13 @@ function handleDateRangeChange(days: number) {
   loadData()
 }
 
+// Reload data when include assets toggle changes
+watch(includeManualAssets, () => {
+  if (analyticsAvailable.value) {
+    loadData()
+  }
+})
+
 // ---------------------------------------------------------------------------
 // Computed: Weekly breakdown for display
 // ---------------------------------------------------------------------------
@@ -169,25 +182,13 @@ const weeklyBreakdown = computed(() => {
 // Computed: Summary cards data
 // ---------------------------------------------------------------------------
 
-// Calculate asset adjustment based on toggle
-// The dbt models already include manual assets, so we SUBTRACT when toggle is OFF
-const assetAdjustment = computed(() => {
-  if (includeManualAssets.value || !manualAssetsSummary.value) return 0
-  // Subtract assets when toggle is OFF to show only bank accounts
-  return -manualAssetsSummary.value.net_impact
-})
-
 const summaryCards = computed(() => {
   if (!forecastData.value) return []
 
   const summary = forecastData.value.summary
-  const baseStartBalance = parseFloat(summary.starting_balance)
-  const baseEndBalance = parseFloat(summary.ending_balance)
-
-  // Adjust balances based on toggle (subtract assets when excluded)
-  const startBalance = baseStartBalance + assetAdjustment.value
-  const endBalance = baseEndBalance + assetAdjustment.value
-
+  // Backend now handles asset exclusion, so use values directly
+  const startBalance = parseFloat(summary.starting_balance)
+  const endBalance = parseFloat(summary.ending_balance)
   const netChange = parseFloat(summary.net_change)
   const percentChange =
     startBalance !== 0 ? (netChange / startBalance) * 100 : 0
@@ -349,6 +350,30 @@ function formatFrequency(frequency: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
+// Analytics Refresh
+// ---------------------------------------------------------------------------
+
+/**
+ * Trigger a full analytics refresh (dbt rebuild).
+ * This rebuilds the analytics data from source, then reloads the forecast.
+ */
+async function handleRefresh() {
+  refreshing.value = true
+  try {
+    await triggerRefresh('/planning/forecast')
+    toast.success(
+      'Analytics refresh started. You will be notified when complete.',
+    )
+  } catch (e) {
+    toast.error(
+      e instanceof Error ? e.message : 'Failed to trigger analytics refresh',
+    )
+  } finally {
+    refreshing.value = false
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
@@ -432,14 +457,14 @@ onMounted(() => {
           <span class="text-muted">Include Assets</span>
         </label>
 
-        <!-- Refresh button -->
+        <!-- Refresh button - triggers full analytics rebuild -->
         <button
           class="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted transition-colors hover:bg-gray-700/50 hover:text-foreground"
-          :disabled="loading"
-          @click="loadData"
+          :disabled="refreshing"
+          @click="handleRefresh"
         >
           <svg
-            :class="['h-4 w-4', loading && 'animate-spin']"
+            :class="['h-4 w-4', refreshing && 'animate-spin']"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -762,6 +787,9 @@ onMounted(() => {
           </table>
         </div>
       </div>
+
+      <!-- Budget Warnings Panel -->
+      <BudgetsBudgetWarningsPanel />
 
       <!-- What-If Scenario Builder -->
       <AnalyticsScenarioBuilder

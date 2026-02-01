@@ -50,6 +50,7 @@ class BudgetCreateRequest(BaseModel):
     tag_id: str = Field(..., description="Tag UUID for this budget category")
     amount: Decimal = Field(..., gt=0, description="Budget amount limit")
     currency: str = Field(default="GBP", max_length=3, description="Currency code")
+    period: BudgetPeriod = Field(default=BudgetPeriod.MONTHLY, description="Budget period")
     warning_threshold: Decimal = Field(
         default=Decimal("0.80"),
         ge=0,
@@ -63,6 +64,7 @@ class BudgetUpdateRequest(BaseModel):
 
     amount: Decimal | None = Field(None, gt=0, description="New budget amount")
     currency: str | None = Field(None, max_length=3, description="New currency code")
+    period: BudgetPeriod | None = Field(None, description="New budget period")
     warning_threshold: Decimal | None = Field(None, ge=0, le=1, description="New warning threshold")
     enabled: bool | None = Field(None, description="Enable or disable budget")
 
@@ -77,3 +79,45 @@ class BudgetSummaryResponse(BaseModel):
     budgets_on_track: int = Field(..., description="Budgets under warning threshold")
     budgets_warning: int = Field(..., description="Budgets at warning level")
     budgets_exceeded: int = Field(..., description="Budgets that have been exceeded")
+
+
+class BudgetForecastItem(BaseModel):
+    """Forecast data for a single budget."""
+
+    budget_id: str = Field(..., description="Budget UUID")
+    tag_id: str = Field(..., description="Tag UUID")
+    tag_name: str = Field(..., description="Tag name")
+    tag_colour: str | None = Field(None, description="Tag colour (hex)")
+    budget_amount: Decimal = Field(..., description="Budget limit")
+    currency: str = Field(..., description="Currency code")
+    period: BudgetPeriod = Field(..., description="Budget period")
+    spent_amount: Decimal = Field(..., description="Amount spent in current period")
+    remaining_amount: Decimal = Field(..., description="Remaining budget")
+    percentage_used: Decimal = Field(..., description="Percentage of budget used")
+    budget_status: str = Field(..., description="Current status: ok, warning, exceeded")
+    days_remaining: int = Field(..., description="Days remaining in current period")
+    daily_avg_spending: Decimal = Field(
+        ..., description="Historical daily average spending (last 90 days)"
+    )
+    days_until_exhausted: Decimal | None = Field(
+        None, description="Projected days until budget exhausted"
+    )
+    projected_exceed_date: str | None = Field(
+        None, description="Date when budget is projected to be exceeded"
+    )
+    will_exceed_in_period: bool = Field(
+        ..., description="Whether budget will exceed before period ends"
+    )
+    projected_percentage: Decimal = Field(
+        ..., description="Projected percentage used at end of period"
+    )
+    risk_level: str = Field(..., description="Risk level: low, medium, high, critical")
+
+
+class BudgetForecastResponse(BaseModel):
+    """Response model for budget forecasts."""
+
+    forecasts: list[BudgetForecastItem] = Field(..., description="Budget forecasts")
+    budgets_at_risk: int = Field(
+        ..., description="Number of budgets projected to exceed in current period"
+    )

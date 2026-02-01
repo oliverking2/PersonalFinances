@@ -124,6 +124,7 @@ function handleEdit(budget: BudgetWithSpending) {
     tag_colour: budget.tag_colour,
     amount: budget.amount,
     currency: budget.currency,
+    period: budget.period,
     warning_threshold: budget.warning_threshold,
     enabled: budget.enabled,
     created_at: budget.created_at,

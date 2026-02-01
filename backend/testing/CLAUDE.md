@@ -155,7 +155,7 @@ def test_returns_404_for_not_found(self, ...) -> None:
 
 ### Coverage
 
-- **80% minimum** coverage threshold (enforced by `make check`)
+- **80% minimum per file** coverage threshold (enforced by `make check`)
 - Focus on business logic paths, not trivial getters
 - Mock at boundaries (external APIs, time), not internal functions
 

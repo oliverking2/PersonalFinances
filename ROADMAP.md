@@ -376,12 +376,34 @@ The following issues from the previous architecture have been resolved:
 
 ---
 
-## Phase 11: Budget Enhancements
+## Phase 11: Budget Enhancements ✅
 
 More flexible budgeting options.
 
-- [ ] Weekly/annual budget periods
-- [ ] Incorporate budgets into cash flow forecast (project when budgets will be exceeded)
+- [x] Weekly/quarterly/annual budget periods
+- [x] Budget forecast integration (project when budgets will be exceeded based on spending patterns)
+
+### Budget-Forecast Integration (needs testing)
+
+Link recurring patterns to budget categories for smarter forecasting:
+
+- [x] Add `tag_id` to recurring patterns (frontend types, create/edit modals)
+- [x] Tag selector in recurring pattern create/edit modals
+- [x] Tag badge displayed on recurring pattern cards
+- [x] Forecast logic integrates budgets:
+  - Calculates pattern monthly equivalent per tag
+  - Budget remainder = budget amount - tagged pattern sum
+  - Spreads remainder as additional expected spending
+  - Current period uses prorated remaining budget
+- [x] AppSelect `teleport` prop for dropdown in modals
+- [x] Next expected date editor in recurring pattern edit modal
+
+**Testing needed:**
+
+- Create/edit patterns with tag selection
+- Verify forecast shows budget remainder (budget - tagged patterns)
+- Verify current period uses prorated remaining amount
+- Verify patterns exceeding budget don't add extra expense
 
 ---
 

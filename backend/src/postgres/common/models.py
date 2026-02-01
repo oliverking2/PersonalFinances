@@ -583,6 +583,10 @@ class RecurringPattern(Base):
         ForeignKey("accounts.id", ondelete="SET NULL"),
         nullable=True,
     )
+    tag_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("tags.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Display
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -659,6 +663,7 @@ class RecurringPattern(Base):
 
     # Relationships
     account: Mapped[Account | None] = relationship("Account")
+    tag: Mapped["Tag | None"] = relationship("Tag")
     transactions: Mapped[list["RecurringPatternTransaction"]] = relationship(
         "RecurringPatternTransaction",
         back_populates="pattern",

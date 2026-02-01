@@ -44,7 +44,8 @@
       "Bash(npx vue-tsc:*)",
       "Bash(npx eslint:*)",
       "Bash(poetry run sqlfluff fix:*)",
-      "Bash(poetry run dbt:*)"
+      "Bash(poetry run dbt:*)",
+      "Bash(curl:*)"
     ]
   }
 }

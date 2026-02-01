@@ -37,6 +37,11 @@ export interface RecurringPattern {
   source: RecurringSource // detected or manual
   account_id: string | null
 
+  // Tag for budget linking
+  tag_id: string | null
+  tag_name: string | null
+  tag_colour: string | null
+
   // Matching rules
   merchant_contains: string | null // Case-insensitive partial match
   amount_tolerance_pct: number // Default 10.0
@@ -127,6 +132,7 @@ export interface RecurringPatternCreateRequest {
   direction: RecurringDirection
   currency?: string
   account_id?: string
+  tag_id?: string // Tag for budget linking
   notes?: string
   merchant_contains?: string
   amount_tolerance_pct?: number
@@ -141,6 +147,7 @@ export interface RecurringPatternUpdateRequest {
   notes?: string
   expected_amount?: number
   frequency?: RecurringFrequency
+  tag_id?: string | null // Tag for budget linking (null to clear)
   merchant_contains?: string
   amount_tolerance_pct?: number
   next_expected_date?: string

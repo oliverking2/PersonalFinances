@@ -35,8 +35,11 @@ class RecurringPatternResponse(BaseModel):
     amount_tolerance_pct: Decimal = Field(..., description="Amount tolerance percentage")
     advanced_rules: dict[str, Any] | None = Field(None, description="Advanced matching rules")
 
-    # Account
+    # Account & Tag
     account_id: str | None = Field(None, description="Associated account UUID")
+    tag_id: str | None = Field(None, description="Associated tag UUID for budget linking")
+    tag_name: str | None = Field(None, description="Tag display name")
+    tag_colour: str | None = Field(None, description="Tag colour hex code")
 
     # Timing
     next_expected_date: datetime | None = Field(None, description="Next expected payment date")
@@ -142,6 +145,7 @@ class RecurringPatternCreateRequest(BaseModel):
     )
     currency: str = Field(default="GBP", max_length=3, description="Currency code")
     account_id: str | None = Field(None, description="Optional account UUID")
+    tag_id: str | None = Field(None, description="Optional tag UUID for budget linking")
     merchant_contains: str | None = Field(
         None, max_length=256, description="Merchant name to match"
     )
@@ -159,6 +163,7 @@ class RecurringPatternUpdateRequest(BaseModel):
     name: str | None = Field(None, max_length=100, description="New display name")
     expected_amount: Decimal | None = Field(None, description="New expected amount")
     frequency: RecurringFrequency | None = Field(None, description="New frequency")
+    tag_id: str | None = Field(None, description="New tag UUID for budget linking")
     notes: str | None = Field(None, description="New notes")
     merchant_contains: str | None = Field(None, max_length=256, description="New merchant match")
     amount_tolerance_pct: Decimal | None = Field(None, ge=0, le=100, description="New tolerance %")

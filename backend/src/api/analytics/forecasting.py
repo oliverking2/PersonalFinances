@@ -20,6 +20,58 @@ from src.postgres.auth.models import User
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Budget Integration Types
+# ---------------------------------------------------------------------------
+
+
+class BudgetForForecast:
+    """Budget data needed for forecast calculations.
+
+    :param budget_id: The budget's UUID.
+    :param tag_id: Associated tag UUID.
+    :param tag_name: Tag display name.
+    :param amount: Budget amount.
+    :param period: Budget period (weekly, monthly, etc.).
+    :param period_start: Period start date.
+    :param period_end: Period end date.
+    :param spent_amount: Amount already spent in period.
+    :param currency: Currency code.
+    """
+
+    def __init__(  # noqa: D107
+        self,
+        budget_id: str,
+        tag_id: str,
+        tag_name: str,
+        amount: Decimal,
+        period: str,
+        period_start: date,
+        period_end: date,
+        spent_amount: Decimal,
+        currency: str,
+    ) -> None:
+        self.budget_id = budget_id
+        self.tag_id = tag_id
+        self.tag_name = tag_name
+        self.amount = amount
+        self.period = period
+        self.period_start = period_start
+        self.period_end = period_end
+        self.spent_amount = spent_amount
+        self.currency = currency
+
+    @property
+    def days_in_period(self) -> int:
+        """Total days in the budget period."""
+        return (self.period_end - self.period_start).days + 1
+
+    @property
+    def remaining_amount(self) -> Decimal:
+        """Amount remaining in budget after spending."""
+        return max(Decimal("0"), self.amount - self.spent_amount)
+
+
 # Scenario models
 
 
@@ -88,6 +140,9 @@ class CashFlowForecastResponse(BaseModel):
 DEFAULT_FORECAST_DAYS = 365
 # Maximum forecast range in days (2 years)
 MAX_FORECAST_DAYS = 730
+# Calendar constants
+DECEMBER = 12
+LAST_QUARTER = 3
 
 
 @router.get(
@@ -99,6 +154,7 @@ MAX_FORECAST_DAYS = 730
 def get_forecast(
     start_date: date | None = Query(None, description="Start date (defaults to today)"),
     end_date: date | None = Query(None, description="End date (defaults to start + 90 days)"),
+    include_manual_assets: bool = Query(True, description="Include manual assets in net worth"),
     current_user: User = Depends(get_current_user),
 ) -> CashFlowForecastResponse:
     """Get cash flow forecast for a configurable date range.
@@ -127,14 +183,265 @@ def get_forecast(
     use_cached = effective_start >= today and days_from_today <= DEFAULT_FORECAST_DAYS
 
     if use_cached:
-        return _get_forecast_from_cache(current_user, effective_start, effective_end)
+        return _get_forecast_from_cache(
+            current_user, effective_start, effective_end, include_manual_assets
+        )
 
     # For extended ranges, compute dynamically
-    return _compute_forecast_dynamically(current_user, effective_start, effective_end)
+    return _compute_forecast_dynamically(
+        current_user, effective_start, effective_end, include_manual_assets
+    )
+
+
+def _get_manual_assets_adjustment(user_id: str) -> Decimal:
+    """Get the net impact of manual assets for adjusting forecast.
+
+    :param user_id: User ID to query.
+    :returns: Net manual assets value (assets - liabilities).
+    """
+    query = """
+        SELECT
+            COALESCE(SUM(CASE WHEN NOT is_liability THEN asset_value ELSE 0 END), 0)
+            - COALESCE(SUM(CASE WHEN is_liability THEN asset_value ELSE 0 END), 0)
+            AS net_manual_assets
+        FROM main_mart.int_manual_asset_daily_values
+        WHERE user_id = $user_id AND value_date = CURRENT_DATE
+    """
+    try:
+        rows = execute_query(query, {"user_id": user_id})
+        if rows and rows[0].get("net_manual_assets") is not None:
+            return Decimal(str(rows[0]["net_manual_assets"]))
+    except Exception:
+        # If the query fails (e.g., table doesn't exist), return 0
+        pass
+    return Decimal("0")
+
+
+def _fetch_budgets_for_forecast(user_id: str) -> list[BudgetForForecast]:
+    """Fetch active budgets with current period spending.
+
+    :param user_id: User ID to query.
+    :returns: List of budgets with spending data.
+    """
+    query = """
+        SELECT
+            budget_id,
+            tag_id,
+            tag_name,
+            budget_amount,
+            currency,
+            period,
+            period_start,
+            period_end,
+            spent_amount
+        FROM main_mart.fct_budget_vs_actual
+        WHERE user_id = $user_id
+    """
+    try:
+        rows = execute_query(query, {"user_id": user_id})
+    except Exception as e:
+        logger.warning(f"Failed to fetch budgets for forecast: {e}")
+        return []
+
+    budgets = []
+    for row in rows:
+        budgets.append(
+            BudgetForForecast(
+                budget_id=str(row["budget_id"]),
+                tag_id=str(row["tag_id"]),
+                tag_name=row["tag_name"],
+                amount=Decimal(str(row["budget_amount"])),
+                period=row["period"],
+                period_start=row["period_start"],
+                period_end=row["period_end"],
+                spent_amount=Decimal(str(row["spent_amount"])),
+                currency=row["currency"],
+            )
+        )
+    return budgets
+
+
+def _fetch_pattern_tag_mapping(user_id: str) -> dict[str, str]:
+    """Get the primary tag for each recurring pattern based on matched transactions.
+
+    Uses the most common tag from transactions linked to each pattern.
+
+    :param user_id: User ID to query.
+    :returns: Dictionary mapping pattern_id to tag_id.
+    """
+    # Query the most common tag for each pattern's matched transactions
+    query = """
+        WITH pattern_transaction_tags AS (
+            -- Get tags for transactions linked to recurring patterns
+            SELECT
+                rpt.pattern_id,
+                ts.tag_id,
+                COUNT(*) AS tag_count
+            FROM main_source.src_recurring_pattern_transactions rpt
+            JOIN main_source.src_transaction_splits ts
+                ON rpt.transaction_id = ts.transaction_id
+            JOIN main_source.src_unified_recurring_patterns rp
+                ON rpt.pattern_id = rp.id
+            WHERE rp.user_id = $user_id
+              AND ts.tag_id IS NOT NULL
+            GROUP BY rpt.pattern_id, ts.tag_id
+        ),
+        ranked_tags AS (
+            -- Rank tags by frequency for each pattern
+            SELECT
+                pattern_id,
+                tag_id,
+                tag_count,
+                ROW_NUMBER() OVER (
+                    PARTITION BY pattern_id
+                    ORDER BY tag_count DESC
+                ) AS rank
+            FROM pattern_transaction_tags
+        )
+        SELECT pattern_id, tag_id
+        FROM ranked_tags
+        WHERE rank = 1
+    """
+    try:
+        rows = execute_query(query, {"user_id": user_id})
+    except Exception as e:
+        logger.warning(f"Failed to fetch pattern-tag mapping: {e}")
+        return {}
+
+    return {str(row["pattern_id"]): str(row["tag_id"]) for row in rows}
+
+
+def _calculate_pattern_monthly_equivalent(
+    amount: Decimal, frequency: str, direction: str
+) -> Decimal:
+    """Calculate the monthly equivalent of a recurring pattern amount.
+
+    :param amount: Pattern amount (positive).
+    :param frequency: Pattern frequency (weekly, fortnightly, monthly, etc.).
+    :param direction: 'income' or 'expense'.
+    :returns: Monthly equivalent as positive amount.
+    """
+    multipliers = {
+        "weekly": Decimal("4.33"),
+        "fortnightly": Decimal("2.17"),
+        "monthly": Decimal("1"),
+        "quarterly": Decimal("0.33"),
+        "annual": Decimal("0.083"),
+    }
+    multiplier = multipliers.get(frequency, Decimal("1"))
+    return abs(amount) * multiplier
+
+
+def _add_budget_events(
+    daily_events: dict[date, list[dict[str, Any]]],
+    budgets: list[BudgetForForecast],
+    tag_pattern_monthly: dict[str, Decimal],
+    forecast_dates: list[date],
+) -> None:
+    """Add budget-based expenses to daily events.
+
+    For each budget, calculates remaining spending beyond tracked patterns and
+    spreads it across the forecast period.
+
+    :param daily_events: Dictionary to add events to (mutated).
+    :param budgets: List of budgets with spending data.
+    :param tag_pattern_monthly: Map of tag_id to monthly equivalent of patterns.
+    :param forecast_dates: List of dates in the forecast period.
+    """
+    today = date.today()
+
+    for budget in budgets:
+        # Calculate monthly equivalent of patterns tagged with this budget
+        pattern_monthly = tag_pattern_monthly.get(budget.tag_id, Decimal("0"))
+
+        # Budget remainder = budget amount minus pattern spending
+        # If patterns exceed budget, remainder is 0 (patterns alone cover it)
+        budget_remainder = max(Decimal("0"), budget.amount - pattern_monthly)
+
+        if budget_remainder <= 0:
+            # Patterns fully cover or exceed budget, no additional expense needed
+            continue
+
+        # For each forecast date, check if it falls within a budget period
+        # and add the prorated budget remainder as daily expense
+        for fcast_date in forecast_dates:
+            # Get the budget period containing this date
+            period_start, period_end = _get_period_boundaries(budget.period, fcast_date)
+
+            # Check if this is the current period (contains today)
+            is_current_period = period_start <= today <= period_end
+
+            if is_current_period:
+                # For current period: use remaining budget spread over remaining days
+                # remaining_budget = budget_amount - spent_amount (from BudgetForForecast)
+                current_remaining = max(Decimal("0"), budget.remaining_amount - pattern_monthly)
+                if current_remaining <= 0:
+                    continue
+
+                # Remaining days in period (from today to period end)
+                remaining_days = (period_end - today).days + 1
+                if remaining_days > 0 and fcast_date >= today:
+                    daily_amount = current_remaining / Decimal(str(remaining_days))
+                    daily_events[fcast_date].append(
+                        {
+                            "direction": "expense",
+                            "amount": -abs(daily_amount),
+                            "source": f"budget:{budget.tag_name}",
+                        }
+                    )
+            # For future periods: spread full budget remainder across the period
+            # Only add on the first day of each period to avoid duplication
+            elif fcast_date == period_start:
+                daily_events[fcast_date].append(
+                    {
+                        "direction": "expense",
+                        "amount": -abs(budget_remainder),
+                        "source": f"budget:{budget.tag_name}",
+                    }
+                )
+
+
+def _get_period_boundaries(period: str, for_date: date) -> tuple[date, date]:
+    """Get the start and end dates for a budget period containing the given date.
+
+    :param period: Budget period (weekly, monthly, quarterly, annual).
+    :param for_date: Date to find period for.
+    :returns: Tuple of (period_start, period_end).
+    """
+    if period == "weekly":
+        # ISO week: Monday to Sunday
+        start = for_date - timedelta(days=for_date.weekday())
+        end = start + timedelta(days=6)
+    elif period == "monthly":
+        start = for_date.replace(day=1)
+        # Last day of month
+        if for_date.month == DECEMBER:
+            end = for_date.replace(year=for_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = for_date.replace(month=for_date.month + 1, day=1) - timedelta(days=1)
+    elif period == "quarterly":
+        quarter = (for_date.month - 1) // 3
+        start = date(for_date.year, quarter * 3 + 1, 1)
+        if quarter == LAST_QUARTER:
+            end = date(for_date.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end = date(for_date.year, (quarter + 1) * 3 + 1, 1) - timedelta(days=1)
+    elif period == "annual":
+        start = date(for_date.year, 1, 1)
+        end = date(for_date.year, DECEMBER, 31)
+    else:
+        # Default to monthly
+        start = for_date.replace(day=1)
+        if for_date.month == DECEMBER:
+            end = for_date.replace(year=for_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = for_date.replace(month=for_date.month + 1, day=1) - timedelta(days=1)
+
+    return start, end
 
 
 def _get_forecast_from_cache(
-    current_user: User, start_date: date, end_date: date
+    current_user: User, start_date: date, end_date: date, include_manual_assets: bool = True
 ) -> CashFlowForecastResponse:
     """Get forecast from dbt-cached data (for ranges within 1 year from today)."""
     query = """
@@ -171,11 +478,25 @@ def _get_forecast_from_cache(
     if not rows:
         raise HTTPException(status_code=404, detail="No forecast data available")
 
+    # If excluding manual assets, adjust all balance values
+    asset_adjustment = Decimal("0")
+    if not include_manual_assets:
+        asset_adjustment = _get_manual_assets_adjustment(str(current_user.id))
+        # Adjust the rows - subtract manual assets from all balances
+        rows = [
+            {
+                **row,
+                "starting_balance": Decimal(str(row["starting_balance"])) - asset_adjustment,
+                "projected_balance": Decimal(str(row["projected_balance"])) - asset_adjustment,
+            }
+            for row in rows
+        ]
+
     return _build_forecast_response_from_rows(rows)
 
 
 def _compute_forecast_dynamically(
-    current_user: User, start_date: date, end_date: date
+    current_user: User, start_date: date, end_date: date, include_manual_assets: bool = True
 ) -> CashFlowForecastResponse:
     """Compute forecast dynamically for extended date ranges."""
     # Fetch data from DuckDB (same as scenario endpoint)
@@ -185,12 +506,20 @@ def _compute_forecast_dynamically(
     currency = str(net_worth["currency"])
     as_of_date = net_worth["as_of_date"]
 
+    # If excluding manual assets, adjust the starting balance
+    if not include_manual_assets:
+        asset_adjustment = _get_manual_assets_adjustment(str(current_user.id))
+        starting_balance -= asset_adjustment
+
+    # Fetch budgets for forecast integration
+    budgets = _fetch_budgets_for_forecast(str(current_user.id))
+
     # Generate forecast dates for the requested range
     days_count = (end_date - start_date).days + 1
     forecast_dates = [start_date + timedelta(days=i) for i in range(days_count)]
 
-    # Build events and compute forecast
-    daily_events = _build_daily_events(patterns, planned, {}, forecast_dates)
+    # Build events and compute forecast (with budget integration)
+    daily_events = _build_daily_events(patterns, planned, {}, forecast_dates, budgets)
 
     # Adjust starting balance if start_date is in the future
     # We need to account for events between today and start_date
@@ -302,11 +631,12 @@ class WeeklyForecastResponse(BaseModel):
 def get_weekly_forecast(
     start_date: date | None = Query(None, description="Start date (defaults to today)"),
     end_date: date | None = Query(None, description="End date (defaults to start + 90 days)"),
+    include_manual_assets: bool = Query(True, description="Include manual assets in net worth"),
     current_user: User = Depends(get_current_user),
 ) -> WeeklyForecastResponse:
     """Get weekly aggregated cash flow forecast for easier visualisation."""
     # Get daily forecast first (handles caching vs dynamic computation)
-    daily_response = get_forecast(start_date, end_date, current_user)
+    daily_response = get_forecast(start_date, end_date, include_manual_assets, current_user)
 
     # Aggregate daily data into weeks
     weeks_map: dict[int, dict[str, Any]] = {}
@@ -513,10 +843,10 @@ def _fetch_scenario_data(
     :returns: Tuple of (patterns, planned, net_worth_row).
     :raises HTTPException: If database unavailable or no data found.
     """
-    # Build patterns query with exclusions
+    # Build patterns query with exclusions (include tag_id for budget linking)
     patterns_query = """
         SELECT pattern_id, display_name, direction, expected_amount, currency, frequency,
-               next_expected_date
+               next_expected_date, tag_id
         FROM main_mart.fct_recurring_patterns
         WHERE user_id = $user_id AND status NOT IN ('dismissed', 'paused')
           AND next_expected_date IS NOT NULL
@@ -573,21 +903,42 @@ def _fetch_scenario_data(
     return patterns, planned, net_worth_rows[0]
 
 
-def _build_daily_events(
+def _build_daily_events(  # noqa: PLR0912
     patterns: list[dict[str, Any]],
     planned: list[dict[str, Any]],
     amount_mods: dict[str, Decimal],
     forecast_dates: list[date],
+    budgets: list[BudgetForForecast] | None = None,
 ) -> dict[date, list[dict[str, Any]]]:
-    """Build daily event dictionary from patterns and planned transactions.
+    """Build daily event dictionary from patterns, planned transactions, and budgets.
 
     :param patterns: Recurring patterns from database.
     :param planned: Planned transactions from database.
     :param amount_mods: Pattern ID to modified amount mapping.
     :param forecast_dates: List of dates in the forecast period.
+    :param budgets: Optional list of budgets for forecast integration.
     :returns: Dictionary mapping dates to lists of cash flow events.
     """
     daily_events: dict[date, list[dict[str, Any]]] = {d: [] for d in forecast_dates}
+
+    # Build a map of tag_id -> sum of monthly equivalent for patterns with that tag
+    # This helps us calculate budget remainder (budget - tagged patterns)
+    tag_pattern_monthly: dict[str, Decimal] = {}
+    for pat in patterns:
+        tag_id = pat.get("tag_id")
+        if tag_id:
+            monthly_equiv = _calculate_pattern_monthly_equivalent(
+                Decimal(str(pat["expected_amount"])),
+                pat["frequency"],
+                pat["direction"],
+            )
+            tag_pattern_monthly[str(tag_id)] = (
+                tag_pattern_monthly.get(str(tag_id), Decimal("0")) + monthly_equiv
+            )
+
+    # Process budget-based expenses (spending beyond tracked patterns)
+    if budgets:
+        _add_budget_events(daily_events, budgets, tag_pattern_monthly, forecast_dates)
 
     # Process recurring patterns
     for pat in patterns:
@@ -733,12 +1084,15 @@ def calculate_scenario(
     currency = str(net_worth["currency"])
     as_of_date = net_worth["as_of_date"]
 
+    # Fetch budgets for forecast integration
+    budgets = _fetch_budgets_for_forecast(str(current_user.id))
+
     # Generate forecast dates
     today = date.today()
     forecast_dates = [today + timedelta(days=i) for i in range(90)]
 
-    # Build events and compute forecast
-    daily_events = _build_daily_events(patterns, planned, amount_mods, forecast_dates)
+    # Build events and compute forecast (with budget integration)
+    daily_events = _build_daily_events(patterns, planned, amount_mods, forecast_dates, budgets)
     daily_data, summary = _compute_forecast_from_events(
         daily_events, forecast_dates, starting_balance
     )

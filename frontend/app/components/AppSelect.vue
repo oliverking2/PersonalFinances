@@ -12,6 +12,8 @@ const props = defineProps<{
   modelValue: string
   options: { value: string; label: string }[]
   placeholder?: string
+  // Teleport dropdown to body (useful when inside overflow:hidden containers like modals)
+  teleport?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -24,8 +26,16 @@ const emit = defineEmits<{
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
 // Flag to prevent dropdown from re-opening immediately after selection
 const justClosed = ref(false)
+
+// Position for teleported dropdown
+const dropdownStyle = ref<{ top: string; left: string; width: string }>({
+  top: '0px',
+  left: '0px',
+  width: '0px',
+})
 
 // ---------------------------------------------------------------------------
 // Computed
@@ -46,11 +56,25 @@ const hasSelection = computed(() => {
 // Methods
 // ---------------------------------------------------------------------------
 
+function updateDropdownPosition() {
+  if (props.teleport && triggerRef.value) {
+    const rect = triggerRef.value.getBoundingClientRect()
+    dropdownStyle.value = {
+      top: `${rect.bottom + window.scrollY + 4}px`,
+      left: `${rect.left + window.scrollX}px`,
+      width: `${rect.width}px`,
+    }
+  }
+}
+
 function toggleDropdown() {
   // Prevent re-opening immediately after selection
   if (justClosed.value) {
     justClosed.value = false
     return
+  }
+  if (!isOpen.value) {
+    updateDropdownPosition()
   }
   isOpen.value = !isOpen.value
 }
@@ -95,6 +119,7 @@ onUnmounted(() => {
   <div ref="dropdownRef" class="relative">
     <!-- Dropdown trigger button (styled to match AppInput) -->
     <button
+      ref="triggerRef"
       type="button"
       class="flex w-full items-center justify-between rounded-lg border border-border bg-onyx px-4 py-3 text-left transition-colors focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50"
       :class="isOpen ? 'border-emerald ring-2 ring-emerald/50' : ''"
@@ -121,9 +146,9 @@ onUnmounted(() => {
       </svg>
     </button>
 
-    <!-- Dropdown panel -->
+    <!-- Dropdown panel (inline) -->
     <div
-      v-if="isOpen"
+      v-if="isOpen && !teleport"
       class="absolute left-0 top-full z-50 mt-1 w-full rounded-lg border border-border bg-surface shadow-lg"
     >
       <!-- Options list -->
@@ -184,5 +209,70 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+
+    <!-- Dropdown panel (teleported to body for modals) -->
+    <Teleport to="body">
+      <div
+        v-if="isOpen && teleport"
+        class="fixed z-[100] rounded-lg border border-border bg-surface shadow-lg"
+        :style="dropdownStyle"
+      >
+        <!-- Options list -->
+        <div class="max-h-60 overflow-y-auto p-1">
+          <!-- Placeholder/clear option -->
+          <button
+            v-if="placeholder"
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors hover:bg-onyx"
+            :class="!hasSelection ? 'text-primary' : 'text-muted'"
+            @click.stop="clearSelection"
+          >
+            <svg
+              v-if="!hasSelection"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="h-4 w-4"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <span v-else class="h-4 w-4" />
+            {{ placeholder }}
+          </button>
+
+          <!-- Actual options -->
+          <button
+            v-for="option in options"
+            :key="option.value"
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors hover:bg-onyx"
+            :class="
+              modelValue === option.value ? 'text-primary' : 'text-foreground'
+            "
+            @click.stop="selectOption(option.value)"
+          >
+            <svg
+              v-if="modelValue === option.value"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="h-4 w-4"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <span v-else class="h-4 w-4" />
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

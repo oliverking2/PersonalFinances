@@ -129,6 +129,21 @@ const confidenceClass = computed(() => {
           >
             {{ pattern.direction === 'income' ? 'Income' : 'Expense' }}
           </span>
+          <!-- Tag badge (if linked to a budget category) -->
+          <span
+            v-if="pattern.tag_name && pattern.tag_colour"
+            class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium"
+            :style="{
+              backgroundColor: `${pattern.tag_colour}20`,
+              color: pattern.tag_colour,
+            }"
+          >
+            <span
+              class="h-2 w-2 rounded-full"
+              :style="{ backgroundColor: pattern.tag_colour }"
+            />
+            {{ pattern.tag_name }}
+          </span>
           <!-- Match count -->
           <span class="text-xs text-muted">
             {{ pattern.match_count }} transactions

@@ -1,7 +1,6 @@
 """Budget API endpoints."""
 
 import logging
-from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -11,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from src.api.budgets.models import (
     BudgetCreateRequest,
+    BudgetForecastItem,
+    BudgetForecastResponse,
     BudgetListResponse,
     BudgetResponse,
     BudgetSummaryResponse,
@@ -18,8 +19,10 @@ from src.api.budgets.models import (
     BudgetWithSpendingResponse,
 )
 from src.api.dependencies import get_current_user, get_db
-from src.api.responses import BAD_REQUEST, RESOURCE_RESPONSES, UNAUTHORIZED
+from src.api.responses import BAD_REQUEST, INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
+from src.duckdb.client import execute_query
 from src.postgres.auth.models import User
+from src.postgres.common.enums import BudgetPeriod
 from src.postgres.common.models import Budget, Tag, Transaction, TransactionSplit
 from src.postgres.common.operations.budgets import (
     create_budget,
@@ -27,6 +30,7 @@ from src.postgres.common.operations.budgets import (
     get_budget_by_id,
     get_budget_by_tag,
     get_budgets_by_user_id,
+    get_period_date_range,
     update_budget,
 )
 
@@ -109,6 +113,106 @@ def get_budget_summary(
     )
 
 
+@router.get(
+    "/forecast",
+    response_model=BudgetForecastResponse,
+    summary="Get budget forecasts",
+    responses={**UNAUTHORIZED, **INTERNAL_ERROR},
+)
+def get_budget_forecast(
+    current_user: User = Depends(get_current_user),
+) -> BudgetForecastResponse:
+    """Get forecast projections for all user budgets.
+
+    Returns predictions for when each budget will be exhausted based on
+    historical spending patterns from the last 90 days.
+    """
+    query = """
+    SELECT
+        budget_id,
+        tag_id,
+        tag_name,
+        tag_colour,
+        budget_amount,
+        currency,
+        period,
+        spent_amount,
+        remaining_amount,
+        percentage_used,
+        budget_status,
+        days_remaining,
+        daily_avg_spending,
+        days_until_exhausted,
+        projected_exceed_date,
+        will_exceed_in_period,
+        projected_percentage,
+        risk_level
+    FROM main_mart.fct_budget_forecast
+    WHERE user_id = $user_id
+    ORDER BY
+        CASE WHEN budget_status = 'exceeded' THEN 0 ELSE 1 END,
+        days_until_exhausted NULLS LAST
+    """
+
+    try:
+        rows = execute_query(query, {"user_id": str(current_user.id)})
+    except FileNotFoundError:
+        logger.warning("DuckDB database not available for budget forecast")
+        return BudgetForecastResponse(forecasts=[], budgets_at_risk=0)
+    except Exception as e:
+        logger.exception(f"Failed to execute budget forecast query: {e}")
+        raise HTTPException(status_code=500, detail="Budget forecast query failed") from e
+
+    forecasts = []
+    budgets_at_risk = 0
+
+    for row in rows:
+        # Map period string to BudgetPeriod enum
+        period_value = row.get("period", "monthly")
+        try:
+            period_enum = BudgetPeriod(period_value)
+        except ValueError:
+            period_enum = BudgetPeriod.MONTHLY
+
+        forecast = BudgetForecastItem(
+            budget_id=str(row["budget_id"]),
+            tag_id=str(row["tag_id"]),
+            tag_name=row["tag_name"],
+            tag_colour=row.get("tag_colour"),
+            budget_amount=Decimal(str(row["budget_amount"])),
+            currency=row["currency"],
+            period=period_enum,
+            spent_amount=Decimal(str(row["spent_amount"])),
+            remaining_amount=Decimal(str(row["remaining_amount"])),
+            percentage_used=Decimal(str(row["percentage_used"])),
+            budget_status=row["budget_status"],
+            days_remaining=int(row["days_remaining"]),
+            daily_avg_spending=Decimal(str(row["daily_avg_spending"])),
+            days_until_exhausted=(
+                Decimal(str(row["days_until_exhausted"]))
+                if row.get("days_until_exhausted") is not None
+                else None
+            ),
+            projected_exceed_date=(
+                str(row["projected_exceed_date"])
+                if row.get("projected_exceed_date") is not None
+                else None
+            ),
+            will_exceed_in_period=bool(row["will_exceed_in_period"]),
+            projected_percentage=Decimal(str(row["projected_percentage"])),
+            risk_level=row["risk_level"],
+        )
+        forecasts.append(forecast)
+
+        if forecast.will_exceed_in_period:
+            budgets_at_risk += 1
+
+    return BudgetForecastResponse(
+        forecasts=forecasts,
+        budgets_at_risk=budgets_at_risk,
+    )
+
+
 @router.post(
     "",
     response_model=BudgetResponse,
@@ -140,6 +244,7 @@ def create_budget_endpoint(
         tag_id=tag_id,
         amount=request.amount,
         currency=request.currency,
+        period=request.period,
         warning_threshold=request.warning_threshold,
     )
 
@@ -191,6 +296,7 @@ def update_budget_endpoint(
         budget_id,
         amount=request.amount,
         currency=request.currency,
+        period=request.period,
         warning_threshold=request.warning_threshold,
         enabled=request.enabled,
     )
@@ -240,18 +346,18 @@ def _calculate_budget_spending(
     :param user_id: User's UUID.
     :return: Total spent amount for the budget's tag in current period.
     """
-    # Get current month's date range
-    now = datetime.now(UTC)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Get period date range based on budget period
+    period_start, period_end = get_period_date_range(budget.period_enum)
 
-    # Query spending from transaction splits for this tag in current month
+    # Query spending from transaction splits for this tag in current period
     # Spending is recorded as positive amounts in splits (absolute value)
     result = (
         db.query(func.coalesce(func.sum(TransactionSplit.amount), 0))
         .join(Transaction, TransactionSplit.transaction_id == Transaction.id)
         .filter(
             TransactionSplit.tag_id == budget.tag_id,
-            Transaction.booking_date >= month_start,
+            Transaction.booking_date >= period_start,
+            Transaction.booking_date <= period_end,
             Transaction.amount < 0,  # Only spending transactions
         )
         .scalar()

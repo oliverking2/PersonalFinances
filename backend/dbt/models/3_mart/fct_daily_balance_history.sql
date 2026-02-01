@@ -60,12 +60,14 @@ DAILY_SNAPSHOTS AS (
     WHERE ROW_NUM = 1
 ),
 
--- Get date range per account (first and last snapshot date)
+-- Get date range per account (first snapshot date to current date)
+-- Extend to CURRENT_DATE so forward-fill works for days without syncs
 ACCOUNT_DATE_RANGE AS (
     SELECT
         ACCOUNT_ID,
-        MIN(BALANCE_DATE) AS MIN_DATE,
-        MAX(BALANCE_DATE) AS MAX_DATE
+        MIN(BALANCE_DATE)                         AS MIN_DATE,
+        -- Use CURRENT_DATE to ensure we have data up to today for net worth calculations
+        GREATEST(MAX(BALANCE_DATE), CURRENT_DATE) AS MAX_DATE
     FROM DAILY_SNAPSHOTS
     GROUP BY ACCOUNT_ID
 ),

@@ -28,6 +28,8 @@ const {
   createPattern,
 } = useRecurringApi()
 
+const { fetchTags } = useTagsApi()
+
 const toast = useToastStore()
 
 // ---------------------------------------------------------------------------
@@ -38,6 +40,9 @@ const patterns = ref<RecurringPattern[]>([])
 const summary = ref<RecurringSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
+
+// Tags for budget linking
+const tags = ref<Array<{ id: string; name: string; colour: string }>>([])
 
 // Filters - default tab is now 'pending' to highlight items needing review
 const statusFilter = ref<RecurringStatus | 'all'>('all')
@@ -127,12 +132,15 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const [patternsResponse, summaryResponse] = await Promise.all([
-      fetchPatterns(),
-      fetchSummary(),
-    ])
+    const [patternsResponse, summaryResponse, tagsResponse] = await Promise.all(
+      [fetchPatterns(), fetchSummary(), fetchTags()],
+    )
     patterns.value = patternsResponse.patterns
     summary.value = summaryResponse
+    // Filter to only visible tags for the selector (exclude hidden, require colour)
+    tags.value = tagsResponse.tags
+      .filter((t) => !t.is_hidden && t.colour)
+      .map((t) => ({ id: t.id, name: t.name, colour: t.colour as string }))
   } catch (e) {
     error.value =
       e instanceof Error ? e.message : 'Failed to load recurring patterns'
@@ -468,6 +476,7 @@ function formatCurrency(amount: number): string {
       v-if="editingPattern"
       :pattern="editingPattern"
       :open="editModalOpen"
+      :available-tags="tags"
       @close="editModalOpen = false"
       @save="handleSaveEdit"
     />
@@ -475,6 +484,7 @@ function formatCurrency(amount: number): string {
     <!-- Create modal -->
     <SubscriptionsRecurringPatternCreateModal
       :open="createModalOpen"
+      :available-tags="tags"
       @close="createModalOpen = false"
       @create="handleCreate"
     />

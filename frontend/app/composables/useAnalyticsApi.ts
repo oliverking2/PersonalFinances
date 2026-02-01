@@ -149,7 +149,7 @@ export function useAnalyticsApi() {
    * Fetch cash flow forecast for a configurable date range.
    * Returns daily projections with income, expenses, and projected balances.
    *
-   * @param params - Optional date range (defaults to today + 90 days)
+   * @param params - Optional date range and asset inclusion setting
    */
   async function fetchForecast(
     params?: ForecastQueryParams,
@@ -161,6 +161,12 @@ export function useAnalyticsApi() {
     }
     if (params?.end_date) {
       queryParams.set('end_date', params.end_date)
+    }
+    if (params?.include_manual_assets !== undefined) {
+      queryParams.set(
+        'include_manual_assets',
+        params.include_manual_assets.toString(),
+      )
     }
 
     const queryString = queryParams.toString()
@@ -175,7 +181,7 @@ export function useAnalyticsApi() {
    * Fetch weekly aggregated forecast data for a configurable date range.
    * Returns weekly summaries for easier visualisation.
    *
-   * @param params - Optional date range (defaults to today + 90 days)
+   * @param params - Optional date range and asset inclusion setting
    */
   async function fetchWeeklyForecast(
     params?: ForecastQueryParams,
@@ -187,6 +193,12 @@ export function useAnalyticsApi() {
     }
     if (params?.end_date) {
       queryParams.set('end_date', params.end_date)
+    }
+    if (params?.include_manual_assets !== undefined) {
+      queryParams.set(
+        'include_manual_assets',
+        params.include_manual_assets.toString(),
+      )
     }
 
     const queryString = queryParams.toString()

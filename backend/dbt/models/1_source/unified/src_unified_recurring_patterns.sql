@@ -5,6 +5,7 @@ SELECT
     ID,
     USER_ID,
     ACCOUNT_ID,
+    TAG_ID,
     NAME,
     NOTES,
     EXPECTED_AMOUNT,

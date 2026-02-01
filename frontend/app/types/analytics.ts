@@ -240,6 +240,7 @@ export interface ForecastEventsResponse {
 export interface ForecastQueryParams {
   start_date?: string // YYYY-MM-DD
   end_date?: string // YYYY-MM-DD
+  include_manual_assets?: boolean // Include manual assets in net worth calculation
 }
 
 // -----------------------------------------------------------------------------

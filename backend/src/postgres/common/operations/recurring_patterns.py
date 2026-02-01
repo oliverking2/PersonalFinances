@@ -301,6 +301,7 @@ def create_pattern(
     anchor_date: datetime,
     *,
     account_id: UUID | None = None,
+    tag_id: UUID | None = None,
     currency: str = "GBP",
     status: RecurringStatus = RecurringStatus.ACTIVE,
     source: RecurringSource = RecurringSource.MANUAL,
@@ -322,6 +323,7 @@ def create_pattern(
     :param direction: Income or expense.
     :param anchor_date: Reference date for calculating next occurrence.
     :param account_id: Optional account filter.
+    :param tag_id: Optional tag for budget integration.
     :param currency: Currency code (default GBP).
     :param status: Pattern status (default ACTIVE for manual).
     :param source: Creation source (default MANUAL).
@@ -339,6 +341,7 @@ def create_pattern(
     pattern = RecurringPattern(
         user_id=user_id,
         account_id=account_id,
+        tag_id=tag_id,
         name=name.strip()[:100],
         expected_amount=expected_amount,
         currency=currency,
@@ -410,7 +413,7 @@ def _calculate_next_expected_date(
 _NOT_SET = object()
 
 
-def update_pattern(
+def update_pattern(  # noqa: PLR0912
     session: Session,
     pattern_id: UUID,
     *,
@@ -424,6 +427,7 @@ def update_pattern(
     advanced_rules: dict[str, Any] | None | object = _NOT_SET,
     end_date: datetime | None | object = _NOT_SET,
     last_matched_date: datetime | None = None,
+    tag_id: UUID | None | object = _NOT_SET,
 ) -> RecurringPattern | None:
     """Update a recurring pattern.
 
@@ -439,6 +443,7 @@ def update_pattern(
     :param advanced_rules: New advanced rules (pass None to clear).
     :param end_date: End date for cancelled patterns.
     :param last_matched_date: Last matched transaction date.
+    :param tag_id: Tag for budget integration (pass None to clear).
     :returns: Updated RecurringPattern, or None if not found.
     """
     pattern = get_pattern_by_id(session, pattern_id)
@@ -477,6 +482,9 @@ def update_pattern(
 
     if end_date is not _NOT_SET:
         pattern.end_date = end_date if isinstance(end_date, datetime) else None
+
+    if tag_id is not _NOT_SET:
+        pattern.tag_id = tag_id if isinstance(tag_id, UUID) else None
 
     if last_matched_date is not None:
         pattern.last_matched_date = last_matched_date

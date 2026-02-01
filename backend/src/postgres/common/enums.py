@@ -191,10 +191,16 @@ class RecurringDirection(StrEnum):
 class BudgetPeriod(StrEnum):
     """Budget time period.
 
+    - WEEKLY: Budget resets each ISO week (Monday-Sunday)
     - MONTHLY: Budget resets each calendar month
+    - QUARTERLY: Budget resets each quarter (Q1: Jan-Mar, Q2: Apr-Jun, etc.)
+    - ANNUAL: Budget resets each calendar year
     """
 
+    WEEKLY = "weekly"
     MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    ANNUAL = "annual"
 
 
 class GoalStatus(StrEnum):

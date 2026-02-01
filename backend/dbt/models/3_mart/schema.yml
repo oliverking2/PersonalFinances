@@ -497,8 +497,8 @@ models:
 
   - name: fct_budget_vs_actual
     description: |
-      Budget vs actual spending comparison for the current month.
-      Compares monthly budgets against actual spending by tag category.
+      Budget vs actual spending comparison for the current period.
+      Compares budgets (weekly/monthly/quarterly/annual) against actual spending by tag category.
     meta:
       dataset: true
       friendly_name: "Budget vs Actual"
@@ -525,11 +525,15 @@ models:
       - name: tag_colour
         description: Tag colour (hex)
       - name: budget_amount
-        description: Monthly budget limit
+        description: Budget limit
         data_tests:
           - not_null
       - name: currency
         description: Currency code
+        data_tests:
+          - not_null
+      - name: period
+        description: Budget period (weekly, monthly, quarterly, annual)
         data_tests:
           - not_null
       - name: warning_threshold
@@ -544,6 +548,10 @@ models:
           - not_null
       - name: remaining_amount
         description: Remaining budget
+        data_tests:
+          - not_null
+      - name: days_remaining
+        description: Days remaining in current period
         data_tests:
           - not_null
       - name: percentage_used
@@ -563,7 +571,85 @@ models:
         data_tests:
           - not_null
       - name: period_key
-        description: Period key (YYYY-MM)
+        description: Period key (e.g., 2026-W05, 2026-01, 2026-Q1, 2026)
+        data_tests:
+          - not_null
+
+  - name: fct_budget_forecast
+    description: |
+      Budget forecast projecting when budgets will be exceeded.
+      Uses historical 90-day spending patterns to project budget exhaustion dates.
+    meta:
+      dataset: true
+      friendly_name: "Budget Forecast"
+      group: "budgets"
+      filters:
+        tag_id_column: "tag_id"
+    columns:
+      - name: budget_id
+        description: Budget UUID
+        data_tests:
+          - not_null
+      - name: user_id
+        description: Owner of the budget (UUID)
+        data_tests:
+          - not_null
+      - name: tag_id
+        description: Tag UUID for budget category
+        data_tests:
+          - not_null
+      - name: tag_name
+        description: Tag name
+        data_tests:
+          - not_null
+      - name: tag_colour
+        description: Tag colour (hex)
+      - name: budget_amount
+        description: Budget limit
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency code
+        data_tests:
+          - not_null
+      - name: period
+        description: Budget period (weekly, monthly, quarterly, annual)
+        data_tests:
+          - not_null
+      - name: spent_amount
+        description: Amount spent in current period
+        data_tests:
+          - not_null
+      - name: remaining_amount
+        description: Remaining budget
+        data_tests:
+          - not_null
+      - name: percentage_used
+        description: Percentage of budget used
+        data_tests:
+          - not_null
+      - name: budget_status
+        description: Status - ok, warning, or exceeded
+        data_tests:
+          - not_null
+      - name: daily_avg_spending
+        description: Historical daily average spending (last 90 days)
+        data_tests:
+          - not_null
+      - name: days_until_exhausted
+        description: Projected days until budget is exhausted (null if no spending history)
+      - name: projected_exceed_date
+        description: Date when budget is projected to be exceeded
+      - name: will_exceed_in_period
+        description: Whether budget will exceed before period ends
+        data_tests:
+          - not_null
+      - name: projected_percentage
+        description: Projected percentage used at end of period
+        data_tests:
+          - not_null
+      - name: risk_level
+        description: Risk level (low, medium, high, critical)
         data_tests:
           - not_null
 

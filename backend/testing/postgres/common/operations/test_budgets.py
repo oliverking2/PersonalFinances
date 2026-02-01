@@ -15,6 +15,7 @@ from src.postgres.common.operations.budgets import (
     get_budget_by_tag,
     get_budgets_by_user_id,
     get_current_period_key,
+    get_period_date_range,
     update_budget,
 )
 
@@ -222,3 +223,170 @@ class TestPeriodKey:
         # Should be in format "YYYY-MM"
         assert len(key) == 7
         assert key[4] == "-"
+
+    def test_weekly_period_key(self) -> None:
+        """Should generate weekly period key in YYYY-Wxx format."""
+        key = get_current_period_key(BudgetPeriod.WEEKLY)
+        # Should be in format "YYYY-Wxx" (e.g., "2026-W05")
+        assert len(key) == 8
+        assert key[4] == "-"
+        assert key[5] == "W"
+
+    def test_quarterly_period_key(self) -> None:
+        """Should generate quarterly period key in YYYY-Qx format."""
+        key = get_current_period_key(BudgetPeriod.QUARTERLY)
+        # Should be in format "YYYY-Qx" (e.g., "2026-Q1")
+        assert len(key) == 7
+        assert key[4] == "-"
+        assert key[5] == "Q"
+        assert key[6] in "1234"
+
+    def test_annual_period_key(self) -> None:
+        """Should generate annual period key in YYYY format."""
+        key = get_current_period_key(BudgetPeriod.ANNUAL)
+        # Should be in format "YYYY" (e.g., "2026")
+        assert len(key) == 4
+        assert key.isdigit()
+
+
+class TestPeriodDateRange:
+    """Tests for period date range calculation."""
+
+    def test_weekly_range_starts_monday(self) -> None:
+        """Should return weekly range starting from Monday."""
+        start, end = get_period_date_range(BudgetPeriod.WEEKLY)
+
+        # Start should be Monday (weekday 0)
+        assert start.weekday() == 0
+        # End should be Sunday (weekday 6)
+        assert end.weekday() == 6
+        # Start should be at midnight
+        assert start.hour == 0
+        assert start.minute == 0
+        assert start.second == 0
+        # End should be at 23:59:59
+        assert end.hour == 23
+        assert end.minute == 59
+        assert end.second == 59
+
+    def test_monthly_range_covers_full_month(self) -> None:
+        """Should return monthly range from 1st to last day of month."""
+        start, end = get_period_date_range(BudgetPeriod.MONTHLY)
+
+        # Start should be 1st of month
+        assert start.day == 1
+        assert start.hour == 0
+        # End should be at 23:59:59
+        assert end.hour == 23
+        assert end.minute == 59
+        assert end.second == 59
+        # End should be same month as start
+        assert end.month == start.month
+
+    def test_quarterly_range_covers_three_months(self) -> None:
+        """Should return quarterly range covering 3 calendar months."""
+        start, end = get_period_date_range(BudgetPeriod.QUARTERLY)
+
+        # Start should be 1st of a quarter month (1, 4, 7, or 10)
+        assert start.day == 1
+        assert start.month in [1, 4, 7, 10]
+        # End should be at 23:59:59
+        assert end.hour == 23
+        assert end.minute == 59
+        # End month should be start month + 2 (unless wrapping year)
+        expected_end_month = (start.month + 2) % 12 or 12
+        assert end.month == expected_end_month
+
+    def test_annual_range_covers_full_year(self) -> None:
+        """Should return annual range from Jan 1 to Dec 31."""
+        start, end = get_period_date_range(BudgetPeriod.ANNUAL)
+
+        # Start should be January 1st
+        assert start.month == 1
+        assert start.day == 1
+        assert start.hour == 0
+        # End should be December 31st
+        assert end.month == 12
+        assert end.day == 31
+        assert end.hour == 23
+        assert end.minute == 59
+        # Same year
+        assert start.year == end.year
+
+
+class TestBudgetWithPeriod:
+    """Tests for budget operations with period field."""
+
+    def test_create_budget_with_weekly_period(self, db_session: Session, test_user: User) -> None:
+        """Should create a budget with weekly period."""
+        tag = Tag(user_id=test_user.id, name="Coffee", colour="#8B4513")
+        db_session.add(tag)
+        db_session.commit()
+
+        budget = create_budget(
+            db_session,
+            user_id=test_user.id,
+            tag_id=tag.id,
+            amount=Decimal("50.00"),
+            period=BudgetPeriod.WEEKLY,
+        )
+        db_session.commit()
+
+        assert budget.period == BudgetPeriod.WEEKLY.value
+
+    def test_create_budget_with_quarterly_period(
+        self, db_session: Session, test_user: User
+    ) -> None:
+        """Should create a budget with quarterly period."""
+        tag = Tag(user_id=test_user.id, name="Insurance", colour="#4169E1")
+        db_session.add(tag)
+        db_session.commit()
+
+        budget = create_budget(
+            db_session,
+            user_id=test_user.id,
+            tag_id=tag.id,
+            amount=Decimal("300.00"),
+            period=BudgetPeriod.QUARTERLY,
+        )
+        db_session.commit()
+
+        assert budget.period == BudgetPeriod.QUARTERLY.value
+
+    def test_create_budget_with_annual_period(self, db_session: Session, test_user: User) -> None:
+        """Should create a budget with annual period."""
+        tag = Tag(user_id=test_user.id, name="Holiday", colour="#FF6347")
+        db_session.add(tag)
+        db_session.commit()
+
+        budget = create_budget(
+            db_session,
+            user_id=test_user.id,
+            tag_id=tag.id,
+            amount=Decimal("3000.00"),
+            period=BudgetPeriod.ANNUAL,
+        )
+        db_session.commit()
+
+        assert budget.period == BudgetPeriod.ANNUAL.value
+
+    def test_update_budget_period(self, db_session: Session, test_user: User) -> None:
+        """Should update budget period."""
+        tag = Tag(user_id=test_user.id, name="Test", colour="#000000")
+        db_session.add(tag)
+        db_session.commit()
+
+        budget = create_budget(
+            db_session,
+            user_id=test_user.id,
+            tag_id=tag.id,
+            amount=Decimal("500.00"),
+            period=BudgetPeriod.MONTHLY,
+        )
+        db_session.commit()
+
+        result = update_budget(db_session, budget.id, period=BudgetPeriod.WEEKLY)
+        db_session.commit()
+
+        assert result is not None
+        assert result.period == BudgetPeriod.WEEKLY.value

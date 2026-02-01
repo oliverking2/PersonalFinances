@@ -11,8 +11,10 @@ import type {
 } from '~/types/recurring'
 
 // Props
-defineProps<{
+const props = defineProps<{
   open: boolean
+  // Available tags for budget linking (optional)
+  availableTags?: Array<{ id: string; name: string; colour: string }>
 }>()
 
 // Emits
@@ -31,6 +33,7 @@ const frequency = ref<RecurringFrequency>('monthly')
 const direction = ref<RecurringDirection>('expense')
 const merchantContains = ref('')
 const notes = ref('')
+const selectedTagId = ref('')
 const saving = ref(false)
 
 // Frequency options for the dropdown
@@ -41,6 +44,14 @@ const frequencyOptions = [
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'annual', label: 'Annual' },
 ]
+
+const tagOptions = computed(() => {
+  if (!props.availableTags) return []
+  return props.availableTags.map((tag) => ({
+    value: tag.id,
+    label: tag.name,
+  }))
+})
 
 // ---------------------------------------------------------------------------
 // Form Validation
@@ -62,6 +73,7 @@ function resetForm() {
   direction.value = 'expense'
   merchantContains.value = ''
   notes.value = ''
+  selectedTagId.value = ''
   saving.value = false
 }
 
@@ -89,6 +101,9 @@ function handleCreate() {
   if (notes.value.trim()) {
     request.notes = notes.value.trim()
   }
+  if (selectedTagId.value) {
+    request.tag_id = selectedTagId.value
+  }
 
   emit('create', request)
   // Parent will call handleClose after successful creation
@@ -96,7 +111,7 @@ function handleCreate() {
 
 // Reset form when modal closes
 watch(
-  () => open,
+  () => props.open,
   (isOpen) => {
     if (!isOpen) {
       resetForm()
@@ -203,6 +218,22 @@ watch(
                     Income
                   </button>
                 </div>
+              </div>
+
+              <!-- Tag for budget linking (optional) -->
+              <div v-if="tagOptions.length > 0">
+                <label class="mb-1 block text-sm font-medium"
+                  >Budget Category</label
+                >
+                <AppSelect
+                  v-model="selectedTagId"
+                  :options="tagOptions"
+                  placeholder="Select tag (optional)"
+                  teleport
+                />
+                <p class="mt-1 text-xs text-muted">
+                  Link to a tag to include in budget tracking
+                </p>
               </div>
 
               <!-- Merchant contains (optional) -->

@@ -7,6 +7,7 @@ Modal dialog for creating or editing a budget
 import type {
   Budget,
   BudgetCreateRequest,
+  BudgetPeriod,
   BudgetUpdateRequest,
 } from '~/types/budgets'
 
@@ -27,8 +28,17 @@ const emit = defineEmits<{
 // Form state
 const selectedTagId = ref('')
 const amount = ref(0)
+const selectedPeriod = ref<BudgetPeriod>('monthly')
 const warningThreshold = ref(80) // As percentage (80 = 0.80)
 const enabled = ref(true)
+
+// Period options for the dropdown
+const periodOptions = [
+  { value: 'weekly', label: 'Weekly (Mon-Sun)' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'annual', label: 'Annual' },
+]
 
 // Is editing mode
 const isEditing = computed(() => !!props.existingBudget)
@@ -47,12 +57,14 @@ watch(
         // Editing: populate form with existing values
         selectedTagId.value = props.existingBudget.tag_id
         amount.value = props.existingBudget.amount
+        selectedPeriod.value = props.existingBudget.period
         warningThreshold.value = props.existingBudget.warning_threshold * 100
         enabled.value = props.existingBudget.enabled
       } else {
         // Creating: reset to defaults
         selectedTagId.value = props.availableTags[0]?.id ?? ''
         amount.value = 0
+        selectedPeriod.value = 'monthly'
         warningThreshold.value = 80
         enabled.value = true
       }
@@ -65,6 +77,7 @@ function handleSubmit() {
   if (isEditing.value && props.existingBudget) {
     emit('update', props.existingBudget.id, {
       amount: amount.value,
+      period: selectedPeriod.value,
       warning_threshold: warningThreshold.value / 100,
       enabled: enabled.value,
     })
@@ -72,6 +85,7 @@ function handleSubmit() {
     emit('create', {
       tag_id: selectedTagId.value,
       amount: amount.value,
+      period: selectedPeriod.value,
       warning_threshold: warningThreshold.value / 100,
     })
   }
@@ -154,10 +168,22 @@ const tagOptions = computed(() =>
               </div>
             </div>
 
+            <!-- Period selector -->
+            <div>
+              <label class="mb-1 block text-sm font-medium text-muted"
+                >Budget Period</label
+              >
+              <AppSelect
+                v-model="selectedPeriod"
+                :options="periodOptions"
+                placeholder="Select period..."
+              />
+            </div>
+
             <!-- Amount -->
             <div>
               <label class="block text-sm font-medium text-muted"
-                >Monthly Budget</label
+                >Budget Amount</label
               >
               <div class="relative mt-1">
                 <span

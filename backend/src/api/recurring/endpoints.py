@@ -201,6 +201,7 @@ def create_recurring_pattern(
     )
 
     account_id = UUID(request.account_id) if request.account_id else None
+    tag_id = UUID(request.tag_id) if request.tag_id else None
 
     pattern = create_pattern(
         db,
@@ -211,6 +212,7 @@ def create_recurring_pattern(
         direction=request.direction,
         anchor_date=anchor,
         account_id=account_id,
+        tag_id=tag_id,
         currency=request.currency,
         status=RecurringStatus.ACTIVE,
         source=RecurringSource.MANUAL,
@@ -298,6 +300,7 @@ def update_recurring_pattern(
     if not pattern or pattern.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Pattern not found: {pattern_id}")
 
+    tag_id = UUID(request.tag_id) if request.tag_id else None
     updated = update_pattern(
         db,
         pattern_id,
@@ -305,6 +308,7 @@ def update_recurring_pattern(
         notes=request.notes,
         expected_amount=request.expected_amount,
         frequency=request.frequency,
+        tag_id=tag_id,
         merchant_contains=request.merchant_contains,
         amount_tolerance_pct=request.amount_tolerance_pct,
         advanced_rules=request.advanced_rules,
@@ -607,6 +611,9 @@ def _to_response(pattern: RecurringPattern) -> RecurringPatternResponse:
         amount_tolerance_pct=pattern.amount_tolerance_pct,
         advanced_rules=pattern.advanced_rules,
         account_id=str(pattern.account_id) if pattern.account_id else None,
+        tag_id=str(pattern.tag_id) if pattern.tag_id else None,
+        tag_name=pattern.tag.name if pattern.tag else None,
+        tag_colour=pattern.tag.colour if pattern.tag else None,
         next_expected_date=pattern.next_expected_date,
         last_matched_date=pattern.last_matched_date,
         end_date=pattern.end_date,

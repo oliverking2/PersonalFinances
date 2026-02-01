@@ -14,6 +14,8 @@ import type {
 const props = defineProps<{
   pattern: RecurringPattern
   open: boolean
+  // Available tags for budget linking (optional)
+  availableTags?: Array<{ id: string; name: string; colour: string }>
 }>()
 
 // Emits
@@ -31,6 +33,8 @@ interface PatternUpdates {
   notes?: string
   expected_amount?: number
   frequency?: RecurringFrequency
+  tag_id?: string | null
+  next_expected_date?: string
 }
 
 // Frequency options for the dropdown
@@ -53,7 +57,23 @@ const expectedAmountStr = ref(
   Math.abs(props.pattern.expected_amount).toFixed(2),
 )
 const frequency = ref<RecurringFrequency>(props.pattern.frequency)
+const selectedTagId = ref(props.pattern.tag_id || '')
+// Store next expected date as YYYY-MM-DD string for date input
+const nextExpectedDate = ref(
+  props.pattern.next_expected_date
+    ? props.pattern.next_expected_date.split('T')[0]
+    : '',
+)
 const saving = ref(false)
+
+// Tag options for budget linking (transform availableTags prop to AppSelect format)
+const tagOptions = computed(() => {
+  if (!props.availableTags) return []
+  return props.availableTags.map((tag) => ({
+    value: tag.id,
+    label: tag.name,
+  }))
+})
 
 // Transactions state
 const transactions = ref<PatternTransaction[]>([])
@@ -68,6 +88,10 @@ watch(
     notes.value = p.notes || ''
     expectedAmountStr.value = Math.abs(p.expected_amount).toFixed(2)
     frequency.value = p.frequency
+    selectedTagId.value = p.tag_id || ''
+    nextExpectedDate.value = p.next_expected_date
+      ? p.next_expected_date.split('T')[0]
+      : ''
     // Reset transactions when pattern changes
     transactions.value = []
     transactionsLoaded.value = false
@@ -114,6 +138,18 @@ function handleSave() {
   // Compare frequency
   if (frequency.value !== props.pattern.frequency) {
     updates.frequency = frequency.value
+  }
+  // Compare tag_id (use null to clear, empty string means no change needed)
+  const currentTagId = props.pattern.tag_id || ''
+  if (selectedTagId.value !== currentTagId) {
+    updates.tag_id = selectedTagId.value || null
+  }
+  // Compare next_expected_date
+  const currentDate = props.pattern.next_expected_date
+    ? props.pattern.next_expected_date.split('T')[0]
+    : ''
+  if (nextExpectedDate.value !== currentDate) {
+    updates.next_expected_date = nextExpectedDate.value
   }
 
   emit('save', updates)
@@ -231,9 +267,25 @@ function formatDate(dateStr: string | null): string {
                   v-model="frequency"
                   :options="frequencyOptions"
                   placeholder="Select frequency"
+                  teleport
                 />
                 <p class="mt-1 text-xs text-muted">
                   Change if the detected frequency is incorrect
+                </p>
+              </div>
+
+              <!-- Next Expected Date (editable) -->
+              <div>
+                <label class="mb-1 block text-sm font-medium"
+                  >Next Expected Date</label
+                >
+                <input
+                  v-model="nextExpectedDate"
+                  type="date"
+                  class="w-full rounded-lg border border-border bg-onyx px-4 py-3 text-foreground transition-colors focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50"
+                />
+                <p class="mt-1 text-xs text-muted">
+                  When is the next occurrence expected?
                 </p>
               </div>
 
@@ -252,6 +304,22 @@ function formatDate(dateStr: string | null): string {
                   class="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Add any notes..."
                 />
+              </div>
+
+              <!-- Tag for budget linking -->
+              <div v-if="tagOptions.length > 0">
+                <label class="mb-1 block text-sm font-medium"
+                  >Budget Category</label
+                >
+                <AppSelect
+                  v-model="selectedTagId"
+                  :options="tagOptions"
+                  placeholder="Select tag (optional)"
+                  teleport
+                />
+                <p class="mt-1 text-xs text-muted">
+                  Link to a tag to include in budget tracking
+                </p>
               </div>
 
               <!-- Matching rules info -->

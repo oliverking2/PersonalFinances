@@ -9,6 +9,7 @@ import {
   getStatusLabel,
   getStatusColour,
   getStatusBgColour,
+  getPeriodLabel,
 } from '~/types/budgets'
 
 // Props
@@ -37,7 +38,7 @@ function formatCurrency(amount: number, currency: string = 'GBP'): string {
   <div class="budget-card">
     <!-- Header: tag name + status badge -->
     <div class="flex items-start justify-between gap-4">
-      <!-- Left: tag colour dot and name -->
+      <!-- Left: tag colour dot, name, and period -->
       <div class="flex items-center gap-2">
         <!-- Tag colour indicator -->
         <span
@@ -45,6 +46,10 @@ function formatCurrency(amount: number, currency: string = 'GBP'): string {
           :style="{ backgroundColor: budget.tag_colour }"
         />
         <h3 class="text-lg font-semibold">{{ budget.tag_name }}</h3>
+        <!-- Period badge -->
+        <span class="rounded bg-border px-1.5 py-0.5 text-xs text-muted">
+          {{ getPeriodLabel(budget.period) }}
+        </span>
       </div>
 
       <!-- Right: status badge -->
