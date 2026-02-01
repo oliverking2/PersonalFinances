@@ -1,4 +1,4 @@
-.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs clone-prod
+.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs clone-prod seed-demo
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "  make reset        Destroy all data and run setup again"
 	@echo ""
 	@echo "Database:"
+	@echo "  make seed-demo    Seed/reset demo user with fake data"
 	@echo "  make clone-prod   Clone prod database to local (requires .env.prod)"
 	@echo ""
 	@echo "  make check        Run all validation checks"
@@ -168,6 +169,9 @@ up-telegram:
 # =============================================================================
 # Database Operations
 # =============================================================================
+seed-demo:
+	@cd backend && poetry run seed-demo
+
 clone-prod:
 	@# Install postgresql-client-17 if pg_dump is not available or wrong version
 	@if ! command -v pg_dump > /dev/null 2>&1 || ! pg_dump --version | grep -q "pg_dump (PostgreSQL) 17"; then \
