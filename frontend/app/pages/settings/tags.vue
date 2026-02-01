@@ -605,7 +605,8 @@ async function handleUnhide(tag: Tag) {
 }
 
 .tag-row {
-  @apply flex items-center gap-4 rounded-md bg-gray-800/50 px-4 py-3;
+  @apply flex flex-wrap items-center gap-2 rounded-md bg-gray-800/50 px-4 py-3;
+  @apply sm:flex-nowrap sm:gap-4;
 
   &.tag-row--hidden {
     @apply opacity-60;
@@ -631,10 +632,11 @@ async function handleUnhide(tag: Tag) {
 
 .usage-count {
   @apply flex-1 text-sm text-muted;
+  @apply hidden sm:block;
 }
 
 .actions {
-  @apply flex gap-2;
+  @apply ml-auto flex gap-2;
 }
 
 .action-btn {

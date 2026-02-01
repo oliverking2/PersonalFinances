@@ -401,20 +401,22 @@ onMounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Page header -->
-    <div class="flex items-center justify-between">
+    <div
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">Net Worth</h1>
         <p class="mt-1 text-muted">Track your total wealth over time</p>
       </div>
       <!-- Period selector -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <span class="text-sm text-muted">Period:</span>
-        <div class="flex rounded-lg border border-border bg-surface">
+        <div class="flex flex-wrap rounded-lg border border-border bg-surface">
           <button
             v-for="option in periodOptions"
             :key="option.value"
             :class="[
-              'px-3 py-1.5 text-sm transition-colors',
+              'px-2 py-1 text-sm transition-colors sm:px-3 sm:py-1.5',
               selectedPeriod === option.value
                 ? 'bg-emerald-600 text-white'
                 : 'text-muted hover:text-foreground',

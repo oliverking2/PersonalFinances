@@ -194,9 +194,9 @@ function getAccountDisplayName(account: Account): string {
     </div>
 
     <!-- Filter row - wraps on smaller screens -->
-    <div class="flex flex-wrap items-end gap-3">
+    <div class="flex flex-wrap items-end gap-2 sm:gap-3">
       <!-- Account filter (multi-select dropdown) -->
-      <div class="min-w-[180px] flex-1">
+      <div class="min-w-[140px] flex-1 sm:min-w-[180px]">
         <FilterDropdown
           label="Accounts"
           placeholder="All accounts"
@@ -209,7 +209,7 @@ function getAccountDisplayName(account: Account): string {
       </div>
 
       <!-- Tag filter (multi-select dropdown) -->
-      <div class="min-w-[140px]">
+      <div class="min-w-[100px] sm:min-w-[140px]">
         <FilterDropdown
           label="Tags"
           placeholder="All tags"
@@ -224,7 +224,7 @@ function getAccountDisplayName(account: Account): string {
       </div>
 
       <!-- Date filter dropdown (presets + custom) -->
-      <div class="min-w-[160px]">
+      <div class="min-w-[120px] sm:min-w-[160px]">
         <TransactionsDateFilterDropdown
           :start-date="modelValue.start_date"
           :end-date="modelValue.end_date"
@@ -235,7 +235,7 @@ function getAccountDisplayName(account: Account): string {
       </div>
 
       <!-- Value filter dropdown (min/max amount) -->
-      <div class="min-w-[140px]">
+      <div class="min-w-[100px] sm:min-w-[140px]">
         <TransactionsValueFilterDropdown
           :min-amount="modelValue.min_amount"
           :max-amount="modelValue.max_amount"

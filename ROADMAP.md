@@ -325,12 +325,12 @@ Track financial progress over time.
 
 Make the app usable on mobile devices.
 
-- [ ] Responsive navigation (hamburger menu)
-- [ ] Home page mobile layout
-- [ ] Transactions page mobile layout
-- [ ] Analytics page mobile layout
-- [ ] Accounts page mobile layout
-- [ ] Settings pages mobile layout
+- [x] Responsive navigation (hamburger menu)
+- [x] Home page mobile layout
+- [x] Transactions page mobile layout
+- [x] Analytics page mobile layout
+- [x] Accounts page mobile layout
+- [x] Settings pages mobile layout
 
 ---
 

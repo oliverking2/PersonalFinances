@@ -628,8 +628,10 @@ function formatAmount(amount: number, currency: string): string {
             <div class="rule-conditions">{{ formatConditions(rule) }}</div>
           </div>
 
-          <!-- Target tag -->
-          <TagsTagChip :name="rule.tag_name" :colour="rule.tag_colour" />
+          <!-- Target tag (hidden on mobile) -->
+          <span class="rule-tag">
+            <TagsTagChip :name="rule.tag_name" :colour="rule.tag_colour" />
+          </span>
 
           <!-- Enabled toggle -->
           <label class="enabled-toggle" title="Toggle enabled">
@@ -943,19 +945,20 @@ function formatAmount(amount: number, currency: string): string {
 
 /* Actions bar */
 .actions-bar {
-  @apply mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-surface p-4;
+  @apply mb-6 flex flex-col gap-4 rounded-lg bg-surface p-4;
+  @apply sm:flex-row sm:flex-wrap sm:items-center sm:justify-between;
 }
 
 .actions-left {
-  @apply flex items-center gap-4;
+  @apply flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4;
 }
 
 .actions-right {
-  @apply flex items-center gap-3;
+  @apply flex items-center gap-2 sm:gap-3;
 }
 
 .filter-group {
-  @apply flex items-center gap-2;
+  @apply flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2;
 }
 
 .filter-label {
@@ -963,7 +966,7 @@ function formatAmount(amount: number, currency: string): string {
 }
 
 .filter-select {
-  @apply w-48;
+  @apply w-full sm:w-48;
 }
 
 /* Rules section */
@@ -989,7 +992,8 @@ function formatAmount(amount: number, currency: string): string {
 }
 
 .rule-row {
-  @apply flex items-center gap-4 rounded-md bg-gray-800/50 px-4 py-3;
+  @apply flex items-center gap-3 rounded-md bg-gray-800/50 px-3 py-3;
+  @apply sm:gap-4 sm:px-4;
   @apply cursor-grab transition-all;
 
   &:hover {
@@ -1006,12 +1010,12 @@ function formatAmount(amount: number, currency: string): string {
 }
 
 .drag-handle {
-  @apply cursor-grab text-muted;
+  @apply hidden cursor-grab text-muted sm:block;
   @apply hover:text-foreground;
 }
 
 .priority-badge {
-  @apply flex h-6 w-6 items-center justify-center rounded-full;
+  @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full;
   @apply bg-gray-700 text-xs font-medium text-muted;
 }
 
@@ -1024,12 +1028,18 @@ function formatAmount(amount: number, currency: string): string {
 }
 
 .rule-conditions {
-  @apply text-sm text-muted;
+  @apply hidden text-sm text-muted sm:block;
+}
+
+/* Tag chip - hidden on mobile */
+.rule-tag {
+  @apply hidden sm:inline-flex;
 }
 
 /* Enabled toggle (slider style) */
 .enabled-toggle {
   @apply relative inline-flex cursor-pointer items-center;
+  @apply hidden sm:inline-flex;
 }
 
 .toggle-checkbox {
@@ -1053,7 +1063,7 @@ function formatAmount(amount: number, currency: string): string {
 
 /* Actions */
 .actions {
-  @apply flex gap-2;
+  @apply flex shrink-0 gap-2;
 }
 
 .action-btn {

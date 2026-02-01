@@ -423,14 +423,16 @@ async function pollJobStatus(
 
     <div class="space-y-6">
       <!-- Page header -->
-      <div class="flex items-center justify-between">
+      <div
+        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <h1 class="text-2xl font-bold sm:text-3xl">Accounts</h1>
           <p class="mt-1 text-muted">Manage your connected bank accounts</p>
         </div>
 
-        <!-- Action buttons -->
-        <div class="flex items-center gap-3">
+        <!-- Action buttons - wrap on mobile -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
           <!-- Refresh button (only shown when there are connections) -->
           <button
             v-if="hasConnections"

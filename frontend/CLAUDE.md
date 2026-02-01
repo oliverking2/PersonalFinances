@@ -95,6 +95,7 @@ Font: **Museo Sans Rounded** loaded via Adobe Typekit (configured in `nuxt.confi
 - **Toast notifications**: Pinia store (`stores/toast.ts`) for user feedback on OAuth callbacks and other actions.
 - **Avoid layout shift**: Prefer showing disabled/faded elements over hiding them (e.g., disabled buttons stay visible).
 - **Client-side filtering**: Filter already-loaded data locally for instant response; only paginate via API.
+- **Mobile responsiveness**: Uses Tailwind's `sm:` breakpoint (640px) as the primary mobile/desktop boundary. Desktop navigation in header; mobile uses slide-out drawer (hamburger menu). Page layouts use responsive grids that collapse to single column on mobile.
 
 ## Patterns
 
