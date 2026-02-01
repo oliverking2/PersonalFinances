@@ -165,6 +165,85 @@ class TestLogin:
 
         assert response.status_code == 200
 
+    def test_login_increments_failed_attempts(
+        self, client: TestClient, api_db_session: Session, test_user_in_db: User
+    ) -> None:
+        """Should increment failed attempts on wrong password."""
+        client.post(
+            "/auth/login",
+            json={"username": "testuser", "password": "wrongpassword"},
+        )
+
+        api_db_session.refresh(test_user_in_db)
+        assert test_user_in_db.failed_login_attempts == 1
+
+    def test_login_resets_failed_attempts_on_success(
+        self, client: TestClient, api_db_session: Session, test_user_in_db: User
+    ) -> None:
+        """Should reset failed attempts after successful login."""
+        # Set some failed attempts
+        test_user_in_db.failed_login_attempts = 5
+        api_db_session.commit()
+
+        response = client.post(
+            "/auth/login",
+            json={"username": "testuser", "password": "testpassword123"},
+        )
+
+        assert response.status_code == 200
+        api_db_session.refresh(test_user_in_db)
+        assert test_user_in_db.failed_login_attempts == 0
+
+    def test_login_locks_account_after_10_failures(
+        self, client: TestClient, api_db_session: Session, test_user_in_db: User
+    ) -> None:
+        """Should lock account after 10 failed attempts."""
+        test_user_in_db.failed_login_attempts = 9
+        api_db_session.commit()
+
+        # 10th failed attempt should lock the account
+        client.post(
+            "/auth/login",
+            json={"username": "testuser", "password": "wrongpassword"},
+        )
+
+        api_db_session.refresh(test_user_in_db)
+        assert test_user_in_db.failed_login_attempts == 10
+        assert test_user_in_db.locked_until is not None
+
+    def test_login_returns_423_when_locked(
+        self, client: TestClient, api_db_session: Session, test_user_in_db: User
+    ) -> None:
+        """Should return 423 when account is locked."""
+        test_user_in_db.locked_until = datetime.now(UTC) + timedelta(minutes=30)
+        api_db_session.commit()
+
+        response = client.post(
+            "/auth/login",
+            json={"username": "testuser", "password": "testpassword123"},
+        )
+
+        assert response.status_code == 423
+        assert response.json()["detail"] == "Account is locked. Try again later."
+
+    def test_login_allows_access_after_lockout_expires(
+        self, client: TestClient, api_db_session: Session, test_user_in_db: User
+    ) -> None:
+        """Should allow login after lockout period expires."""
+        test_user_in_db.failed_login_attempts = 10
+        test_user_in_db.locked_until = datetime.now(UTC) - timedelta(minutes=1)  # Expired
+        api_db_session.commit()
+
+        response = client.post(
+            "/auth/login",
+            json={"username": "testuser", "password": "testpassword123"},
+        )
+
+        assert response.status_code == 200
+        api_db_session.refresh(test_user_in_db)
+        assert test_user_in_db.failed_login_attempts == 0
+        assert test_user_in_db.locked_until is None
+
 
 class TestRefresh:
     """Tests for POST /auth/refresh endpoint."""

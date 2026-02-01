@@ -35,6 +35,10 @@ class User(Base):
     # Telegram integration - stores the user's Telegram chat ID for notifications/2FA
     telegram_chat_id: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
 
+    # Login security - track failed attempts and account lockout
+    failed_login_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

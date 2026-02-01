@@ -1,5 +1,6 @@
 """Tests for user database operations."""
 
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -10,7 +11,10 @@ from src.postgres.auth.operations.users import (
     get_user_by_id,
     get_user_by_telegram_chat_id,
     get_user_by_username,
+    is_user_locked,
     link_telegram,
+    record_failed_login,
+    reset_failed_login_attempts,
     unlink_telegram,
 )
 from src.utils.security import verify_password
@@ -180,3 +184,87 @@ class TestUnlinkTelegram:
         result = unlink_telegram(db_session, uuid4())
 
         assert result is None
+
+
+class TestIsUserLocked:
+    """Tests for is_user_locked operation."""
+
+    def test_returns_false_when_not_locked(self, test_user: User) -> None:
+        """Should return False when locked_until is None."""
+        test_user.locked_until = None
+
+        assert is_user_locked(test_user) is False
+
+    def test_returns_true_when_locked(self, test_user: User) -> None:
+        """Should return True when locked_until is in the future."""
+        test_user.locked_until = datetime.now(UTC) + timedelta(minutes=30)
+
+        assert is_user_locked(test_user) is True
+
+    def test_returns_false_when_lock_expired(self, test_user: User) -> None:
+        """Should return False when locked_until is in the past."""
+        test_user.locked_until = datetime.now(UTC) - timedelta(minutes=1)
+
+        assert is_user_locked(test_user) is False
+
+
+class TestRecordFailedLogin:
+    """Tests for record_failed_login operation."""
+
+    def test_increments_failed_attempts(self, db_session: Session, test_user: User) -> None:
+        """Should increment failed_login_attempts by 1."""
+        test_user.failed_login_attempts = 0
+
+        record_failed_login(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 1
+
+    def test_locks_account_at_10_attempts(self, db_session: Session, test_user: User) -> None:
+        """Should lock account when reaching 10 failed attempts."""
+        test_user.failed_login_attempts = 9
+
+        record_failed_login(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 10
+        assert test_user.locked_until is not None
+        assert test_user.locked_until > datetime.now(UTC)
+
+    def test_does_not_lock_before_10_attempts(self, db_session: Session, test_user: User) -> None:
+        """Should not lock account before reaching 10 failed attempts."""
+        test_user.failed_login_attempts = 8
+
+        record_failed_login(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 9
+        assert test_user.locked_until is None
+
+
+class TestResetFailedLoginAttempts:
+    """Tests for reset_failed_login_attempts operation."""
+
+    def test_resets_failed_attempts_to_zero(self, db_session: Session, test_user: User) -> None:
+        """Should reset failed_login_attempts to 0."""
+        test_user.failed_login_attempts = 5
+
+        reset_failed_login_attempts(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 0
+
+    def test_clears_locked_until(self, db_session: Session, test_user: User) -> None:
+        """Should clear locked_until timestamp."""
+        test_user.failed_login_attempts = 10
+        test_user.locked_until = datetime.now(UTC) + timedelta(minutes=30)
+
+        reset_failed_login_attempts(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 0
+        assert test_user.locked_until is None
+
+    def test_does_nothing_when_already_zero(self, db_session: Session, test_user: User) -> None:
+        """Should not error when attempts already at 0."""
+        test_user.failed_login_attempts = 0
+        test_user.locked_until = None
+
+        reset_failed_login_attempts(db_session, test_user)
+
+        assert test_user.failed_login_attempts == 0

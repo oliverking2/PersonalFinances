@@ -4,12 +4,17 @@ This module provides CRUD operations for User entities.
 """
 
 import logging
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from src.postgres.auth.models import User
 from src.utils.security import hash_password
+
+# Account lockout settings
+MAX_FAILED_ATTEMPTS = 10
+LOCKOUT_DURATION_MINUTES = 30
 
 logger = logging.getLogger(__name__)
 
@@ -112,3 +117,51 @@ def unlink_telegram(session: Session, user_id: UUID) -> User | None:
     session.flush()
     logger.info(f"Unlinked Telegram: user_id={user_id}, old_chat_id={old_chat_id}")
     return user
+
+
+def is_user_locked(user: User) -> bool:
+    """Check if a user account is currently locked.
+
+    :param user: User entity.
+    :return: True if locked and lockout hasn't expired.
+    """
+    if user.locked_until is None:
+        return False
+    return datetime.now(UTC) < user.locked_until
+
+
+def record_failed_login(session: Session, user: User) -> None:
+    """Record a failed login attempt, locking the account if threshold reached.
+
+    :param session: SQLAlchemy session.
+    :param user: User entity.
+    """
+    user.failed_login_attempts += 1
+
+    if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+        user.locked_until = datetime.now(UTC) + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+        logger.warning(
+            f"Account locked: user_id={user.id}, "
+            f"failed_attempts={user.failed_login_attempts}, "
+            f"locked_until={user.locked_until}"
+        )
+    else:
+        logger.debug(
+            f"Failed login attempt: user_id={user.id}, "
+            f"failed_attempts={user.failed_login_attempts}/{MAX_FAILED_ATTEMPTS}"
+        )
+
+    session.flush()
+
+
+def reset_failed_login_attempts(session: Session, user: User) -> None:
+    """Reset failed login attempts after successful login.
+
+    :param session: SQLAlchemy session.
+    :param user: User entity.
+    """
+    if user.failed_login_attempts > 0 or user.locked_until is not None:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        session.flush()
+        logger.debug(f"Reset failed login attempts: user_id={user.id}")

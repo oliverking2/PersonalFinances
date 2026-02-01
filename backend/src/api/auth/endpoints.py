@@ -23,7 +23,13 @@ from src.postgres.auth.operations.refresh_tokens import (
     revoke_token,
     rotate_token,
 )
-from src.postgres.auth.operations.users import create_user, get_user_by_username
+from src.postgres.auth.operations.users import (
+    create_user,
+    get_user_by_username,
+    is_user_locked,
+    record_failed_login,
+    reset_failed_login_attempts,
+)
 from src.postgres.common.operations.tags import seed_standard_tags
 from src.utils.definitions import access_token_expire_minutes, cookie_domain, is_local_environment
 from src.utils.security import create_access_token, verify_password
@@ -110,9 +116,19 @@ def login(
         logger.warning(f"Login failed: username={login_request.username}, reason=user_not_found")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    # Check if account is locked
+    if is_user_locked(user):
+        logger.warning(f"Login failed: username={login_request.username}, reason=account_locked")
+        raise HTTPException(status_code=423, detail="Account is locked. Try again later.")
+
     if not verify_password(login_request.password, user.password_hash):
+        record_failed_login(db, user)
+        db.commit()
         logger.warning(f"Login failed: username={login_request.username}, reason=invalid_password")
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Reset failed attempts on successful login
+    reset_failed_login_attempts(db, user)
 
     user_agent, ip_address = _get_client_info(request)
 

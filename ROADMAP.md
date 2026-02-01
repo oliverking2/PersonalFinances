@@ -390,6 +390,19 @@ More flexible budgeting options.
 
 Items to tackle when higher priority work is complete.
 
+### Manual Assets & Liabilities
+
+- [ ] Student loan balance tracking
+- [ ] Mortgage balance tracking
+- [ ] Property valuations (manual entry with date)
+- [ ] Vehicle values
+- [ ] Other assets/liabilities
+
+### Settings - Jobs
+
+- [ ] See current jobs without going into Dagster UI
+- [ ] Trigger manual syncs - remove from the front UI
+
 ### Telegram Notifications
 
 - [ ] Balance alerts (low balance, large deposits)
@@ -397,8 +410,7 @@ Items to tackle when higher priority work is complete.
 - [ ] Weekly summary reports
 - [ ] Budget/spending limit warnings via Telegram
 - [ ] MFA code relay for Vanguard/other integrations
-- [ ] Quick actions (categorise transaction, add note)
-- [ ] Reminder acknowledgement
+- [ ] Manual Asset/Liability reminders - send reminders to update value
 
 ### Vanguard Integration
 
@@ -421,27 +433,15 @@ Items to tackle when higher priority work is complete.
 - [ ] Anomaly detection (unusual transactions)
 - [ ] Financial health score
 
-### Manual Assets & Liabilities
-
-- [ ] Student loan balance tracking
-- [ ] Mortgage balance tracking
-- [ ] Property valuations (manual entry with date)
-- [ ] Vehicle values
-- [ ] Other assets/liabilities
-
 ### Proactive Insights
 
 - [ ] Spending velocity alerts ("You've spent £X in the first 10 days, Y% higher than usual")
 - [ ] Category trend detection ("Groceries spending up 15% over 3 months")
-- [ ] Financial calendar (visual month view of expected bills, subscriptions, income dates)
 
 ### Backlog
 
 - [ ] Historical data backfill tooling
-- [ ] Rate limiting for logging in, and add lock user after 10 failed attempts
-- [ ] Admin page
-  - [ ] See current jobs without going into Dagster UI
-  - [ ] Trigger manual syncs - remove from the front UI
+- [x] Rate limiting for logging in, and add lock user after 10 failed attempts
 
 ---
 
