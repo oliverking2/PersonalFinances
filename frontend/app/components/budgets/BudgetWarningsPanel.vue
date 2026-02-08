@@ -76,6 +76,46 @@ function getRiskLabel(level: string): string {
   }
   return labels[level] || level
 }
+
+// Build a transactions link filtered by tag and current budget period
+function getTransactionsLink(forecast: BudgetForecast): string {
+  const now = new Date()
+  let startDate: Date
+
+  // Calculate the start of the current budget period
+  switch (forecast.period) {
+    case 'weekly': {
+      // Start of current week (Monday)
+      const day = now.getDay()
+      const diff = day === 0 ? 6 : day - 1
+      startDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - diff,
+      )
+      break
+    }
+    case 'monthly':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      break
+    case 'quarterly': {
+      const quarterMonth = Math.floor(now.getMonth() / 3) * 3
+      startDate = new Date(now.getFullYear(), quarterMonth, 1)
+      break
+    }
+    case 'annual':
+      startDate = new Date(now.getFullYear(), 0, 1)
+      break
+    default:
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+  }
+
+  const params = new URLSearchParams()
+  params.set('tag', forecast.tag_name)
+  params.set('start_date', startDate.toISOString().slice(0, 10))
+  params.set('end_date', now.toISOString().slice(0, 10))
+  return `/transactions?${params.toString()}`
+}
 </script>
 
 <template>
@@ -181,17 +221,31 @@ function getRiskLabel(level: string): string {
           </div>
         </div>
 
-        <!-- Right: days until exhausted -->
-        <div class="text-right">
-          <div
-            class="font-medium"
-            :class="getRiskLevelColour(forecast.risk_level)"
-          >
-            {{ formatDaysUntilExhausted(forecast.days_until_exhausted) }}
+        <!-- Right: days until exhausted + transactions link -->
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div
+              class="font-medium"
+              :class="getRiskLevelColour(forecast.risk_level)"
+            >
+              {{ formatDaysUntilExhausted(forecast.days_until_exhausted) }}
+            </div>
+            <div class="text-xs text-muted">
+              {{ forecast.days_remaining }} days left in period
+            </div>
           </div>
-          <div class="text-xs text-muted">
-            {{ forecast.days_remaining }} days left in period
-          </div>
+
+          <!-- Transactions link (matches BudgetCard action-btn style) -->
+          <NuxtLink :to="getTransactionsLink(forecast)" class="action-btn">
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M6 4.75A.75.75 0 016.75 4h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 4.75zM6 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 10zm0 5.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75a.75.75 0 01-.75-.75zM1.99 4.75a1 1 0 011-1h.01a1 1 0 010 2h-.01a1 1 0 01-1-1zm1 5.25a1 1 0 100 2h.01a1 1 0 100-2h-.01zm0 5.25a1 1 0 100 2h.01a1 1 0 100-2h-.01z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Transactions
+          </NuxtLink>
         </div>
       </div>
     </div>
@@ -219,3 +273,11 @@ function getRiskLabel(level: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.action-btn {
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium;
+  @apply bg-transparent text-muted transition-colors;
+  @apply hover:bg-gray-700/50 hover:text-foreground;
+}
+</style>
