@@ -186,6 +186,7 @@ watch(
                   v-model="frequency"
                   :options="frequencyOptions"
                   placeholder="Select frequency"
+                  teleport
                 />
               </div>
 

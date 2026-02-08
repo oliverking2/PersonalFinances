@@ -163,6 +163,7 @@ async function handleAccept(pattern: RecurringPattern) {
     const idx = patterns.value.findIndex((p) => p.id === pattern.id)
     if (idx >= 0) patterns.value[idx] = updated
     toast.success(`Accepted: ${pattern.name}`)
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to accept pattern')
   }
@@ -175,6 +176,7 @@ async function handleDismiss(pattern: RecurringPattern) {
     // Remove from list
     patterns.value = patterns.value.filter((p) => p.id !== pattern.id)
     toast.success(`Dismissed: ${pattern.name}`)
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to dismiss pattern')
   }
@@ -188,6 +190,7 @@ async function handlePause(pattern: RecurringPattern) {
     const idx = patterns.value.findIndex((p) => p.id === pattern.id)
     if (idx >= 0) patterns.value[idx] = updated
     toast.success(`Paused: ${pattern.name}`)
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to pause pattern')
   }
@@ -201,6 +204,7 @@ async function handleResume(pattern: RecurringPattern) {
     const idx = patterns.value.findIndex((p) => p.id === pattern.id)
     if (idx >= 0) patterns.value[idx] = updated
     toast.success(`Resumed: ${pattern.name}`)
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to resume pattern')
   }
@@ -231,6 +235,7 @@ async function handleSaveEdit(updates: PatternUpdates) {
     toast.success('Pattern updated')
     editModalOpen.value = false
     editingPattern.value = null
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to update pattern')
   }
@@ -244,9 +249,7 @@ async function handleCreate(request: RecurringPatternCreateRequest) {
     patterns.value.push(created)
     toast.success(`Created: ${created.name}`)
     createModalOpen.value = false
-    // Reload summary to update counts
-    const summaryResponse = await fetchSummary()
-    summary.value = summaryResponse
+    summary.value = await fetchSummary()
   } catch {
     toast.error('Failed to create pattern')
   }
