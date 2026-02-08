@@ -362,7 +362,7 @@ models:
         data_tests:
           - not_null
       - name: balance_amount
-        description: Balance amount (forward-filled for gaps)
+        description: Balance amount (forward-filled for gaps). Credit card balances are negative (liabilities).
         data_tests:
           - not_null
       - name: balance_currency

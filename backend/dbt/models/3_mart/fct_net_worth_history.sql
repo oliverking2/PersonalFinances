@@ -129,9 +129,9 @@ WITH_METRICS AS (
     FROM DAILY_NET_WORTH
 ),
 
--- Get month-start values for comparison
+-- Get month-start values for comparison (DISTINCT to avoid cross-join duplicates)
 MONTH_START_VALUES AS (
-    SELECT
+    SELECT DISTINCT
         USER_ID,
         MONTH_START,
         FIRST_VALUE(NET_WORTH) OVER (

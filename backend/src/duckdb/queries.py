@@ -162,9 +162,9 @@ def build_dataset_query(
     if numeric_filters:
         query = _apply_numeric_filters(query, params, numeric_filters, valid_columns)
 
-    # Add ordering based on date column if available
+    # Add ordering based on date column if available (ASC for chronological time series)
     if dataset.filters.date_column:
-        query += f" ORDER BY {dataset.filters.date_column} DESC"
+        query += f" ORDER BY {dataset.filters.date_column} ASC"
 
     # Add pagination
     query += f" LIMIT {limit} OFFSET {offset}"

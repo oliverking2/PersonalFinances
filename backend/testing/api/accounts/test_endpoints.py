@@ -8,8 +8,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from src.api.accounts.endpoints import _normalize_credit_card_balance
 from src.postgres.auth.models import User
-from src.postgres.common.enums import AccountStatus, ConnectionStatus, Provider
+from src.postgres.common.enums import AccountCategory, AccountStatus, ConnectionStatus, Provider
 from src.postgres.common.models import Account, Connection, Institution
 from src.utils.security import create_access_token, hash_password
 
@@ -263,3 +264,132 @@ class TestUpdateAccount:
         )
 
         assert response.status_code == 404
+
+
+class TestNormalizeCreditCardBalance:
+    """Tests for _normalize_credit_card_balance helper."""
+
+    def test_amex_style_negative_balance(self) -> None:
+        """Should return absolute value for negative balance (amount owed)."""
+        result = _normalize_credit_card_balance(-500.0, 5000.0)
+        assert result == 500.0
+
+    def test_nationwide_style_positive_balance_with_limit(self) -> None:
+        """Should convert available credit to amount owed."""
+        # Balance is 1500 (available), limit is 2000 -> owed 500
+        result = _normalize_credit_card_balance(1500.0, 2000.0)
+        assert result == 500.0
+
+    def test_no_credit_limit(self) -> None:
+        """Should return absolute value when no credit limit set."""
+        result = _normalize_credit_card_balance(-750.0, None)
+        assert result == 750.0
+
+    def test_no_credit_limit_positive_balance(self) -> None:
+        """Should return absolute value for positive balance without credit limit."""
+        result = _normalize_credit_card_balance(300.0, None)
+        assert result == 300.0
+
+    def test_zero_balance(self) -> None:
+        """Should return zero when balance is zero."""
+        result = _normalize_credit_card_balance(0.0, 5000.0)
+        assert result == 0.0
+
+    def test_overpayment_returns_zero(self) -> None:
+        """Should return zero when available credit exceeds limit (overpayment)."""
+        # Balance is 6000 (available), limit is 5000 -> owed max(0, -1000) = 0
+        result = _normalize_credit_card_balance(6000.0, 5000.0)
+        assert result == 0.0
+
+    def test_full_limit_used(self) -> None:
+        """Should return full credit limit when available credit is zero."""
+        result = _normalize_credit_card_balance(0.0, 3000.0)
+        assert result == 0.0
+
+    def test_positive_balance_equals_limit(self) -> None:
+        """Should return zero when available credit equals limit (nothing owed)."""
+        result = _normalize_credit_card_balance(5000.0, 5000.0)
+        assert result == 0.0
+
+
+class TestCreditCardNegativeBalance:
+    """Tests for credit card accounts returning negative balance in API responses."""
+
+    @pytest.fixture
+    def test_credit_card_account_in_db(
+        self, api_db_session: Session, test_connection_in_db: Connection
+    ) -> Account:
+        """Create a credit card account with balance and credit limit."""
+        account = Account(
+            connection_id=test_connection_in_db.id,
+            provider_id="test-cc-account",
+            status=AccountStatus.ACTIVE.value,
+            name="Test Credit Card",
+            display_name="My Credit Card",
+            currency="GBP",
+            category=AccountCategory.CREDIT_CARD.value,
+            credit_limit=Decimal("5000.00"),
+            # Amex-style: negative balance = amount owed
+            balance_amount=Decimal("-1500.00"),
+            balance_currency="GBP",
+            balance_type="interimAvailable",
+            balance_updated_at=datetime.now(),
+        )
+        api_db_session.add(account)
+        api_db_session.commit()
+        return account
+
+    def test_credit_card_returns_negative_balance(
+        self,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_credit_card_account_in_db: Account,
+    ) -> None:
+        """Should return negative balance for credit card (liability)."""
+        response = client.get("/api/accounts", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        acc = data["accounts"][0]
+        assert acc["balance"]["amount"] == -1500.0
+        assert acc["category"] == "credit_card"
+
+    @pytest.fixture
+    def test_nationwide_cc_in_db(
+        self, api_db_session: Session, test_connection_in_db: Connection
+    ) -> Account:
+        """Create a Nationwide-style credit card (positive balance = available credit)."""
+        account = Account(
+            connection_id=test_connection_in_db.id,
+            provider_id="test-nationwide-cc",
+            status=AccountStatus.ACTIVE.value,
+            name="Nationwide CC",
+            display_name="Nationwide Credit Card",
+            currency="GBP",
+            category=AccountCategory.CREDIT_CARD.value,
+            credit_limit=Decimal("2000.00"),
+            # Nationwide-style: positive balance = available credit
+            balance_amount=Decimal("1500.00"),
+            balance_currency="GBP",
+            balance_type="interimAvailable",
+            balance_updated_at=datetime.now(),
+        )
+        api_db_session.add(account)
+        api_db_session.commit()
+        return account
+
+    def test_nationwide_style_returns_negative_balance(
+        self,
+        client: TestClient,
+        api_auth_headers: dict[str, str],
+        test_nationwide_cc_in_db: Account,
+    ) -> None:
+        """Should return negative balance for Nationwide-style credit card."""
+        response = client.get("/api/accounts", headers=api_auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        acc = data["accounts"][0]
+        # Available: 1500, limit: 2000 -> owed: 500 -> negated: -500
+        assert acc["balance"]["amount"] == -500.0
+        assert acc["category"] == "credit_card"

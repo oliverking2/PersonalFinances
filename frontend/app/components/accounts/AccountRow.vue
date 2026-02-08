@@ -61,16 +61,16 @@ const creditCardMissingLimit = computed(() => {
 })
 
 // Balance colour based on account type
-// API normalizes credit card balances so positive = amount owed
+// API returns credit card balances as negative (liabilities)
 const balanceColorClass = computed(() => {
   if (!props.account.balance) return ''
 
   const amount = props.account.balance.amount
 
   if (isCreditCard.value) {
-    // For credit cards: balance is normalized to "amount owed"
-    // £0 owed = green, any amount owed = red
-    return amount > 0 ? 'text-negative' : 'text-positive'
+    // For credit cards: balance is negative (liability)
+    // £0 owed = green, any debt (negative) = red
+    return amount < 0 ? 'text-negative' : 'text-positive'
   }
 
   // For regular accounts: positive = good, negative = bad

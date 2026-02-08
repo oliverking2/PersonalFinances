@@ -194,7 +194,7 @@ def _to_response(account: Account) -> AccountResponse:
         # Normalize credit card balances to always show "amount owed"
         if account.category == AccountCategory.CREDIT_CARD.value:
             credit_limit = float(account.credit_limit) if account.credit_limit is not None else None
-            amount = _normalize_credit_card_balance(amount, credit_limit)
+            amount = -_normalize_credit_card_balance(amount, credit_limit)
 
         balance = AccountBalance(
             amount=amount,

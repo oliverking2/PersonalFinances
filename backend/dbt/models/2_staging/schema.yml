@@ -2,9 +2,9 @@ models:
   - name: stg_unified_accounts
     description: |
       Staged account data with normalized balances.
-      Credit card balances are normalized to always show amount owed:
-      - Positive balance with credit limit = available credit -> converted to owed
-      - Negative balance = already shows amount owed
+      Credit card balances are normalized and negated as liabilities:
+      - Positive balance with credit limit = available credit -> converted to owed, negated
+      - Negative balance = amount owed, negated
     columns:
       - name: id
         description: Unique identifier for the account
@@ -20,7 +20,37 @@ models:
       - name: raw_balance_amount
         description: Original balance from the bank (before normalization)
       - name: normalized_balance
-        description: Normalized balance (credit cards show amount owed, others unchanged)
+        description: Normalized balance (credit cards are negative liabilities, others unchanged)
+
+  - name: stg_balance_snapshots
+    description: |
+      Staged balance snapshots with normalized credit card balances.
+      Joins balance snapshots with account data to apply credit card normalization.
+      Credit card balances are negated to represent liabilities for correct net worth sums.
+    columns:
+      - name: id
+        description: Unique identifier for the balance snapshot
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: Foreign key to the account
+        data_tests:
+          - not_null
+      - name: raw_balance_amount
+        description: Original balance from the bank (before normalization)
+      - name: balance_amount
+        description: Normalized balance (credit cards are negative liabilities, others unchanged)
+        data_tests:
+          - not_null
+      - name: balance_currency
+        description: Currency of the balance
+      - name: balance_type
+        description: Type of balance (expected, booked, etc.)
+      - name: captured_at
+        description: When the snapshot was captured
+        data_tests:
+          - not_null
 
   - name: stg_gocardless_all_transactions
     description: |

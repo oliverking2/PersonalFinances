@@ -14,7 +14,7 @@ WITH BALANCE_SNAPSHOTS AS (
         SOURCE_UPDATED_AT,
         CAPTURED_AT,
         CAPTURED_AT::DATE AS BALANCE_DATE
-    FROM {{ ref("src_balance_snapshots") }}
+    FROM {{ ref("stg_balance_snapshots") }}
 ),
 
 ACCOUNTS AS (
