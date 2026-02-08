@@ -474,6 +474,8 @@ def sync_gocardless_transaction(
     booking_datetime = None
     if gc_transaction.booking_datetime:
         booking_datetime = gc_transaction.booking_datetime
+        if booking_datetime.tzinfo is None:
+            booking_datetime = booking_datetime.replace(tzinfo=UTC)
     elif gc_transaction.booking_date:
         booking_datetime = datetime.combine(
             gc_transaction.booking_date, datetime.min.time(), tzinfo=UTC
