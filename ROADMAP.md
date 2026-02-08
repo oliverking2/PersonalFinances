@@ -472,12 +472,11 @@ Items to tackle when higher priority work is complete.
 
 AI-powered analytics and natural language queries. See PRDs in `prds/` for details.
 
-Implementation order: Parquet → Cube semantic layer → Agent API → (Langfuse + Chat UI in parallel) → Refinement loop
+Implementation order: Parquet → Semantic layer → Agent API → Chat UI → Refinement loop
 
-- [ ] Parquet migration (replace DuckDB PostgreSQL reads with Parquet files)
-- [ ] Cube semantic layer (structured analytics queries)
+- [x] Parquet migration (replace DuckDB PostgreSQL reads with Parquet files)
+- [x] Semantic layer (structured analytics queries)
 - [ ] Agent API (LLM-powered query generation)
-- [ ] Langfuse observability (trace agent queries)
 - [ ] Chat UI (natural language query interface)
 - [ ] Refinement loop (iterative query improvement)
 
