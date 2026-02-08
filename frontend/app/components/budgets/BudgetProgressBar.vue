@@ -29,8 +29,7 @@ const barColour = computed(() => getProgressBarColour(props.status))
       <!-- Filled bar -->
       <div
         class="progress-bar"
-        :class="barColour"
-        :style="{ width: `${displayPercentage}%` }"
+        :style="{ width: `${displayPercentage}%`, backgroundColor: barColour }"
       />
     </div>
 

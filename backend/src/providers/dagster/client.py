@@ -56,11 +56,15 @@ def build_gocardless_run_config(connection_id: str, *, full_sync: bool = False) 
     :param full_sync: If True, ignore watermark and fetch all transactions.
     :returns: Run config dict for Dagster.
     """
-    config: dict[str, Any] = {"connection_id": connection_id}
-    if full_sync:
-        config["full_sync"] = True
+    base_config: dict[str, Any] = {"connection_id": connection_id}
+    extract_config = {**base_config, "full_sync": True} if full_sync else base_config
 
-    return {"ops": {op_name: {"config": config} for op_name in GOCARDLESS_CONNECTION_SYNC_OPS}}
+    return {
+        "ops": {
+            op_name: {"config": extract_config if op_name.startswith("source__") else base_config}
+            for op_name in GOCARDLESS_CONNECTION_SYNC_OPS
+        }
+    }
 
 
 def build_trading212_run_config(api_key_id: str | None = None) -> dict[str, Any]:

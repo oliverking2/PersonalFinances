@@ -176,7 +176,7 @@ function getRiskLabel(level: string): string {
             <div class="mt-0.5 text-sm text-muted">
               {{ formatCurrency(forecast.spent_amount, forecast.currency) }} of
               {{ formatCurrency(forecast.budget_amount, forecast.currency) }}
-              spent ({{ forecast.percentage_used.toFixed(0) }}%)
+              spent ({{ Number(forecast.percentage_used).toFixed(0) }}%)
             </div>
           </div>
         </div>

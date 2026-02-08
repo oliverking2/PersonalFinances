@@ -114,14 +114,14 @@ export function getStatusBgColour(status: BudgetStatus): string {
   return colours[status] || 'bg-gray-500/20'
 }
 
-// Get progress bar colour class
+// Get progress bar hex colour (for inline styles)
 export function getProgressBarColour(status: BudgetStatus): string {
   const colours: Record<BudgetStatus, string> = {
-    ok: 'bg-emerald-500',
-    warning: 'bg-amber-500',
-    exceeded: 'bg-red-500',
+    ok: '#10b981', // emerald-500
+    warning: '#f59e0b', // amber-500
+    exceeded: '#ef4444', // red-500
   }
-  return colours[status] || 'bg-gray-500'
+  return colours[status] || '#6b7280' // gray-500
 }
 
 // -----------------------------------------------------------------------------
