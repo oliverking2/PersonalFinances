@@ -520,7 +520,7 @@ onMounted(() => {
         </button>
         <!-- Datasets link -->
         <NuxtLink
-          to="/analytics/datasets"
+          to="/insights/analytics/datasets"
           class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-gray-700/50"
         >
           <!-- Download/export icon -->
