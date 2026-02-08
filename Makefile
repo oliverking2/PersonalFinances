@@ -173,12 +173,20 @@ seed-demo:
 	@cd backend && poetry run seed-demo
 
 clone-prod:
-	@# Install postgresql-client-17 if pg_dump is not available or wrong version
-	@if ! command -v pg_dump > /dev/null 2>&1 || ! pg_dump --version | grep -q "pg_dump (PostgreSQL) 17"; then \
-		echo "=== Installing postgresql-client-17 ==="; \
-		sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $$(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
-		wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
-		sudo apt-get update && sudo apt-get install -y postgresql-client-17; \
+	@# Check pg_dump is available
+	@if ! command -v pg_dump > /dev/null 2>&1; then \
+		echo "pg_dump is required but not found on PATH."; \
+		echo ""; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			echo "It may be installed but not on your PATH. Try:"; \
+			echo "  echo 'export PATH=\"$$(brew --prefix libpq)/bin:\$$PATH\"' >> ~/.zshrc"; \
+			echo "  source ~/.zshrc"; \
+			echo ""; \
+			echo "Or install via: brew install libpq"; \
+		else \
+			echo "Install via: sudo apt-get install -y postgresql-client"; \
+		fi; \
+		exit 1; \
 	fi
 	@# Create .env.prod from example if it doesn't exist
 	@if [ ! -f .env.prod ]; then \
