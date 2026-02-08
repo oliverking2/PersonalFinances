@@ -23,6 +23,7 @@ from src.api.analytics.models import (
     NumericFilterResponse,
     RefreshResponse,
 )
+from src.api.analytics.spending_pace import router as spending_pace_router
 from src.api.common.helpers import get_user_account_ids
 from src.api.dependencies import get_current_user, get_db
 from src.api.responses import INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
@@ -43,6 +44,7 @@ router = APIRouter()
 # Include sub-routers
 router.include_router(exports_router)
 router.include_router(forecasting_router)
+router.include_router(spending_pace_router)
 
 
 def _get_last_refresh_time() -> datetime | None:

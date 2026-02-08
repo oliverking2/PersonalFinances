@@ -238,7 +238,7 @@ function formatCurrency(amount: number): string {
       <!-- On track -->
       <div class="rounded-lg border border-border bg-surface p-4">
         <p class="text-sm text-muted">On Track</p>
-        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+        <p class="mt-1 text-2xl font-bold text-emerald-400">
           {{ summary.budgets_on_track }}
         </p>
       </div>

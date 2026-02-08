@@ -62,7 +62,7 @@ function dismissError() {
   >
     <!-- Decorative background blobs -->
     <div
-      class="absolute -left-20 top-20 hidden h-72 w-72 rounded-full bg-emerald opacity-20 blur-3xl sm:block"
+      class="absolute -left-20 top-20 hidden h-72 w-72 rounded-full bg-emerald-500 opacity-20 blur-3xl sm:block"
     />
     <div
       class="absolute -right-20 bottom-20 hidden h-96 w-96 rounded-full bg-sage opacity-10 blur-3xl sm:block"

@@ -204,7 +204,7 @@ function formatCompactCurrency(amount: number): string {
     <div class="mb-4 flex items-start justify-between">
       <div>
         <h2 class="text-lg font-semibold">Net Worth</h2>
-        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+        <p class="mt-1 text-2xl font-bold text-emerald-400">
           {{ formatCurrency(currentNetWorth) }}
         </p>
       </div>

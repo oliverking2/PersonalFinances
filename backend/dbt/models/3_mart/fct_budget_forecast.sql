@@ -125,9 +125,12 @@ SELECT
         ELSE 0
     END AS PROJECTED_PERCENTAGE,
     -- Risk level for UI display
+    -- Only flag 'high' when there is actual spending in the current period,
+    -- so budgets with £0 spent don't show false warnings based purely on
+    -- historical averages.
     CASE
         WHEN BUDGET_STATUS = 'exceeded' THEN 'critical'
-        WHEN DAYS_UNTIL_EXHAUSTED IS NOT NULL AND DAYS_UNTIL_EXHAUSTED < DAYS_REMAINING THEN 'high'
+        WHEN SPENT_AMOUNT > 0 AND DAYS_UNTIL_EXHAUSTED IS NOT NULL AND DAYS_UNTIL_EXHAUSTED < DAYS_REMAINING THEN 'high'
         WHEN PROJECTED_TOTAL > BUDGET_AMOUNT * 0.9 THEN 'medium'
         ELSE 'low'
     END AS RISK_LEVEL

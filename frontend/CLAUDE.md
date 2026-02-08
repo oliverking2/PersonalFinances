@@ -80,8 +80,12 @@ Dark Slate + Green - calm, trustworthy, money/growth association.
 | -------- | --------- | ------------------------ |
 | onyx     | `#121212` | Primary background       |
 | graphite | `#1e1e1e` | Surface (cards, modals)  |
-| emerald  | `#10b981` | Primary actions, buttons |
+| primary  | `#10b981` | Primary actions, buttons |
 | sage     | `#6ee7b7` | Accents, highlights      |
+
+**Tailwind colour classes:** The config defines custom semantic colours (`primary`, `sage`, `positive`, etc.) alongside Tailwind's default palette. Use `bg-primary` for brand green. For numbered shades (e.g. status badges, tinted backgrounds), use Tailwind's built-in `emerald-400`, `emerald-500/20`, etc. — never override a Tailwind colour name with a flat string value in the config, as this replaces the entire numbered scale.
+
+For focus states on form inputs, use `focus:border-primary focus:ring-primary/50`.
 
 ## Typography
 

@@ -282,7 +282,7 @@ function formatDate(dateStr: string | null): string {
                 <input
                   v-model="nextExpectedDate"
                   type="date"
-                  class="w-full rounded-lg border border-border bg-onyx px-4 py-3 text-foreground transition-colors focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50"
+                  class="w-full rounded-lg border border-border bg-onyx px-4 py-3 text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p class="mt-1 text-xs text-muted">
                   When is the next occurrence expected?

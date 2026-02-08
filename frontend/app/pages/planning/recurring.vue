@@ -307,7 +307,7 @@ function formatCurrency(amount: number): string {
       <!-- Monthly income -->
       <div class="rounded-lg border border-border bg-surface p-4">
         <p class="text-sm text-muted">Monthly Income</p>
-        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+        <p class="mt-1 text-2xl font-bold text-emerald-400">
           {{ formatCurrency(summary.monthly_income || 0) }}
         </p>
         <p class="text-xs text-muted">

@@ -17,6 +17,7 @@ import type {
   ScenarioRequest,
   WeeklyForecastResponse,
 } from '~/types/analytics'
+import type { SpendingPaceResponse } from '~/types/spending'
 import { useAuthenticatedFetch } from '~/composables/useAuthenticatedFetch'
 
 // -----------------------------------------------------------------------------
@@ -142,6 +143,18 @@ export function useAnalyticsApi() {
   }
 
   // ---------------------------------------------------------------------------
+  // Spending Pace API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fetch spending pace comparison for the current month.
+   * Compares actual spending against a 90-day historical daily average.
+   */
+  async function fetchSpendingPace(): Promise<SpendingPaceResponse> {
+    return authFetch<SpendingPaceResponse>('/api/analytics/spending-pace')
+  }
+
+  // ---------------------------------------------------------------------------
   // Forecasting API
   // ---------------------------------------------------------------------------
 
@@ -256,6 +269,9 @@ export function useAnalyticsApi() {
 
     // Refresh
     triggerRefresh,
+
+    // Spending Pace
+    fetchSpendingPace,
 
     // Forecasting
     fetchForecast,

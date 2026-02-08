@@ -259,7 +259,7 @@ function getTransactionsLink(forecast: BudgetForecast): string {
     <div class="border-t border-border px-6 py-3">
       <NuxtLink
         to="/planning/budgets"
-        class="text-emerald-400 inline-flex items-center gap-1 text-sm hover:underline"
+        class="inline-flex items-center gap-1 text-sm text-emerald-400 hover:underline"
       >
         View all budgets
         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

@@ -495,6 +495,61 @@ models:
         data_tests:
           - not_null
 
+  - name: fct_spending_pace
+    description: |
+      Spending pace comparison for the current month.
+      Compares actual spending against a 90-day historical daily average to show
+      whether the user is spending faster or slower than their recent average.
+    meta:
+      dataset: true
+      friendly_name: "Spending Pace"
+      group: "aggregations"
+    columns:
+      - name: user_id
+        description: Owner of the transactions (UUID)
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the amounts
+        data_tests:
+          - not_null
+      - name: month_spending_so_far
+        description: Total spending in the current month so far
+        data_tests:
+          - not_null
+      - name: days_elapsed
+        description: Days elapsed in the current month (including today)
+        data_tests:
+          - not_null
+      - name: days_in_month
+        description: Total days in the current month
+        data_tests:
+          - not_null
+      - name: avg_daily_spending
+        description: Average daily spending from the last 90 days
+        data_tests:
+          - not_null
+      - name: expected_spending
+        description: Expected spending so far based on historical daily average
+        data_tests:
+          - not_null
+      - name: projected_month_total
+        description: Projected total spending for the full month
+        data_tests:
+          - not_null
+      - name: pace_ratio
+        description: Ratio of actual to expected spending (>1 means spending faster)
+      - name: pace_status
+        description: Status label (ahead, on_track, behind, no_history)
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['ahead', 'on_track', 'behind', 'no_history']
+      - name: amount_difference
+        description: Actual minus expected spending (positive = overspending)
+        data_tests:
+          - not_null
+
   - name: fct_budget_vs_actual
     description: |
       Budget vs actual spending comparison for the current period.

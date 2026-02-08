@@ -21,7 +21,6 @@ export default {
         // ---------------------------------------------------------------------
         onyx: '#121212', // Primary background - darkest
         graphite: '#1e1e1e', // Surface - cards, elevated elements
-        emerald: '#10b981', // Primary actions - buttons, links
         sage: '#6ee7b7', // Accents, highlights
 
         // ---------------------------------------------------------------------

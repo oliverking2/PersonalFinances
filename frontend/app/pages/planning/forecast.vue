@@ -662,7 +662,7 @@ onMounted(() => {
                       {{ formatDateRange(week.week_start, week.week_end) }}
                     </div>
                   </td>
-                  <td class="text-emerald-400 px-4 py-3 text-right">
+                  <td class="px-4 py-3 text-right text-emerald-400">
                     +{{ formatCurrency(week.total_income_num) }}
                   </td>
                   <td class="px-4 py-3 text-right text-red-400">

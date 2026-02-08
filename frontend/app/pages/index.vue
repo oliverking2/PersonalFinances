@@ -10,6 +10,7 @@ import type { Tag } from '~/types/tags'
 import type { Dataset, DatasetQueryResponse } from '~/types/analytics'
 import type { BudgetSummaryResponse } from '~/types/budgets'
 import type { GoalSummaryResponse } from '~/types/goals'
+import type { SpendingPaceResponse } from '~/types/spending'
 
 useHead({ title: 'Home | Finances' })
 
@@ -18,7 +19,8 @@ const { fetchAccounts } = useAccountsApi()
 const { fetchTransactions, setSplits, clearSplits, updateNote } =
   useTransactionsApi()
 const { fetchTags, createTag } = useTagsApi()
-const { fetchDatasets, queryDataset, fetchAnalyticsStatus } = useAnalyticsApi()
+const { fetchDatasets, queryDataset, fetchAnalyticsStatus, fetchSpendingPace } =
+  useAnalyticsApi()
 const { fetchBudgetSummary } = useBudgetsApi()
 const { fetchGoalSummary } = useGoalsApi()
 
@@ -35,6 +37,7 @@ const dailySpendingByTag = ref<DatasetQueryResponse | null>(null)
 const budgetSummary = ref<BudgetSummaryResponse | null>(null)
 const goalSummary = ref<GoalSummaryResponse | null>(null)
 const netWorthHistory = ref<DatasetQueryResponse | null>(null)
+const spendingPace = ref<SpendingPaceResponse | null>(null)
 
 // Detail modal state
 const detailModalTransaction = ref<Transaction | null>(null)
@@ -46,6 +49,7 @@ const loadingTransactions = ref(true)
 const loadingAnalytics = ref(true)
 const loadingBudgets = ref(true)
 const loadingGoals = ref(true)
+const loadingSpendingPace = ref(true)
 
 // Error states
 const errorAccounts = ref('')
@@ -72,29 +76,6 @@ const today = computed(() => {
   return new Date().toISOString().slice(0, 10)
 })
 
-// Last month: same day range as current month (1st to same day of month)
-// e.g., if today is Jan 25, compare Dec 1-25
-const lastMonthStart = computed(() => {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    .toISOString()
-    .slice(0, 10)
-})
-const lastMonthSameDay = computed(() => {
-  const now = new Date()
-  // Same day of last month, capped at last day of that month
-  // e.g., Jan 31 -> Dec 31, but Mar 31 -> Feb 28/29 (since Feb doesn't have 31)
-  const lastDayOfPrevMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    0,
-  ).getDate()
-  const day = Math.min(now.getDate(), lastDayOfPrevMonth)
-  return new Date(now.getFullYear(), now.getMonth() - 1, day)
-    .toISOString()
-    .slice(0, 10)
-})
-
 // ---------------------------------------------------------------------------
 // Computed: Metrics
 // ---------------------------------------------------------------------------
@@ -117,25 +98,6 @@ const thisMonthSpending = computed(() => {
     0,
   )
   return total
-})
-
-// Last month's spending (calculated from trends)
-const lastMonthSpending = computed(() => {
-  // We query separately for last month, store in a ref
-  return lastMonthSpendingValue.value
-})
-const lastMonthSpendingValue = ref<number | null>(null)
-
-// Spending change percentage
-const spendingChangePercent = computed(() => {
-  if (thisMonthSpending.value === null || lastMonthSpending.value === null)
-    return null
-  if (lastMonthSpending.value === 0) return null
-  return (
-    ((thisMonthSpending.value - lastMonthSpending.value) /
-      lastMonthSpending.value) *
-    100
-  )
 })
 
 // This month's transaction count
@@ -225,6 +187,48 @@ const topCategory = computed(() => {
   }
 
   return top
+})
+
+// This month's income (from monthly trends)
+const thisMonthIncome = computed(() => {
+  if (!monthlyTrends.value?.rows?.length) return null
+  const total = monthlyTrends.value.rows.reduce(
+    (sum, row) => sum + ((row.total_income as number) || 0),
+    0,
+  )
+  return total
+})
+
+// Spending pace display: "£450 / £520" (actual vs expected)
+const paceDisplayValue = computed(() => {
+  if (!spendingPace.value || spendingPace.value.pace_status === 'no_history')
+    return '—'
+  const actual = formatCurrency(
+    Number(spendingPace.value.month_spending_so_far),
+  )
+  const expected = formatCurrency(Number(spendingPace.value.expected_spending))
+  return `${actual} / ${expected}`
+})
+
+// Spending pace subtitle
+const paceSubtitle = computed(() => {
+  if (!spendingPace.value || spendingPace.value.pace_status === 'no_history')
+    return 'no data yet'
+  return 'expected so far'
+})
+
+// Spending pace value colour: green when behind/on_track, amber when ahead
+const paceValueColor = computed<'positive' | 'negative' | undefined>(() => {
+  if (!spendingPace.value || spendingPace.value.pace_status === 'no_history')
+    return undefined
+  // Behind or on track = spending less than expected = good (green)
+  if (
+    spendingPace.value.pace_status === 'behind' ||
+    spendingPace.value.pace_status === 'on_track'
+  )
+    return 'positive'
+  // Ahead = spending more than expected = bad (red)
+  return 'negative'
 })
 
 // ---------------------------------------------------------------------------
@@ -377,29 +381,12 @@ async function loadAnalytics() {
     dailySpendingDatasetId.value = dailySpendingDs?.id || null
     netWorthDatasetId.value = netWorthDs?.id || null
 
-    // Query monthly trends for current period and same period last month
-    // Uses same day range for fair comparison (e.g., Jan 1-25 vs Dec 1-25)
+    // Query monthly trends for current period
     if (monthlyTrendsDatasetId.value) {
-      const [currentMonth, lastMonth] = await Promise.all([
-        queryDataset(monthlyTrendsDatasetId.value, {
-          start_date: currentMonthStart.value,
-          end_date: today.value,
-        }),
-        queryDataset(monthlyTrendsDatasetId.value, {
-          start_date: lastMonthStart.value,
-          end_date: lastMonthSameDay.value,
-        }),
-      ])
-
-      monthlyTrends.value = currentMonth
-
-      // Calculate last month spending
-      if (lastMonth.rows?.length) {
-        lastMonthSpendingValue.value = lastMonth.rows.reduce(
-          (sum, row) => sum + ((row.total_spending as number) || 0),
-          0,
-        )
-      }
+      monthlyTrends.value = await queryDataset(monthlyTrendsDatasetId.value, {
+        start_date: currentMonthStart.value,
+        end_date: today.value,
+      })
     }
 
     // Query daily spending by tag for current period (for top category)
@@ -459,6 +446,17 @@ async function loadGoalSummary() {
     console.error('Failed to load goal summary:', e)
   } finally {
     loadingGoals.value = false
+  }
+}
+
+async function loadSpendingPace() {
+  loadingSpendingPace.value = true
+  try {
+    spendingPace.value = await fetchSpendingPace()
+  } catch (e) {
+    console.error('Failed to load spending pace:', e)
+  } finally {
+    loadingSpendingPace.value = false
   }
 }
 
@@ -613,6 +611,7 @@ onMounted(() => {
   loadAnalytics()
   loadBudgetSummary()
   loadGoalSummary()
+  loadSpendingPace()
 })
 </script>
 
@@ -677,30 +676,14 @@ onMounted(() => {
         :to="transactionsLink"
       />
 
-      <!-- vs Last Month (positive = spending more = bad = red) - links to transactions -->
+      <!-- Spending Pace - compares current spending vs 90-day historical average -->
       <HomeMetricCard
-        label="vs Last Month"
-        :value="
-          spendingChangePercent !== null
-            ? `${spendingChangePercent >= 0 ? '+' : ''}${spendingChangePercent.toFixed(1)}%`
-            : '—'
-        "
-        :subtitle="
-          spendingChangePercent !== null
-            ? spendingChangePercent >= 0
-              ? 'more'
-              : 'less'
-            : ''
-        "
-        :value-color="
-          spendingChangePercent !== null
-            ? spendingChangePercent >= 0
-              ? 'negative'
-              : 'positive'
-            : undefined
-        "
-        :loading="loadingAnalytics"
-        :muted="!analyticsAvailable && !loadingAnalytics"
+        label="Spending Pace"
+        :value="paceDisplayValue"
+        :subtitle="paceSubtitle"
+        :value-color="paceValueColor"
+        :loading="loadingSpendingPace"
+        :muted="!analyticsAvailable && !loadingSpendingPace"
         :to="transactionsLink"
       />
 
@@ -745,13 +728,18 @@ onMounted(() => {
     <!-- Upcoming Bills Widget -->
     <SubscriptionsUpcomingBillsWidget v-if="hasAccounts" :days="7" />
 
-    <!-- Budget, Goals & Runway Widgets -->
+    <!-- Budget, Goals & Cash Flow Widgets -->
     <div v-if="hasAccounts" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <BudgetsBudgetSummaryWidget
         :summary="budgetSummary"
         :loading="loadingBudgets"
       />
       <GoalsProgressWidget :summary="goalSummary" :loading="loadingGoals" />
+      <CashflowCashFlowWidget
+        :income="thisMonthIncome"
+        :spending="thisMonthSpending"
+        :loading="loadingAnalytics"
+      />
     </div>
 
     <!-- Budget forecast warnings (auto-hides if no budgets at risk) -->

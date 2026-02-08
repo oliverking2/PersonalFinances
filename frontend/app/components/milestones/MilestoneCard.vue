@@ -160,7 +160,7 @@ function formatDate(dateStr: string): string {
           </button>
           <button
             v-if="!milestone.achieved && progressPercent >= 100"
-            class="text-emerald-400 w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
+            class="w-full px-3 py-1.5 text-left text-sm text-emerald-400 hover:bg-white/5"
             @click="emit('achieve', milestone)"
           >
             Mark Achieved

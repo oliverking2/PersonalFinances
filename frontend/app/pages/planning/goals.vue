@@ -304,7 +304,7 @@ function formatCurrency(amount: number): string {
       <!-- Active goals -->
       <div class="rounded-lg border border-border bg-surface p-4">
         <p class="text-sm text-muted">Active Goals</p>
-        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+        <p class="mt-1 text-2xl font-bold text-emerald-400">
           {{ summary.active_goals }}
         </p>
       </div>

@@ -250,7 +250,7 @@ function formatCurrency(amount: number): string {
       <!-- Total assets -->
       <div class="rounded-lg border border-border bg-surface p-4">
         <p class="text-sm text-muted">Total Assets</p>
-        <p class="text-emerald-400 mt-1 text-2xl font-bold">
+        <p class="mt-1 text-2xl font-bold text-emerald-400">
           {{ formatCurrency(summary.total_assets) }}
         </p>
         <p class="mt-1 text-xs text-muted">
@@ -364,7 +364,7 @@ function formatCurrency(amount: number): string {
     <template v-else-if="typeFilter === 'all'">
       <!-- Assets section -->
       <div v-if="assetItems.length > 0">
-        <h2 class="text-emerald-400 mb-3 text-lg font-semibold">Assets</h2>
+        <h2 class="mb-3 text-lg font-semibold text-emerald-400">Assets</h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <AssetsManualAssetCard
             v-for="asset in assetItems"

@@ -307,7 +307,7 @@ function formatCurrency(amount: number): string {
               <!-- Pattern info -->
               <div class="flex-1">
                 <span class="font-medium">{{ pattern.name }}</span>
-                <span class="text-emerald-400 ml-2 text-sm">
+                <span class="ml-2 text-sm text-emerald-400">
                   +{{
                     formatCurrency(Math.abs(pattern.monthly_equivalent))
                   }}/month

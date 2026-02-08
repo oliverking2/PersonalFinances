@@ -89,8 +89,8 @@ function formatCurrency(amount: number): string {
       <!-- Status indicators -->
       <div class="grid grid-cols-3 gap-2 text-center">
         <!-- On track -->
-        <div class="bg-emerald-500/10 rounded-lg p-2">
-          <p class="text-emerald-400 text-xl font-semibold">
+        <div class="rounded-lg bg-emerald-500/10 p-2">
+          <p class="text-xl font-semibold text-emerald-400">
             {{ summary.budgets_on_track }}
           </p>
           <p class="text-xs text-muted">On track</p>

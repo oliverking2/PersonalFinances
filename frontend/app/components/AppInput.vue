@@ -80,7 +80,7 @@ input {
   @apply placeholder:text-muted;
 
   /* Focus state: highlight border */
-  @apply focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50;
+  @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50;
 }
 
 .input-wrapper {

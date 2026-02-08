@@ -82,8 +82,8 @@ function formatCurrency(amount: number): string {
       <!-- Goal counts -->
       <div class="grid grid-cols-3 gap-2 text-center">
         <!-- Active -->
-        <div class="bg-emerald-500/10 rounded-lg p-2">
-          <p class="text-emerald-400 text-xl font-semibold">
+        <div class="rounded-lg bg-emerald-500/10 p-2">
+          <p class="text-xl font-semibold text-emerald-400">
             {{ summary.active_goals }}
           </p>
           <p class="text-xs text-muted">Active</p>

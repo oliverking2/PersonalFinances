@@ -396,7 +396,7 @@ function formatDate(dateStr: string): string {
             ({{ bucketMode }} view)
           </span>
         </p>
-        <p class="text-emerald-400 mt-2 text-2xl font-bold">
+        <p class="mt-2 text-2xl font-bold text-emerald-400">
           {{ formatCurrency(endingBalance) }}
           <span class="text-base font-normal text-muted">projected</span>
         </p>
@@ -476,11 +476,11 @@ function formatDate(dateStr: string): string {
       <!-- Total income -->
       <div class="flex items-center gap-3">
         <div
-          class="bg-emerald-500/20 flex h-10 w-10 items-center justify-center rounded-full"
+          class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20"
         >
           <!-- Arrow up icon -->
           <svg
-            class="text-emerald-400 h-5 w-5"
+            class="h-5 w-5 text-emerald-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -495,7 +495,7 @@ function formatDate(dateStr: string): string {
         </div>
         <div>
           <p class="text-sm text-muted">Total Income</p>
-          <p class="text-emerald-400 text-lg font-semibold">
+          <p class="text-lg font-semibold text-emerald-400">
             +{{ formatCurrency(totalIncome) }}
           </p>
         </div>

@@ -121,8 +121,8 @@ onUnmounted(() => {
     <button
       ref="triggerRef"
       type="button"
-      class="flex w-full items-center justify-between rounded-lg border border-border bg-onyx px-4 py-3 text-left transition-colors focus:border-emerald focus:outline-none focus:ring-2 focus:ring-emerald/50"
-      :class="isOpen ? 'border-emerald ring-2 ring-emerald/50' : ''"
+      class="flex w-full items-center justify-between rounded-lg border border-border bg-onyx px-4 py-3 text-left transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+      :class="isOpen ? 'border-primary ring-2 ring-primary/50' : ''"
       @click="toggleDropdown"
     >
       <!-- Selected value or placeholder -->
