@@ -199,22 +199,21 @@ const thisMonthIncome = computed(() => {
   return total
 })
 
-// Spending pace display: "£450 / £520" (actual vs expected)
+// Spending pace display: "129% of expected" (ratio as percentage)
 const paceDisplayValue = computed(() => {
   if (!spendingPace.value || spendingPace.value.pace_status === 'no_history')
     return '—'
-  const actual = formatCurrency(
-    Number(spendingPace.value.month_spending_so_far),
-  )
-  const expected = formatCurrency(Number(spendingPace.value.expected_spending))
-  return `${actual} / ${expected}`
+  const ratio = spendingPace.value.pace_ratio
+  if (ratio === null) return '—'
+  return `${Math.round(ratio * 100)}% of expected`
 })
 
-// Spending pace subtitle
+// Spending pace subtitle: "£1,113 expected by day 8"
 const paceSubtitle = computed(() => {
   if (!spendingPace.value || spendingPace.value.pace_status === 'no_history')
     return 'no data yet'
-  return 'expected so far'
+  const expected = formatCurrency(Number(spendingPace.value.expected_spending))
+  return `${expected} expected by day ${spendingPace.value.days_elapsed}`
 })
 
 // Spending pace value colour: green when behind/on_track, amber when ahead
