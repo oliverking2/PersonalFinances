@@ -157,7 +157,9 @@ omit = [
     # Orchestration requires running Dagster instance - tested via integration
     "src/orchestration/*",
     # Analytics requires running DuckDB with attached PostgreSQL - tested via integration
-    "src/duckdb/*",
+    "src/duckdb/client.py",
+    "src/duckdb/manifest.py",
+    "src/duckdb/queries.py",
     # One-off scripts
     "src/postgres/gocardless/seed.py",
     "src/filepaths.py",

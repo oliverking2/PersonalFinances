@@ -135,6 +135,59 @@ WHERE user_id = '{{ var("user_id") }}'  -- Passed at query time
 - Use `CAST(column AS DATE)` when comparing date ranges
 - Gap-fill time series with `GENERATE_SERIES` for charts
 
+## Semantic Metadata
+
+Mart models with `meta.dataset: true` can include a `meta.semantic` block that defines measures, dimensions, and sample questions. This metadata powers the semantic query builder (`src/duckdb/semantic.py`) used by the Agent API.
+
+### Format
+
+```yaml
+meta:
+  dataset: true
+  friendly_name: "Monthly Trends"
+  group: "aggregations"
+  semantic:
+    measures:
+      - name: total_spending       # Identifier used in query specs
+        expr: "total_spending"     # Column expression in the mart table
+        agg: sum                   # Aggregation function
+        description: "Total spending for the period"
+    dimensions:
+      - name: month_start
+        expr: "month_start"
+        type: time                 # time, categorical, or numeric
+        description: "First day of the month"
+      - name: currency
+        expr: "currency"
+        type: categorical
+        description: "Currency code"
+    sample_questions:
+      - "How much did I spend last month?"
+      - "What is my spending trend?"
+```
+
+### Double Aggregation Rules
+
+Mart tables are pre-aggregated. When the query builder re-aggregates across dimensions, the `agg` must be safe for double aggregation:
+
+| Pre-aggregated column type | Safe `agg`     | Avoid                                   |
+|----------------------------|----------------|-----------------------------------------|
+| SUM (total_spending)       | `sum`          | `avg` (averaging sums is meaningless)   |
+| COUNT (transaction_count)  | `sum`          | `avg` (sum of counts = total count)     |
+| AVG (savings_rate_pct)     | `avg`          | `sum` (summing averages is wrong)       |
+| Snapshot (net_worth)       | `max` or `min` | `sum` (summing snapshots double-counts) |
+
+### Adding a New Dataset
+
+Checklist when adding a new mart model with semantic metadata:
+
+1. Add the model SQL in `models/3_mart/`
+2. Add schema entry in `models/3_mart/schema.yml` with `meta.dataset: true`
+3. Add `meta.semantic` block with measures, dimensions, and sample questions
+4. Follow double aggregation rules for `agg` values
+5. Run `make dbt` to rebuild the manifest
+6. Run `poetry run pytest testing/duckdb/ -v` to verify parsing
+
 ## Testing
 
 ```bash

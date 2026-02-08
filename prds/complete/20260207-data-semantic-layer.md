@@ -1,9 +1,9 @@
 # PRD: Semantic Layer — dbt Metadata + Query Builder
 
-**Status**: Draft
+**Status**: Complete
 **Author**: Claude
 **Created**: 2026-02-07
-**Updated**: 2026-02-07
+**Updated**: 2026-02-08
 
 ---
 

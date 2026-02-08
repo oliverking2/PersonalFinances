@@ -9,6 +9,37 @@ models:
       group: "dimensions"
       filters:
         account_id_column: "account_id"
+      semantic:
+        measures:
+          - name: account_count
+            expr: "account_id"
+            agg: count
+            description: "Number of accounts"
+        dimensions:
+          - name: account_type
+            expr: "account_type"
+            type: categorical
+            description: "Type of account (bank, investment, trading)"
+          - name: category
+            expr: "category"
+            type: categorical
+            description: "Account category (credit_card, bank_account, etc.)"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Primary currency of the account"
+          - name: provider
+            expr: "provider"
+            type: categorical
+            description: "Data provider (gocardless, trading212, vanguard)"
+          - name: connection_status
+            expr: "connection_status"
+            type: categorical
+            description: "Status of the bank connection"
+        sample_questions:
+          - "How many accounts do I have?"
+          - "How many accounts do I have by type?"
+          - "What providers are my accounts connected through?"
     columns:
       - name: account_id
         description: Unique identifier for the account (UUID)
@@ -88,6 +119,20 @@ models:
       group: "dimensions"
       filters:
         tag_id_column: "tag_id"
+      semantic:
+        measures:
+          - name: tag_count
+            expr: "tag_id"
+            agg: count
+            description: "Number of tags"
+        dimensions:
+          - name: name
+            expr: "name"
+            type: categorical
+            description: "Tag name"
+        sample_questions:
+          - "How many tags do I have?"
+          - "What are my tag names?"
     columns:
       - name: tag_id
         description: Unique identifier for the tag (UUID)
@@ -118,6 +163,54 @@ models:
       filters:
         date_column: "booking_date"
         account_id_column: "account_id"
+      semantic:
+        measures:
+          - name: amount
+            expr: "amount"
+            agg: sum
+            description: "Total transaction amount (positive for income, negative for spending)"
+          - name: spending_amount
+            expr: "spending_amount"
+            agg: sum
+            description: "Total spending amount"
+          - name: income_amount
+            expr: "income_amount"
+            agg: sum
+            description: "Total income amount"
+          - name: transaction_count
+            expr: "transaction_id"
+            agg: count
+            description: "Number of transactions"
+        dimensions:
+          - name: booking_date
+            expr: "booking_date"
+            type: time
+            description: "Date the transaction was booked"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Transaction currency"
+          - name: counterparty_name
+            expr: "counterparty_name"
+            type: categorical
+            description: "Merchant or sender name"
+          - name: category
+            expr: "category"
+            type: categorical
+            description: "Transaction category"
+          - name: account_name
+            expr: "account_name"
+            type: categorical
+            description: "Name of the account"
+          - name: institution_name
+            expr: "institution_name"
+            type: categorical
+            description: "Name of the financial institution"
+        sample_questions:
+          - "How much did I spend last month?"
+          - "What are my top spending categories?"
+          - "How much income did I receive this year?"
+          - "What merchants do I spend the most at?"
     columns:
       - name: transaction_id
         description: Unique identifier for the transaction (UUID)
@@ -175,6 +268,33 @@ models:
       filters:
         date_column: "spending_date"
         tag_id_column: "tag_id"
+      semantic:
+        measures:
+          - name: total_spending
+            expr: "total_spending"
+            agg: sum
+            description: "Total spending amount"
+          - name: transaction_count
+            expr: "transaction_count"
+            agg: sum
+            description: "Number of transactions"
+        dimensions:
+          - name: spending_date
+            expr: "spending_date"
+            type: time
+            description: "Date of the spending"
+          - name: tag_name
+            expr: "tag_name"
+            type: categorical
+            description: "Tag name"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency of the spending"
+        sample_questions:
+          - "How much did I spend on groceries last month?"
+          - "What is my daily spending trend by tag?"
+          - "Which tags have the highest spending?"
     columns:
       - name: spending_date
         description: Date of the spending
@@ -245,6 +365,49 @@ models:
       group: "facts"
       filters:
         date_column: "next_expected_date"
+      semantic:
+        measures:
+          - name: expected_amount
+            expr: "expected_amount"
+            agg: sum
+            description: "Total expected recurring amount"
+          - name: monthly_equivalent
+            expr: "monthly_equivalent"
+            agg: sum
+            description: "Total monthly equivalent amount"
+          - name: match_count
+            expr: "match_count"
+            agg: sum
+            description: "Total matched transactions"
+        dimensions:
+          - name: frequency
+            expr: "frequency"
+            type: categorical
+            description: "Payment frequency (weekly, monthly, etc.)"
+          - name: direction
+            expr: "direction"
+            type: categorical
+            description: "Direction of flow (expense or income)"
+          - name: status
+            expr: "status"
+            type: categorical
+            description: "Pattern status (pending, active, paused, cancelled)"
+          - name: source
+            expr: "source"
+            type: categorical
+            description: "How the pattern was created (detected or manual)"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency of the amount"
+          - name: next_expected_date
+            expr: "next_expected_date"
+            type: time
+            description: "Next expected payment date"
+        sample_questions:
+          - "What are my active subscriptions?"
+          - "How much do I spend on recurring payments monthly?"
+          - "What recurring income do I have?"
     columns:
       - name: pattern_id
         description: Unique identifier for the pattern
@@ -340,6 +503,41 @@ models:
       filters:
         date_column: "balance_date"
         account_id_column: "account_id"
+      semantic:
+        measures:
+          - name: balance_amount
+            expr: "balance_amount"
+            agg: max
+            description: "Balance amount (latest snapshot)"
+          - name: daily_change
+            expr: "daily_change"
+            agg: sum
+            description: "Total daily balance change"
+          - name: total_value
+            expr: "total_value"
+            agg: max
+            description: "Total value for investment accounts (latest snapshot)"
+        dimensions:
+          - name: balance_date
+            expr: "balance_date"
+            type: time
+            description: "Date of the balance snapshot"
+          - name: account_name
+            expr: "account_name"
+            type: categorical
+            description: "Display name of the account"
+          - name: account_type
+            expr: "account_type"
+            type: categorical
+            description: "Type of account (bank, investment, trading)"
+          - name: balance_currency
+            expr: "balance_currency"
+            type: categorical
+            description: "Currency of the balance"
+        sample_questions:
+          - "What is my balance trend over the last 3 months?"
+          - "Which account has the highest balance?"
+          - "How has my balance changed by account type?"
     columns:
       - name: account_id
         description: Unique identifier for the account (UUID)
@@ -400,6 +598,37 @@ models:
       time_grain: "day"
       filters:
         date_column: "balance_date"
+      semantic:
+        measures:
+          - name: net_worth
+            expr: "net_worth"
+            agg: max
+            description: "Total net worth (latest snapshot)"
+          - name: total_cash_balance
+            expr: "total_cash_balance"
+            agg: max
+            description: "Total cash balance (latest snapshot)"
+          - name: total_investment_value
+            expr: "total_investment_value"
+            agg: max
+            description: "Total investment value (latest snapshot)"
+          - name: daily_change
+            expr: "daily_change"
+            agg: sum
+            description: "Total daily change in net worth"
+        dimensions:
+          - name: balance_date
+            expr: "balance_date"
+            type: time
+            description: "Date of the net worth snapshot"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Primary currency"
+        sample_questions:
+          - "What is my current net worth?"
+          - "How has my net worth changed over the last year?"
+          - "What is my net worth trend by month?"
     columns:
       - name: user_id
         description: Owner of the accounts (UUID)
@@ -455,6 +684,42 @@ models:
       time_grain: "month"
       filters:
         date_column: "month_start"
+      semantic:
+        measures:
+          - name: total_income
+            expr: "total_income"
+            agg: sum
+            description: "Total income for the period"
+          - name: total_spending
+            expr: "total_spending"
+            agg: sum
+            description: "Total spending for the period"
+          - name: net_change
+            expr: "net_change"
+            agg: sum
+            description: "Net change (income - spending)"
+          - name: savings_rate_pct
+            expr: "savings_rate_pct"
+            agg: avg
+            description: "Average savings rate percentage"
+          - name: total_transactions
+            expr: "total_transactions"
+            agg: sum
+            description: "Total number of transactions"
+        dimensions:
+          - name: month_start
+            expr: "month_start"
+            type: time
+            description: "First day of the month"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency of the amounts"
+        sample_questions:
+          - "What is my income vs spending trend?"
+          - "What is my average savings rate?"
+          - "Which month did I spend the most?"
+          - "How much did I save last quarter?"
     columns:
       - name: month_start
         description: First day of the month
@@ -504,6 +769,37 @@ models:
       dataset: true
       friendly_name: "Spending Pace"
       group: "aggregations"
+      semantic:
+        measures:
+          - name: month_spending_so_far
+            expr: "month_spending_so_far"
+            agg: max
+            description: "Current month spending to date (snapshot)"
+          - name: projected_month_total
+            expr: "projected_month_total"
+            agg: max
+            description: "Projected total spending for the month (snapshot)"
+          - name: avg_daily_spending
+            expr: "avg_daily_spending"
+            agg: avg
+            description: "Average daily spending rate"
+          - name: pace_ratio
+            expr: "pace_ratio"
+            agg: avg
+            description: "Ratio of actual to expected spending"
+        dimensions:
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency of the amounts"
+          - name: pace_status
+            expr: "pace_status"
+            type: categorical
+            description: "Spending pace status (ahead, on_track, behind, no_history)"
+        sample_questions:
+          - "Am I on track with my spending this month?"
+          - "What is my projected spending for this month?"
+          - "What is my average daily spending rate?"
     columns:
       - name: user_id
         description: Owner of the transactions (UUID)
@@ -560,6 +856,49 @@ models:
       group: "budgets"
       filters:
         tag_id_column: "tag_id"
+      semantic:
+        measures:
+          - name: budget_amount
+            expr: "budget_amount"
+            agg: sum
+            description: "Total budget limit"
+          - name: spent_amount
+            expr: "spent_amount"
+            agg: sum
+            description: "Total amount spent"
+          - name: remaining_amount
+            expr: "remaining_amount"
+            agg: sum
+            description: "Total remaining budget"
+          - name: percentage_used
+            expr: "percentage_used"
+            agg: avg
+            description: "Average percentage of budget used"
+          - name: transaction_count
+            expr: "transaction_count"
+            agg: sum
+            description: "Total transactions against budgets"
+        dimensions:
+          - name: tag_name
+            expr: "tag_name"
+            type: categorical
+            description: "Budget tag name"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency code"
+          - name: period
+            expr: "period"
+            type: categorical
+            description: "Budget period (weekly, monthly, quarterly, annual)"
+          - name: budget_status
+            expr: "budget_status"
+            type: categorical
+            description: "Budget status (ok, warning, exceeded)"
+        sample_questions:
+          - "Which budgets am I close to exceeding?"
+          - "How much budget do I have remaining?"
+          - "What percentage of my budgets have I used?"
     columns:
       - name: budget_id
         description: Budget UUID
@@ -640,6 +979,49 @@ models:
       group: "budgets"
       filters:
         tag_id_column: "tag_id"
+      semantic:
+        measures:
+          - name: budget_amount
+            expr: "budget_amount"
+            agg: sum
+            description: "Total budget limit"
+          - name: spent_amount
+            expr: "spent_amount"
+            agg: sum
+            description: "Total amount spent"
+          - name: remaining_amount
+            expr: "remaining_amount"
+            agg: sum
+            description: "Total remaining budget"
+          - name: projected_percentage
+            expr: "projected_percentage"
+            agg: avg
+            description: "Average projected percentage used at end of period"
+          - name: daily_avg_spending
+            expr: "daily_avg_spending"
+            agg: avg
+            description: "Average daily spending rate"
+        dimensions:
+          - name: tag_name
+            expr: "tag_name"
+            type: categorical
+            description: "Budget tag name"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency code"
+          - name: period
+            expr: "period"
+            type: categorical
+            description: "Budget period (weekly, monthly, quarterly, annual)"
+          - name: risk_level
+            expr: "risk_level"
+            type: categorical
+            description: "Forecast risk level (low, medium, high, critical)"
+        sample_questions:
+          - "Which budgets are at risk of being exceeded?"
+          - "What is my projected budget usage by end of period?"
+          - "What is my daily average spending by budget?"
     columns:
       - name: budget_id
         description: Budget UUID
@@ -716,6 +1098,41 @@ models:
       dataset: true
       friendly_name: "Goal Progress"
       group: "goals"
+      semantic:
+        measures:
+          - name: target_amount
+            expr: "target_amount"
+            agg: sum
+            description: "Total target savings amount"
+          - name: current_amount
+            expr: "current_amount"
+            agg: sum
+            description: "Total current saved amount"
+          - name: remaining_amount
+            expr: "remaining_amount"
+            agg: sum
+            description: "Total remaining to reach targets"
+          - name: progress_percentage
+            expr: "progress_percentage"
+            agg: avg
+            description: "Average progress percentage"
+        dimensions:
+          - name: goal_name
+            expr: "goal_name"
+            type: categorical
+            description: "Goal name"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency code"
+          - name: status
+            expr: "status"
+            type: categorical
+            description: "Goal status (active, paused, completed, cancelled)"
+        sample_questions:
+          - "How close am I to my savings goals?"
+          - "Which goals are on track?"
+          - "How much more do I need to save across all goals?"
     columns:
       - name: goal_id
         description: Goal UUID
@@ -789,6 +1206,41 @@ models:
       time_grain: "day"
       filters:
         date_column: "forecast_date"
+      semantic:
+        measures:
+          - name: daily_change
+            expr: "daily_change"
+            agg: sum
+            description: "Total net cash flow"
+          - name: daily_income
+            expr: "daily_income"
+            agg: sum
+            description: "Total expected income"
+          - name: daily_expenses
+            expr: "daily_expenses"
+            agg: sum
+            description: "Total expected expenses"
+          - name: projected_balance
+            expr: "projected_balance"
+            agg: max
+            description: "Projected balance (latest snapshot)"
+          - name: event_count
+            expr: "event_count"
+            agg: sum
+            description: "Total number of cash flow events"
+        dimensions:
+          - name: forecast_date
+            expr: "forecast_date"
+            type: time
+            description: "Date of the forecast"
+          - name: currency
+            expr: "currency"
+            type: categorical
+            description: "Currency of the amounts"
+        sample_questions:
+          - "What is my projected balance in 30 days?"
+          - "What upcoming expenses do I have?"
+          - "What is my expected cash flow this month?"
     columns:
       - name: user_id
         description: Owner of the forecast (UUID)

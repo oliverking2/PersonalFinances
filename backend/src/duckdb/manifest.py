@@ -75,6 +75,48 @@ class Dataset:
     filters: DatasetFilters = field(default_factory=DatasetFilters)
 
 
+@dataclass
+class Measure:
+    """A semantic measure (metric) for a dataset."""
+
+    name: str
+    expr: str
+    agg: str  # sum, avg, count, count_distinct, min, max
+    description: str
+
+
+@dataclass
+class Dimension:
+    """A semantic dimension for a dataset."""
+
+    name: str
+    expr: str
+    type: str  # time, categorical, numeric
+    description: str
+
+
+@dataclass
+class SemanticDataset:
+    """A dataset enriched with semantic layer metadata.
+
+    Extends Dataset with measures, dimensions, and sample questions
+    for use by the query builder and agent API.
+    """
+
+    id: UUID
+    name: str
+    friendly_name: str
+    description: str
+    group: str
+    time_grain: str | None
+    schema_name: str
+    filters: DatasetFilters
+    measures: list[Measure]
+    dimensions: list[Dimension]
+    sample_questions: list[str]
+    columns: list[DatasetColumn] | None = None
+
+
 def _generate_dataset_id(name: str) -> UUID:
     """Generate a deterministic UUID for a dataset from its name.
 
@@ -309,3 +351,158 @@ def _build_dataset_with_columns(
         columns=columns,
         filters=_extract_filters(meta),
     )
+
+
+_VALID_AGGS = frozenset({"sum", "avg", "count", "count_distinct", "min", "max"})
+
+
+def _extract_semantic(
+    meta: dict[str, Any],
+) -> tuple[list[Measure], list[Dimension], list[str]]:
+    """Extract semantic metadata from model metadata.
+
+    Validates aggregation types against the known set and logs a warning
+    for any invalid values, skipping the measure.
+
+    :param meta: Model metadata dictionary.
+    :returns: Tuple of (measures, dimensions, sample_questions).
+    """
+    semantic = meta.get("semantic", {})
+
+    measures = []
+    for m in semantic.get("measures", []):
+        if not isinstance(m, dict) or "name" not in m or "expr" not in m or "agg" not in m:
+            continue
+        if m["agg"] not in _VALID_AGGS:
+            logger.warning(
+                f"Skipping measure '{m['name']}': invalid agg '{m['agg']}'. "
+                f"Valid: {sorted(_VALID_AGGS)}"
+            )
+            continue
+        measures.append(
+            Measure(
+                name=m["name"],
+                expr=m["expr"],
+                agg=m["agg"],
+                description=m.get("description", ""),
+            )
+        )
+
+    dimensions = [
+        Dimension(
+            name=d["name"],
+            expr=d["expr"],
+            type=d["type"],
+            description=d.get("description", ""),
+        )
+        for d in semantic.get("dimensions", [])
+        if isinstance(d, dict) and "name" in d and "expr" in d and "type" in d
+    ]
+
+    sample_questions = [q for q in semantic.get("sample_questions", []) if isinstance(q, str)]
+
+    return measures, dimensions, sample_questions
+
+
+def _build_semantic_dataset(
+    node: dict[str, Any], meta: dict[str, Any], model_name: str
+) -> SemanticDataset:
+    """Build a SemanticDataset from a manifest node.
+
+    :param node: Manifest node dictionary.
+    :param meta: Node metadata dictionary.
+    :param model_name: dbt model name.
+    :returns: SemanticDataset with semantic metadata.
+    """
+    measures, dimensions, sample_questions = _extract_semantic(meta)
+
+    return SemanticDataset(
+        id=_generate_dataset_id(model_name),
+        name=model_name,
+        friendly_name=meta.get("friendly_name", model_name),
+        description=node.get("description", ""),
+        group=meta.get("group", "unknown"),
+        time_grain=meta.get("time_grain"),
+        schema_name=node.get("schema", "mart"),
+        filters=_extract_filters(meta),
+        measures=measures,
+        dimensions=dimensions,
+        sample_questions=sample_questions,
+    )
+
+
+def get_semantic_datasets() -> list[SemanticDataset]:
+    """Get all datasets with semantic metadata from the dbt manifest.
+
+    :returns: List of datasets with measures, dimensions, and sample questions.
+    """
+    try:
+        manifest = _load_manifest()
+    except FileNotFoundError:
+        logger.warning("dbt manifest not found, returning empty semantic dataset list")
+        return []
+
+    datasets = []
+    nodes = manifest.get("nodes", {})
+
+    for node_id, node in nodes.items():
+        if not node_id.startswith("model."):
+            continue
+
+        meta = node.get("meta", {})
+        if not meta.get("dataset"):
+            continue
+
+        model_name = node.get("name", "")
+        datasets.append(_build_semantic_dataset(node, meta, model_name))
+
+    logger.debug(f"Found {len(datasets)} semantic datasets in manifest")
+    return datasets
+
+
+def get_semantic_dataset(dataset_id: UUID | str) -> SemanticDataset | None:
+    """Get a single dataset with semantic metadata.
+
+    :param dataset_id: The dataset UUID or model name (e.g., "fct_transactions").
+    :returns: SemanticDataset with semantic metadata, or None if not found.
+    """
+    try:
+        manifest = _load_manifest()
+    except FileNotFoundError:
+        return None
+
+    if isinstance(dataset_id, UUID):
+        for node_id, node in manifest.get("nodes", {}).items():
+            if not node_id.startswith("model."):
+                continue
+            model_name = node.get("name", "")
+            if _generate_dataset_id(model_name) == dataset_id:
+                meta = node.get("meta", {})
+                if meta.get("dataset"):
+                    return _build_semantic_dataset(node, meta, model_name)
+        return None
+
+    node_key = f"model.dbt_project.{dataset_id}"
+    node = manifest.get("nodes", {}).get(node_key)
+
+    if not node:
+        return None
+
+    meta = node.get("meta", {})
+    if not meta.get("dataset"):
+        return None
+
+    model_name = node.get("name", "")
+    return _build_semantic_dataset(node, meta, model_name)
+
+
+def get_all_sample_questions() -> list[str]:
+    """Collect all sample questions across all semantic datasets.
+
+    :returns: Flat list of sample questions.
+    """
+    datasets = get_semantic_datasets()
+    questions = []
+    for ds in datasets:
+        questions.extend(ds.sample_questions)
+    return questions
