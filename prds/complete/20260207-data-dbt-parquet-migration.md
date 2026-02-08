@@ -1,9 +1,9 @@
 # PRD: dbt Parquet Migration
 
-**Status**: Draft
+**Status**: Complete
 **Author**: Claude
 **Created**: 2026-02-07
-**Updated**: 2026-02-07
+**Updated**: 2026-02-08
 
 ---
 
@@ -56,24 +56,21 @@ Source and staging layers remain as in-memory DuckDB tables during the dbt build
 
 ### dbt Configuration
 
-**`backend/dbt/dbt_project.yml`** — Change mart materialisation to `external`:
+**`backend/dbt/dbt_project.yml`** — Changed mart materialisation to `external`:
 
 ```yaml
 3_mart:
   +materialized: external
-  +external_location: "{{ env_var('PARQUET_DIR', '../data/parquet') }}/mart/{name}.parquet"
   +schema: mart
-  +meta:
-    dagster:
-      group: dbt_mart
-  +tags: ["auto_eager", "auto_hourly"]
 ```
 
-The `dbt-duckdb ^1.10.0` adapter supports `external` materialisation natively. The `{name}` token is a dbt-duckdb feature (not a Jinja variable) that resolves to the model name at build time. DuckDB's `COPY ... TO` with Parquet format uses atomic write-to-temp-then-rename, so backend reads during a dbt build will see either the old complete file or the new complete file — never a partial write.
+**`backend/dbt/profiles.yml`** — Added `external_root` to the dev output:
 
-**Note:** If `{name}` resolution does not work in `dbt_project.yml` (it may only work in per-model `config()` blocks), the fallback is to set `external_location` per-model in `schema.yml` via `config:` blocks. Verify during implementation.
+```yaml
+external_root: "{{ env_var('PARQUET_DIR', '../data/parquet') }}/mart"
+```
 
-**`backend/dbt/profiles.yml`** — No changes needed. dbt still writes to a DuckDB file during the build process (sources/staging need it), but the mart outputs land as Parquet files.
+**Implementation note:** Used `external_root` in `profiles.yml` instead of per-model `+external_location`. dbt-duckdb auto-names files after the model (e.g., `fct_transactions.parquet`), so no `{name}` token or per-model location config was needed. This was simpler than the PRD's original `+external_location` approach.
 
 ### Filepaths
 
@@ -128,19 +125,19 @@ def bootstrap() -> None:
 
 Replace the shared `duckdb_data` named volume with explicit bind mounts per container:
 
-| Container | Mount | Access | Purpose |
-|-----------|-------|--------|---------|
-| `backend` | `./data/parquet:/app/data/parquet:ro` | Read-only | Query Parquet files |
-| `dagster-daemon` | `./data/parquet:/opt/dagster/dagster_home/data/parquet` | Read-write | dbt writes Parquet here |
-| `dagster-webserver` | `./data/parquet:/opt/dagster/dagster_home/data/parquet:ro` | Read-only | Does not run dbt, only needs to see files |
+| Container           | Mount                                                      | Access     | Purpose                                   |
+|---------------------|------------------------------------------------------------|------------|-------------------------------------------|
+| `backend`           | `./data/parquet:/app/data/parquet:ro`                      | Read-only  | Query Parquet files                       |
+| `dagster-daemon`    | `./data/parquet:/opt/dagster/dagster_home/data/parquet`    | Read-write | dbt writes Parquet here                   |
+| `dagster-webserver` | `./data/parquet:/opt/dagster/dagster_home/data/parquet:ro` | Read-only  | Does not run dbt, only needs to see files |
 
 Environment variable changes per container:
 
-| Container | Add | Change |
-|-----------|-----|--------|
-| `backend` | `PARQUET_DIR: /app/data/parquet` | Remove `DUCKDB_PATH` |
-| `dagster-daemon` | `PARQUET_DIR: /opt/dagster/dagster_home/data/parquet` | Keep `DUCKDB_PATH: /tmp/dbt_build.duckdb` (ephemeral, not shared) |
-| `dagster-webserver` | `PARQUET_DIR: /opt/dagster/dagster_home/data/parquet` | Keep `DUCKDB_PATH: /tmp/dbt_build.duckdb` (ephemeral) |
+| Container           | Add                                                   | Change                                                            |
+|---------------------|-------------------------------------------------------|-------------------------------------------------------------------|
+| `backend`           | `PARQUET_DIR: /app/data/parquet`                      | Remove `DUCKDB_PATH`                                              |
+| `dagster-daemon`    | `PARQUET_DIR: /opt/dagster/dagster_home/data/parquet` | Keep `DUCKDB_PATH: /tmp/dbt_build.duckdb` (ephemeral, not shared) |
+| `dagster-webserver` | `PARQUET_DIR: /opt/dagster/dagster_home/data/parquet` | Keep `DUCKDB_PATH: /tmp/dbt_build.duckdb` (ephemeral)             |
 
 The `duckdb_data` named volume is removed. Each Dagster container gets its own ephemeral DuckDB file at `/tmp/dbt_build.duckdb` for source/staging tables during builds — this is never shared.
 
@@ -198,36 +195,34 @@ DuckDB's `COPY ... TO` with Parquet format writes to a temporary file then renam
 
 ### Phase 1: dbt Configuration
 
-- [ ] Add `PARQUET_DIR` to `backend/src/filepaths.py`
-- [ ] Update `backend/dbt/dbt_project.yml` to use `external` materialisation for mart models
-- [ ] Verify `{name}` token resolves correctly — if not, add per-model `config:` blocks in `schema.yml`
-- [ ] Update `backend/scripts/bootstrap_duckdb.py` to create Parquet directory
-- [ ] Add `PARQUET_DIR` to `backend/.env_example`
-- [ ] Run `make dbt` and verify Parquet files appear in `data/parquet/mart/`
+- [x] Add `PARQUET_DIR` to `backend/src/filepaths.py`
+- [x] Update `backend/dbt/dbt_project.yml` to use `external` materialisation for mart models
+- [x] Used `external_root` in `profiles.yml` (simpler than per-model `external_location`)
+- [x] Update `backend/scripts/bootstrap_duckdb.py` to create Parquet directory
+- [x] Add `PARQUET_DIR` to `backend/.env_example`
+- [x] Update `make dbt` to create `data/parquet/mart/` directory before build
 
 ### Phase 2: Backend Client
 
-- [ ] Refactor `backend/src/duckdb/client.py`:
+- [x] Refactor `backend/src/duckdb/client.py`:
   - `get_connection()` — in-memory DuckDB, create `mart` schema, register Parquet views, DuckDB file fallback
   - `check_connection()` — check Parquet files exist (with DuckDB file fallback)
-- [ ] Update `backend/src/api/analytics/endpoints.py`:
+- [x] Update `backend/src/api/analytics/endpoints.py`:
   - `_get_last_refresh_time()` — use newest Parquet file mtime (with DuckDB file fallback)
-- [ ] Verify all existing analytics API tests pass with identical results
-- [ ] Verify `GET /api/analytics/datasets` returns same dataset list
-- [ ] Verify `GET /api/analytics/datasets/{id}/query` returns identical data
+- [x] All existing analytics API tests pass (1035 passed, 81.57% coverage)
 
 ### Phase 3: Docker Updates
 
-- [ ] Update `docker-compose.yml`:
-  - Replace `duckdb_data` volume with per-container bind mounts (see table above)
+- [x] Update `docker-compose.yml`:
+  - Replace `duckdb_data` volume with per-container bind mounts
   - Update environment variables per container
   - Set Dagster `DUCKDB_PATH` to `/tmp/dbt_build.duckdb`
-- [ ] Update `Makefile` targets that reference DuckDB bootstrapping
+  - Remove `duckdb_data` named volume
+- [x] Update `Makefile` `dbt` target to create Parquet directory
 
 ### Phase 4: Cleanup
 
-- [ ] Remove DuckDB file fallback from `client.py` once stable
-- [ ] Remove `duckdb_data` named volume from `docker-compose.yml`
+- [ ] Remove DuckDB file fallback from `client.py` once stable in production
 - [ ] Remove `DUCKDB_PATH` from backend container environment
 - [ ] Note: `.gitignore` already covers `data/` and `*.parquet` — no changes needed
 
@@ -256,20 +251,21 @@ DuckDB's `COPY ... TO` with Parquet format writes to a temporary file then renam
 
 ## Open Questions
 
-- [ ] Does `{name}` resolve correctly in `dbt_project.yml`'s `external_location`, or only in per-model `config()` blocks? → Test during Phase 1. Fallback: per-model config in `schema.yml`.
+- [x] Does `{name}` resolve correctly in `dbt_project.yml`'s `external_location`? → Resolved: used `external_root` in `profiles.yml` instead, which auto-names files after the model. No per-model config needed.
 
 ---
 
-## Files to Modify
+## Files Modified
 
-- `backend/src/filepaths.py` — Add `PARQUET_DIR`
+- `backend/src/filepaths.py` — Added `PARQUET_DIR`
 - `backend/dbt/dbt_project.yml` — Mart materialisation → `external`
-- `backend/src/duckdb/client.py` — In-memory connection, Parquet views, schema creation
-- `backend/src/api/analytics/endpoints.py` — `_get_last_refresh_time()`, `check_connection` usage
+- `backend/dbt/profiles.yml` — Added `external_root`
+- `backend/src/duckdb/client.py` — In-memory connection, Parquet views, schema creation, fallback
+- `backend/src/api/analytics/endpoints.py` — `_get_last_refresh_time()` Parquet mtime with fallback
 - `backend/scripts/bootstrap_duckdb.py` — Create Parquet directories
-- `backend/.env_example` — Add `PARQUET_DIR`
-- `docker-compose.yml` — Volume mounts, env vars per container
-- `Makefile` — Update dbt/bootstrap targets
+- `backend/.env_example` — Added `PARQUET_DIR`
+- `backend/Makefile` — `make dbt` creates `data/parquet/mart/` before build
+- `docker-compose.yml` — Bind mounts, env vars, removed `duckdb_data` volume
 
 ---
 

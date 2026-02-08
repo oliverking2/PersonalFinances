@@ -45,6 +45,7 @@ models:
       +tags: ["auto_eager"]
 
     3_mart:
+      +materialized: external
       +schema: mart
       +meta:
         dagster:

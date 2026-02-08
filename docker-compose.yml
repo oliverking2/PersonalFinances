@@ -35,12 +35,14 @@ services:
       DAGSTER_URL: http://dagster-webserver:3000
       # Disable API docs on public deployments
       DISABLE_API_DOCS: "true"
-      # DuckDB path inside container
+      # DuckDB path inside container (fallback only)
       DUCKDB_PATH: /app/data/analytics.duckdb
+      # Parquet directory for mart model reads
+      PARQUET_DIR: /app/data/parquet
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - duckdb_data:/app/data
+      - ./data/parquet:/app/data/parquet:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,13 +73,15 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # DuckDB path inside container
-      DUCKDB_PATH: /opt/dagster/dagster_home/data/analytics.duckdb
+      # Temporary DuckDB for dbt builds (source/staging layers)
+      DUCKDB_PATH: /tmp/dbt_build.duckdb
+      # Parquet directory for mart model outputs
+      PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
     ports:
       - "${DAGSTER_WEBSERVER_PORT:-3001}:3000"
     volumes:
-      - duckdb_data:/opt/dagster/dagster_home/data
+      - ./data/parquet:/opt/dagster/dagster_home/data/parquet:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,15 +99,17 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # DuckDB path inside container
-      DUCKDB_PATH: /opt/dagster/dagster_home/data/analytics.duckdb
+      # Temporary DuckDB for dbt builds (source/staging layers)
+      DUCKDB_PATH: /tmp/dbt_build.duckdb
+      # Parquet directory for mart model outputs (rw for dbt writes)
+      PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
     command:
       - dagster-daemon
       - run
       - -w
       - /opt/dagster/dagster_home/workspace.yaml
     volumes:
-      - duckdb_data:/opt/dagster/dagster_home/data
+      - ./data/parquet:/opt/dagster/dagster_home/data/parquet
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -130,6 +136,4 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  duckdb_data:
     driver: local

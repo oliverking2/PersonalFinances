@@ -60,7 +60,7 @@ client.py (DuckDB connection)
 
 ### Dependency on PRD 1
 
-This PRD does **not** depend on PRD 1 (Parquet Migration). The semantic query builder generates SQL that references `{schema}.{table}` — it works identically whether the backend reads from a DuckDB file or Parquet-backed views. PRDs 1 and 2 can be implemented in parallel.
+PRD 1 (Parquet Migration) is **complete**. The backend now reads mart models from Parquet files via in-memory DuckDB connections with views registered under the `mart` schema. The semantic query builder generates SQL referencing `mart.{table}`, which resolves to these Parquet-backed views.
 
 ### dbt Schema Enrichment
 
@@ -126,12 +126,12 @@ Mart tables are pre-aggregated. The semantic layer applies aggregation on top. T
 
 **Rule for measure definitions:**
 
-| Pre-aggregated column | Safe semantic `agg` | Avoid |
-|----------------------|--------------------|----|
-| SUM (total_spending) | `sum` (re-aggregates correctly) | `avg` (misleading) |
-| COUNT (transaction_count) | `sum` (counts are additive) | `avg` (gives avg count per period, not total) |
-| AVG (savings_rate_pct) | `avg` (only when grouping at same or coarser grain) | `sum` (meaningless) |
-| Snapshot (net_worth) | `max` or `min` (latest/earliest) | `sum` (double-counts) |
+| Pre-aggregated column     | Safe semantic `agg`                                 | Avoid                                         |
+|---------------------------|-----------------------------------------------------|-----------------------------------------------|
+| SUM (total_spending)      | `sum` (re-aggregates correctly)                     | `avg` (misleading)                            |
+| COUNT (transaction_count) | `sum` (counts are additive)                         | `avg` (gives avg count per period, not total) |
+| AVG (savings_rate_pct)    | `avg` (only when grouping at same or coarser grain) | `sum` (meaningless)                           |
+| Snapshot (net_worth)      | `max` or `min` (latest/earliest)                    | `sum` (double-counts)                         |
 
 Document this rule in `backend/dbt/CLAUDE.md` so future measure authors avoid incorrect aggregations.
 
@@ -315,17 +315,17 @@ def build_semantic_query(
 
 **Validation rules:**
 
-| Check | What it validates |
-|-------|-------------------|
-| Measures exist | Every measure name in `spec.measures` exists in `dataset.measures` |
-| Dimensions exist | Every dimension name exists in `dataset.dimensions` |
-| At least one measure | Queries must select at least one measure |
-| Operators valid | Only allowed: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `not_in`, `between` |
-| Time granularity valid | If specified, must be in the dimension's `granularities` list |
-| Limit bounded | Must be between 1 and 10,000 |
-| Order direction valid | Must be `ASC` or `DESC` |
-| `in`/`not_in` value is list | `value` must be a list for these operators |
-| `between` value is pair | `value` must be a list of exactly 2 elements |
+| Check                       | What it validates                                                              |
+|-----------------------------|--------------------------------------------------------------------------------|
+| Measures exist              | Every measure name in `spec.measures` exists in `dataset.measures`             |
+| Dimensions exist            | Every dimension name exists in `dataset.dimensions`                            |
+| At least one measure        | Queries must select at least one measure                                       |
+| Operators valid             | Only allowed: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `not_in`, `between` |
+| Time granularity valid      | If specified, must be in the dimension's `granularities` list                  |
+| Limit bounded               | Must be between 1 and 10,000                                                   |
+| Order direction valid       | Must be `ASC` or `DESC`                                                        |
+| `in`/`not_in` value is list | `value` must be a list for these operators                                     |
+| `between` value is pair     | `value` must be a list of exactly 2 elements                                   |
 
 ### DuckDB Module Exports
 
@@ -452,9 +452,11 @@ No migration. Additive metadata in `schema.yml` — existing fields unchanged.
 ## Files to Create/Modify
 
 **New:**
+
 - `backend/src/duckdb/semantic.py` — Query builder, validation, provenance
 
 **Modified:**
+
 - `backend/dbt/models/3_mart/schema.yml` — Add `meta.semantic` blocks to 11 datasets
 - `backend/src/duckdb/manifest.py` — Add `Measure`, `Dimension`, `SemanticDataset`, parsing functions
 - `backend/src/duckdb/__init__.py` — Export new types and functions
@@ -467,5 +469,5 @@ No migration. Additive metadata in `schema.yml` — existing fields unchanged.
 
 - Existing manifest parser: `backend/src/duckdb/manifest.py` (node key format: `model.dbt_project.{name}`)
 - Existing query builder: `backend/src/duckdb/queries.py`
-- Can be parallelised with: PRD 1 (dbt Parquet Migration)
+- PRD 1 (dbt Parquet Migration) — **complete**
 - Depended on by: PRD 3 (Agent API)

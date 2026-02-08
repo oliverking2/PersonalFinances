@@ -6,7 +6,7 @@ Usage:
 """
 
 import duckdb
-from src.filepaths import DUCKDB_PATH
+from src.filepaths import DUCKDB_PATH, PARQUET_DIR
 
 
 def bootstrap() -> None:
@@ -17,6 +17,11 @@ def bootstrap() -> None:
     con.execute("INSTALL postgres;")
     con.execute("LOAD postgres;")
     con.close()
+
+    # Create Parquet output directory for dbt external materialisation
+    parquet_mart_dir = PARQUET_DIR / "mart"
+    parquet_mart_dir.mkdir(parents=True, exist_ok=True)
+
     print("DuckDB bootstrap complete.")
 
 

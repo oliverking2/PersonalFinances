@@ -53,6 +53,7 @@ sql-lint:
 # dbt commands (run from backend directory)
 # Source .env for PostgreSQL connection vars needed by DuckDB postgres extension
 dbt:
+	@mkdir -p data/parquet/mart
 	@set -a && . ./.env && set +a && cd dbt && poetry run dbt build --profiles-dir . --profile duckdb_local && poetry run dbt docs generate --profiles-dir . --profile duckdb_local
 
 dbt-docs:

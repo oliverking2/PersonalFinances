@@ -100,13 +100,13 @@ The critique is performed by an LLM call with a structured prompt that evaluates
 
 **Critique checks** (encoded in the LLM critique prompt):
 
-| Check | What it detects | Action on failure |
-|-------|----------------|-------------------|
-| Empty results | Query returned no data | Suggest broadening time range or changing dataset |
-| Outlier detection | Values 10x+ above/below recent averages | Flag for review, suggest additional context |
-| Time grain alignment | Question asks about "months" but query uses daily grain | Suggest changing granularity |
-| Question coverage | Result columns don't contain measures needed to answer | Suggest different measures or dataset |
-| Row count sanity | >1000 rows suggests missing aggregation | Suggest adding aggregation dimensions |
+| Check                | What it detects                                         | Action on failure                                 |
+|----------------------|---------------------------------------------------------|---------------------------------------------------|
+| Empty results        | Query returned no data                                  | Suggest broadening time range or changing dataset |
+| Outlier detection    | Values 10x+ above/below recent averages                 | Flag for review, suggest additional context       |
+| Time grain alignment | Question asks about "months" but query uses daily grain | Suggest changing granularity                      |
+| Question coverage    | Result columns don't contain measures needed to answer  | Suggest different measures or dataset             |
+| Row count sanity     | >1000 rows suggests missing aggregation                 | Suggest adding aggregation dimensions             |
 
 ### LLM Prompts
 
@@ -144,11 +144,11 @@ Revise the query plan to address the critique. Consider:
 
 Based on refinement loop outcome:
 
-| Confidence | Condition |
-|------------|-----------|
-| `high` | First attempt passed critique |
-| `medium` | Required 1-2 revisions but eventually passed |
-| `low` | Max iterations reached, best attempt returned with caveat |
+| Confidence   | Condition                                                 |
+|--------------|-----------------------------------------------------------|
+| `high`       | First attempt passed critique                             |
+| `medium`     | Required 1-2 revisions but eventually passed              |
+| `low`        | Max iterations reached, best attempt returned with caveat |
 
 Confidence is included in `AgentResponse` and displayed in the frontend (PRD 4).
 
@@ -350,9 +350,11 @@ No database migration. Changes are to in-memory agent logic only.
 ## Files to Create/Modify
 
 **New:**
+
 - `backend/src/agent/critique.py` — `CritiqueResult`, `evaluate_results()`
 
 **Modified:**
+
 - `backend/src/agent/service.py` — Refactor `ask()` with iteration loop
 - `backend/src/agent/llm.py` — Add `revise_query_plan()` method
 - `backend/src/agent/prompts.py` — Add critique and revision prompt templates

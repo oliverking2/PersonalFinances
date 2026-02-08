@@ -30,7 +30,7 @@ from src.api.responses import INTERNAL_ERROR, RESOURCE_RESPONSES, UNAUTHORIZED
 from src.duckdb.client import check_connection, execute_query
 from src.duckdb.manifest import DatasetFilters, get_dataset_schema, get_datasets
 from src.duckdb.queries import build_dataset_query
-from src.filepaths import DUCKDB_PATH
+from src.filepaths import DUCKDB_PATH, PARQUET_DIR
 from src.postgres.auth.models import User
 from src.postgres.common.enums import JobStatus, JobType
 from src.postgres.common.models import Job
@@ -48,10 +48,20 @@ router.include_router(spending_pace_router)
 
 
 def _get_last_refresh_time() -> datetime | None:
-    """Get the last time the DuckDB database was modified.
+    """Get the last time analytics data was refreshed.
 
-    :returns: Modification time as UTC datetime, or None if file doesn't exist.
+    Checks Parquet file modification times first, falls back to the DuckDB file.
+
+    :returns: Most recent modification time as UTC datetime, or None if no data exists.
     """
+    parquet_mart_dir = PARQUET_DIR / "mart"
+    if parquet_mart_dir.is_dir():
+        parquet_files = list(parquet_mart_dir.glob("*.parquet"))
+        if parquet_files:
+            newest_mtime = max(f.stat().st_mtime for f in parquet_files)
+            return datetime.fromtimestamp(newest_mtime, tz=UTC)
+
+    # Fallback: legacy DuckDB file
     if not DUCKDB_PATH.exists():
         return None
     mtime = DUCKDB_PATH.stat().st_mtime

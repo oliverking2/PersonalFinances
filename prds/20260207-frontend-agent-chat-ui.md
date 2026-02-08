@@ -197,10 +197,10 @@ No backend data model changes. Frontend-only types.
 
 Uses endpoints defined in PRD 3:
 
-| Method | Path                    | Description                  |
-|--------|-------------------------|------------------------------|
-| POST   | `/api/agent/ask`        | Ask a question               |
-| GET    | `/api/agent/suggestions`| Get example questions        |
+| Method | Path                     | Description                  |
+|--------|--------------------------|------------------------------|
+| POST   | `/api/agent/ask`         | Ask a question               |
+| GET    | `/api/agent/suggestions` | Get example questions        |
 
 ### UI/UX
 
@@ -366,6 +366,7 @@ All items below are **manual verification** (no automated component tests in thi
 ## Files to Create/Modify
 
 **New:**
+
 - `frontend/app/composables/useAgentApi.ts` — API composable
 - `frontend/app/types/agent.ts` — TypeScript interfaces
 - `frontend/app/components/agent/AgentChat.vue` — Chat container
@@ -374,6 +375,7 @@ All items below are **manual verification** (no automated component tests in thi
 - `frontend/app/pages/insights/ask.vue` — Chat page
 
 **Modified:**
+
 - `frontend/app/pages/insights.vue` — Add "Ask" tab to navigation
 - `frontend/package.json` — Add `markdown-it` dependency
 

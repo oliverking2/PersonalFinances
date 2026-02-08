@@ -1,6 +1,7 @@
 """DuckDB connection management.
 
-Provides read-only connections to the analytics.duckdb database.
+Provides connections to analytics data via Parquet files (preferred)
+or the legacy analytics.duckdb file (fallback).
 Uses connection-per-request pattern (DuckDB is fast, no pooling needed).
 """
 
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
-from src.filepaths import DUCKDB_PATH
+from src.filepaths import DUCKDB_PATH, PARQUET_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -21,28 +22,56 @@ DEFAULT_QUERY_TIMEOUT_SECONDS = 10
 # Maximum rows to return from a query
 MAX_RESULT_ROWS = 10_000
 
+# Parquet mart directory
+_PARQUET_MART_DIR = PARQUET_DIR / "mart"
 
-def _get_database_path() -> Path:
-    """Get the path to the DuckDB analytics database.
 
-    :returns: Path to analytics.duckdb file.
-    :raises FileNotFoundError: If database file doesn't exist.
+def _get_parquet_files() -> list[Path]:
+    """Get all Parquet files in the mart directory.
+
+    :returns: List of Parquet file paths, empty if directory doesn't exist.
     """
-    if not DUCKDB_PATH.exists():
-        raise FileNotFoundError(f"DuckDB database not found at {DUCKDB_PATH}")
+    if not _PARQUET_MART_DIR.is_dir():
+        return []
+    return sorted(_PARQUET_MART_DIR.glob("*.parquet"))
 
-    return DUCKDB_PATH
+
+def _has_parquet_files() -> bool:
+    """Check if any Parquet files exist in the mart directory.
+
+    :returns: True if at least one .parquet file exists.
+    """
+    return len(_get_parquet_files()) > 0
 
 
 def get_connection() -> duckdb.DuckDBPyConnection:
-    """Create a read-only connection to the analytics database.
+    """Create a connection to analytics data.
 
-    :returns: DuckDB connection configured for read-only access.
-    :raises FileNotFoundError: If database file doesn't exist.
+    Prefers in-memory DuckDB with Parquet views registered under the ``mart``
+    schema.  Falls back to the legacy analytics.duckdb file when no Parquet
+    files are available.
+
+    :returns: DuckDB connection with mart schema available.
+    :raises FileNotFoundError: If neither Parquet files nor DuckDB file exist.
     """
-    db_path = _get_database_path()
-    logger.debug(f"Opening DuckDB connection: path={db_path}")
-    return duckdb.connect(str(db_path), read_only=True)
+    parquet_files = _get_parquet_files()
+
+    if parquet_files:
+        conn = duckdb.connect(":memory:")
+        conn.execute("CREATE SCHEMA IF NOT EXISTS mart")
+        for pf in parquet_files:
+            view_name = pf.stem
+            conn.execute(f"CREATE VIEW mart.{view_name} AS SELECT * FROM read_parquet('{pf}')")
+        logger.debug(f"Opened in-memory DuckDB with {len(parquet_files)} Parquet views")
+        return conn
+
+    # Fallback: legacy DuckDB file
+    if not DUCKDB_PATH.exists():
+        raise FileNotFoundError(
+            f"No Parquet files in {_PARQUET_MART_DIR} and no DuckDB database at {DUCKDB_PATH}"
+        )
+    logger.debug(f"Opening legacy DuckDB connection: path={DUCKDB_PATH}")
+    return duckdb.connect(str(DUCKDB_PATH), read_only=True)
 
 
 def execute_query(
@@ -81,9 +110,9 @@ def execute_query(
 
 
 def check_connection() -> bool:
-    """Check if the DuckDB database is accessible.
+    """Check if analytics data is accessible (Parquet files or DuckDB file).
 
-    :returns: True if database is accessible, False otherwise.
+    :returns: True if data is accessible, False otherwise.
     """
     try:
         conn = get_connection()

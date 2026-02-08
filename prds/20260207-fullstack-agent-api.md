@@ -160,10 +160,10 @@ This resets on process restart, which is acceptable for a single-user applicatio
 
 **`backend/src/api/agent/`** (new router):
 
-| Method | Path                    | Description                              |
-|--------|-------------------------|------------------------------------------|
-| POST   | `/api/agent/ask`        | NL question → answer with provenance     |
-| GET    | `/api/agent/suggestions`| Example questions from semantic metadata |
+| Method | Path                     | Description                              |
+|--------|--------------------------|------------------------------------------|
+| POST   | `/api/agent/ask`         | NL question → answer with provenance     |
+| GET    | `/api/agent/suggestions` | Example questions from semantic metadata |
 
 **Note:** `POST /api/agent/refine` (follow-up with context) is intentionally deferred. The single-shot pattern should be validated first. Multi-turn conversation adds significant complexity (conversation state management, context window budgeting) that isn't justified until we know single-shot works well.
 
@@ -282,6 +282,7 @@ No database migration. All new code — new modules, new router.
 ### Testing Strategy
 
 Mocking approach for tests:
+
 - **Unit tests for `AgentService`**: Mock `anthropic.Anthropic` client at the class level. The `llm.py` wrapper returns typed dataclasses, so tests mock `llm.generate_query_plan()` and `llm.generate_response()` directly.
 - **Unit tests for `MetadataService`**: Mock `get_semantic_datasets()` to return a fixture list of `SemanticDataset` objects.
 - **API endpoint tests**: Mock `AgentService.ask()` to return a fixture `AgentResponse`. This tests routing, auth, and serialisation without LLM calls.
@@ -305,7 +306,7 @@ Mocking approach for tests:
 
 ## Rollout Plan
 
-1. **Development**: Local testing with DuckDB + Parquet (PRD 1) and semantic layer (PRD 2) in place
+1. **Development**: Local testing with Parquet-backed DuckDB (PRD 1 — complete) and semantic layer (PRD 2) in place
 2. **Production**: Deploy behind feature flag initially. Enable once verified with real data.
 
 ---
@@ -321,6 +322,7 @@ Mocking approach for tests:
 ## Files to Create/Modify
 
 **New:**
+
 - `backend/src/metadata/__init__.py` — Exports `MetadataService`
 - `backend/src/metadata/service.py` — `MetadataService` class
 - `backend/src/metadata/models.py` — `SchemaContext`, `DatasetSummary`
@@ -336,6 +338,7 @@ Mocking approach for tests:
 - `backend/testing/metadata/` — Unit tests
 
 **Modified:**
+
 - `backend/src/api/app.py` — Register agent router
 - `backend/pyproject.toml` — Add `anthropic` dependency
 - `backend/.env_example` — Add `ANTHROPIC_API_KEY`, `AGENT_RATE_LIMIT`
