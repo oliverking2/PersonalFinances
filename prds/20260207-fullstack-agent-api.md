@@ -9,7 +9,7 @@
 
 ## Overview
 
-Natural language financial assistant that interprets user questions, generates structured query specs against the semantic layer (PRD 2), executes them via DuckDB, and returns formatted responses with full provenance. Uses a two-LLM-call pattern: query planning (structured output) then response generation (narrative). Includes a metadata service for LLM context and guardrails for query validation.
+Natural language financial assistant that interprets user questions, generates structured query specs against the semantic layer (PRD 2 — complete), executes them via DuckDB, and returns formatted responses with full provenance. Uses a two-LLM-call pattern: query planning (structured output) then response generation (narrative). Includes a metadata service for LLM context and guardrails for query validation.
 
 ## Problem Statement
 
@@ -60,7 +60,7 @@ LLM Call 1: Query Planning (Claude tool_use → structured JSON)
     ↓
 Guardrails: validate_query_spec() against semantic schema
     ↓
-execute_semantic_query(spec) → DuckDB via semantic query builder (PRD 2)
+execute_semantic_query(spec) → DuckDB via semantic query builder (PRD 2 — complete)
     ↓
 LLM Call 2: Response Generation
   Input: question + query results + provenance
@@ -74,16 +74,16 @@ AgentResponse { answer, provenance, data, chart_spec, suggestions }
 **`backend/src/metadata/`** (new module):
 
 - `service.py` — `MetadataService`:
-  - `get_schema_context()` → calls `get_semantic_datasets()` from PRD 2, returns structured metadata (datasets, measures, dimensions, descriptions, sample questions)
+  - `get_schema_context()` → calls `get_semantic_datasets()` from PRD 2 — complete, returns structured metadata (datasets, measures, dimensions, descriptions, sample questions)
   - `get_schema_summary()` → concise text summary for LLM system prompt (~2000 tokens). Iterates through datasets and formats measures/dimensions/descriptions compactly.
-  - `get_suggestions()` → calls `get_all_sample_questions()` from PRD 2
-  - No caching — the 11 datasets are small enough (~2000 tokens) that parsing the manifest on each call is negligible. If this changes, add caching later.
+  - `get_suggestions()` → calls `get_all_sample_questions()` from PRD 2 — complete
+  - No caching — the 13 datasets are small enough (~2000 tokens) that parsing the manifest on each call is negligible. If this changes, add caching later.
 
 - `models.py` — Pydantic models:
   - `SchemaContext` — full semantic schema context for LLM (list of `DatasetSummary`)
   - `DatasetSummary` — dataset name, friendly name, description, measures (name + description), dimensions (name + description), sample questions
 
-**Note:** No `search_relevant_datasets()` — with 11 datasets (~2000 tokens total), we send the full context to the LLM. The LLM picks the right dataset. This avoids keyword-matching heuristics that could miss the right dataset.
+**Note:** No `search_relevant_datasets()` — with 13 datasets (~2000 tokens total), we send the full context to the LLM. The LLM picks the right dataset. This avoids keyword-matching heuristics that could miss the right dataset.
 
 ### Agent Module
 
@@ -91,7 +91,7 @@ AgentResponse { answer, provenance, data, chart_spec, suggestions }
 
 - `service.py` — `AgentService` orchestrating the full flow:
   - `ask(question: str, user_id: UUID) -> AgentResponse` — synchronous (matching existing codebase pattern)
-  - Calls metadata service, LLM planner, guardrails (via `validate_query_spec` from PRD 2), semantic query builder, LLM responder
+  - Calls metadata service, LLM planner, guardrails (via `validate_query_spec` from PRD 2 — complete), semantic query builder, LLM responder
   - Returns structured response with provenance
 
 - `llm.py` — Thin wrapper around `anthropic` SDK:
@@ -105,12 +105,12 @@ AgentResponse { answer, provenance, data, chart_spec, suggestions }
   - **Response generator**: You are a personal finance assistant. Summarise the query results in plain English. Be concise. Cite the data source. Suggest 2-3 follow-up questions the user might find useful.
 
 - `models.py` — Pydantic models:
-  - `AgentResponse` — answer (str), provenance (`QueryProvenance` from PRD 2), data (list[dict]), chart_spec (ChartSpec | None), suggestions (list[str])
+  - `AgentResponse` — answer (str), provenance (`QueryProvenance` from PRD 2 — complete), data (list[dict]), chart_spec (ChartSpec | None), suggestions (list[str])
   - `ChartSpec` — see full definition below
   - `ResponseOutput` — intermediate model from LLM Call 2: answer (str), chart_spec (ChartSpec | None), suggestions (list[str])
 
 - `guardrails.py` — Validation:
-  - Delegates to `validate_query_spec()` from `semantic.py` (PRD 2) — measures/dimensions exist, operators valid
+  - Delegates to `validate_query_spec()` from `semantic.py` (PRD 2 — complete) — measures/dimensions exist, operators valid
   - `handle_empty_results(question: str) -> str` — generates a graceful "I don't have data for that" message with suggestions
   - `enforce_rate_limit(user_id: UUID) -> None` — raises `RateLimitExceededError` if exceeded
 
@@ -179,13 +179,13 @@ class AskRequest(BaseModel):
 ```python
 class AgentResponse(BaseModel):
     answer: str
-    provenance: QueryProvenance  # From PRD 2's semantic.py — single source of truth
+    provenance: QueryProvenance  # From PRD 2 — complete's semantic.py — single source of truth
     data: list[dict[str, Any]]
     chart_spec: ChartSpec | None = None
     suggestions: list[str]
 ```
 
-**Note:** `provenance` uses `QueryProvenance` directly from PRD 2 — there is no separate `Provenance` type. This avoids duplicating the type and ensures the agent endpoint returns exactly what the query builder produces.
+**Note:** `provenance` uses `QueryProvenance` directly from PRD 2 — complete — there is no separate `Provenance` type. This avoids duplicating the type and ensures the agent endpoint returns exactly what the query builder produces.
 
 **Endpoint implementations:**
 
@@ -221,7 +221,7 @@ No frontend changes in this PRD. The frontend chat UI is covered in PRD 4.
 ### Dependencies
 
 - `anthropic` — Anthropic Python SDK for Claude API calls (new dependency). Add to `backend/pyproject.toml`.
-- No other new dependencies. Uses existing DuckDB client and the semantic query builder from PRD 2.
+- No other new dependencies. Uses existing DuckDB client and the semantic query builder from PRD 2 — complete.
 
 ### Migration
 
@@ -240,7 +240,7 @@ No database migration. All new code — new modules, new router.
 - All endpoints require authentication (JWT Bearer token)
 - `user_id` from JWT (`current_user.id`, type `UUID`) is always injected into the semantic query — users can only query their own data
 - `validate_query_spec()` rejects unknown measures/dimensions before any SQL is generated
-- No raw SQL is generated by the LLM — the agent outputs a structured `QuerySpec`, and the query builder (PRD 2) translates it to safe parameterised SQL
+- No raw SQL is generated by the LLM — the agent outputs a structured `QuerySpec`, and the query builder (PRD 2 — complete) translates it to safe parameterised SQL
 - `ANTHROPIC_API_KEY` stored as environment variable, never logged
 - Rate limiting prevents excessive API usage and cost
 
@@ -251,7 +251,7 @@ No database migration. All new code — new modules, new router.
 ### Phase 1: Metadata Service
 
 - [ ] Create `backend/src/metadata/__init__.py`, `service.py`, `models.py`
-- [ ] Implement `MetadataService` reading from `get_semantic_datasets()` (PRD 2)
+- [ ] Implement `MetadataService` reading from `get_semantic_datasets()` (PRD 2 — complete)
 - [ ] Implement `get_schema_summary()` for LLM prompt formatting
 - [ ] Write unit tests for metadata service (mock `get_semantic_datasets()` return value)
 
@@ -275,7 +275,7 @@ No database migration. All new code — new modules, new router.
 ### Phase 4: Integration Testing
 
 - [ ] End-to-end test: mock LLM to return a known `QuerySpec`, verify DuckDB returns correct data, verify `AgentResponse` has correct provenance
-- [ ] Guardrails reject invalid queries (delegate to PRD 2's `validate_query_spec` tests)
+- [ ] Guardrails reject invalid queries (delegate to PRD 2 — complete's `validate_query_spec` tests)
 - [ ] Rate limiting returns 429 after exceeding limit
 - [ ] `make check` passes in backend/
 
@@ -306,7 +306,7 @@ Mocking approach for tests:
 
 ## Rollout Plan
 
-1. **Development**: Local testing with Parquet-backed DuckDB (PRD 1 — complete) and semantic layer (PRD 2) in place
+1. **Development**: Local testing with Parquet-backed DuckDB (PRD 1 — complete) and semantic layer (PRD 2 — complete) in place
 2. **Production**: Deploy behind feature flag initially. Enable once verified with real data.
 
 ---
@@ -348,6 +348,6 @@ Mocking approach for tests:
 ## References
 
 - [Anthropic Python SDK — tool use](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
-- Semantic query builder: `backend/src/duckdb/semantic.py` (PRD 2)
-- Depends on: PRD 2 (Semantic Layer)
+- Semantic query builder: `backend/src/duckdb/semantic.py` (PRD 2 — complete)
+- Depends on: PRD 2 — complete (Semantic Layer)
 - Depended on by: PRD 4 (Frontend Chat UI), PRD 5 (Refinement)

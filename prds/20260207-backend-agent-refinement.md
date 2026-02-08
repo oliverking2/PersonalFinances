@@ -234,7 +234,7 @@ class AgentResponse(BaseModel):
     iterations: int = 1
 ```
 
-**Note:** `QuerySpec` is a `dataclass` defined in `backend/src/duckdb/semantic.py` (PRD 2). It is **not** redefined in the agent module — the agent imports it from `semantic.py`.
+**Note:** `QuerySpec` is a `dataclass` defined in `backend/src/duckdb/semantic.py` (PRD 2 — complete). It is **not** redefined in the agent module — the agent imports it from `semantic.py`.
 
 **`backend/src/agent/critique.py`** — `CritiqueResult` is defined here (see above). Not in `models.py`.
 
@@ -369,4 +369,4 @@ No database migration. Changes are to in-memory agent logic only.
 
 - [Anthropic structured output](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
 - Depends on: PRD 3 (Agent API)
-- `QuerySpec` and `QueryResult` imported from: `backend/src/duckdb/semantic.py` (PRD 2)
+- `QuerySpec` and `QueryResult` imported from: `backend/src/duckdb/semantic.py` (PRD 2 — complete)
