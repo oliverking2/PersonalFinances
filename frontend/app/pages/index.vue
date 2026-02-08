@@ -754,6 +754,9 @@ onMounted(() => {
       <GoalsProgressWidget :summary="goalSummary" :loading="loadingGoals" />
     </div>
 
+    <!-- Budget forecast warnings (auto-hides if no budgets at risk) -->
+    <BudgetsBudgetWarningsPanel v-if="hasAccounts" />
+
     <!-- Recent Transactions Section -->
     <div v-if="hasAccounts || loadingAccounts" class="space-y-4">
       <!-- Section header -->
