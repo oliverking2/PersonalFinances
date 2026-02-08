@@ -31,7 +31,7 @@ const inputRef = ref<HTMLInputElement | null>(null)
 // Base: padding (24px) + colour dot (12px + 8px gap) + checkbox (16px + 8px gap) + buffer (16px) = ~84px
 // Character width: ~7px per char at text-sm
 const selectorWidth = computed(() => {
-  const longestTag = props.availableTags.reduce(
+  const longestTag = visibleTags.value.reduce(
     (max, tag) => Math.max(max, tag.name.length),
     0,
   )
@@ -42,13 +42,18 @@ const selectorWidth = computed(() => {
   return Math.min(Math.max(calculatedWidth, 160), 280)
 })
 
-// Filter tags based on search
+// Exclude hidden tags — they shouldn't be assignable
+const visibleTags = computed(() =>
+  props.availableTags.filter((tag) => !tag.is_hidden),
+)
+
+// Filter visible tags based on search
 const filteredTags = computed(() => {
   if (!searchQuery.value.trim()) {
-    return props.availableTags
+    return visibleTags.value
   }
   const query = searchQuery.value.toLowerCase()
-  return props.availableTags.filter((tag) =>
+  return visibleTags.value.filter((tag) =>
     tag.name.toLowerCase().includes(query),
   )
 })
@@ -58,7 +63,7 @@ const showCreateOption = computed(() => {
   const trimmed = searchQuery.value.trim()
   if (!trimmed) return false
   // Only show if no exact match exists
-  return !props.availableTags.some(
+  return !visibleTags.value.some(
     (tag) => tag.name.toLowerCase() === trimmed.toLowerCase(),
   )
 })

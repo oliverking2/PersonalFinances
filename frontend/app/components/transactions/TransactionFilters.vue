@@ -82,17 +82,19 @@ const selectedAccountIds = computed(() => props.modelValue.account_ids || [])
 const UNTAGGED_FILTER_ID = '__untagged__'
 
 // Convert tags to FilterOption format for the dropdown
-// Adds "Untagged" option at the top to filter for transactions without tags
+// Excludes hidden tags and adds "Untagged" option at the top
 const tagOptions = computed((): FilterOption[] => {
   const untaggedOption: FilterOption = {
     id: UNTAGGED_FILTER_ID,
     label: 'Untagged',
   }
-  const tagsList = props.tags.map((tag) => ({
-    id: tag.id,
-    label: tag.name,
-    colour: tag.colour,
-  }))
+  const tagsList = props.tags
+    .filter((tag) => !tag.is_hidden)
+    .map((tag) => ({
+      id: tag.id,
+      label: tag.name,
+      colour: tag.colour,
+    }))
   return [untaggedOption, ...tagsList]
 })
 

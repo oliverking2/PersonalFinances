@@ -92,11 +92,13 @@ async function loadData() {
 
     budgets.value = budgetsWithSpending
     summary.value = summaryResponse
-    availableTags.value = tagsResponse.tags.map((t) => ({
-      id: t.id,
-      name: t.name,
-      colour: t.colour ?? '#6b7280', // Default grey if no colour
-    }))
+    availableTags.value = tagsResponse.tags
+      .filter((t) => !t.is_hidden)
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        colour: t.colour ?? '#6b7280', // Default grey if no colour
+      }))
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load budgets'
   } finally {
