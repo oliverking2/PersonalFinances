@@ -45,14 +45,34 @@ frontend/
 ├── app/
 │   ├── app.vue              # Root component
 │   ├── components/          # UI components
-│   │   ├── App*.vue         # Shared components (AppButton, AppInput)
+│   │   ├── App*.vue         # Shared components (AppButton, AppInput, AppSelect, AppToast)
+│   │   ├── FilterDropdown.vue # Reusable filter dropdown
 │   │   ├── accounts/        # Account/connection components
-│   │   └── transactions/    # Transaction components
+│   │   ├── analytics/       # Charts and analytics displays
+│   │   ├── assets/          # Manual assets/liabilities
+│   │   ├── budgets/         # Budget tracking components
+│   │   ├── cashflow/        # Cash flow forecast charts
+│   │   ├── datasets/        # Dataset explorer/export
+│   │   ├── goals/           # Savings goal components
+│   │   ├── home/            # Home page widgets
+│   │   ├── jobs/            # Background job status
+│   │   ├── milestones/      # Financial milestones
+│   │   ├── notifications/   # Notification bell/panel
+│   │   ├── planning/        # Planning tab components
+│   │   ├── subscriptions/   # Recurring pattern cards/lists
+│   │   ├── tags/            # Tag chips and selectors
+│   │   └── transactions/    # Transaction rows/filters
 │   ├── composables/         # Reusable logic (API calls, utilities)
 │   ├── layouts/             # Page layouts (default, etc.)
 │   ├── middleware/          # Route middleware (auth, etc.)
 │   ├── pages/               # File-based routing
-│   ├── stores/              # Pinia stores (auth)
+│   │   ├── index.vue        # Home dashboard
+│   │   ├── transactions.vue # Transaction list
+│   │   ├── insights.vue     # Analytics landing (tabs: analytics, net-worth, datasets)
+│   │   ├── planning.vue     # Planning landing (tabs: budgets, goals, subscriptions, forecasting)
+│   │   ├── settings.vue     # Settings landing (tabs: accounts, tags, rules, jobs, assets)
+│   │   └── login.vue        # Public login page
+│   ├── stores/              # Pinia stores (auth, toast)
 │   └── types/               # TypeScript interfaces
 ├── nuxt.config.ts           # Nuxt configuration (includes Typekit fonts)
 ├── tailwind.config.ts       # Tailwind theme and colours

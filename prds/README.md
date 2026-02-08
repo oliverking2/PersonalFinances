@@ -27,11 +27,10 @@ YYYYMMDD-{scope}-feature-name.md
 
 ### Examples
 
-- `202601-backend-auth-api.md` - Backend authentication API
-- `202601-frontend-dashboard.md` - Frontend dashboard page
-- `202602-fullstack-transaction-view.md` - Full-stack transaction feature
-- `202603-infra-ci-pipeline.md` - CI/CD pipeline setup
-- `202603-data-spending-aggregations.md` - dbt spending models
+- `20260123-backend-auth-api.md` - Backend authentication API
+- `20260124-frontend-dashboard.md` - Frontend dashboard page
+- `20260125-fullstack-transaction-view.md` - Full-stack transaction feature
+- `20260207-data-spending-aggregations.md` - dbt spending models
 
 ## Status Values
 

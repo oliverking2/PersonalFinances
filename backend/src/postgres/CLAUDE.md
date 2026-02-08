@@ -11,13 +11,15 @@ postgres/
 │   ├── models.py        # User, RefreshToken
 │   └── operations/      # Auth-specific CRUD
 ├── common/              # Provider-agnostic models
-│   ├── models.py        # Connections, Accounts, Transactions, RecurringPatterns, etc.
-│   ├── enums.py         # All enums (single source of truth)
+│   ├── models.py        # Connections, Accounts, Transactions, RecurringPatterns,
+│   │                    # Tags, TagRules, Budgets, Goals, Notifications,
+│   │                    # BalanceSnapshots, ManualAssets, PlannedTransactions, etc.
+│   ├── enums.py         # All enums (single source of truth, 17 enum classes)
 │   └── operations/      # CRUD by entity
 ├── gocardless/          # GoCardless raw data
 │   ├── models.py        # Requisitions, BankAccounts, Balances
 │   └── operations/
-├── telegram/            # Telegram state
+├── telegram/            # Telegram bot state
 │   └── models.py        # PollingCursor
 └── trading212/          # Trading212 raw data
     ├── models.py        # Holdings, Transactions
@@ -140,6 +142,11 @@ Used by API, shared across providers:
 - `RecurringPattern` - Detected/manual recurring payments
 - `Tag`, `TagRule`, `TransactionSplit` - User categorisation
 - `Budget`, `Goal`, `Notification` - User features
+- `BalanceSnapshot` - Append-only balance history
+- `ManualAsset` - Manual assets/liabilities (property, loans, etc.)
+- `PlannedTransaction` - Future planned income/expenses
+- `FinancialMilestone` - User-defined milestones for net worth chart
+- `Job` - Background job tracking
 
 ### Provider-Specific (raw data)
 

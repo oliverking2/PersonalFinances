@@ -9,25 +9,41 @@ backend/
 ├── src/
 │   ├── api/            # FastAPI endpoints (see src/api/CLAUDE.md)
 │   │   ├── auth/       # Authentication (login, register, refresh)
-│   │   ├── accounts/   # Bank accounts
+│   │   ├── accounts/   # Bank accounts and balances
 │   │   ├── analytics/  # Spending analytics (queries dbt marts)
 │   │   ├── budgets/    # Tag-based budgets
 │   │   ├── connections/# Bank connections (OAuth flow)
 │   │   ├── goals/      # Savings goals
+│   │   ├── institutions/ # Bank institution lookup
+│   │   ├── jobs/       # Background job status
+│   │   ├── manual_assets/ # Manual assets and liabilities
+│   │   ├── milestones/ # Financial milestones
+│   │   ├── notifications/ # In-app notification system
+│   │   ├── planned_transactions/ # Future planned transactions
 │   │   ├── recurring/  # Recurring patterns (opt-in model)
+│   │   ├── tag_rules/  # Automatic tag application rules
 │   │   ├── tags/       # Tag CRUD
-│   │   └── transactions/# Transaction queries
+│   │   ├── trading212/ # Trading212 investment integration
+│   │   ├── transactions/ # Transaction queries
+│   │   └── user/       # User settings and Telegram linking
 │   ├── orchestration/  # Dagster jobs & assets (see orchestration/CLAUDE.md)
-│   │   ├── gocardless/ # Bank sync
-│   │   ├── recurring_patterns/ # Pattern detection
-│   │   └── dbt/        # Analytics transforms
+│   │   ├── dbt/        # Analytics transforms
+│   │   ├── exports/    # Data export jobs (CSV/Parquet to S3)
+│   │   ├── gocardless/ # Bank sync (extraction + sync)
+│   │   ├── maintenance/ # Database cleanup and maintenance
+│   │   ├── recurring_patterns/ # Pattern detection and matching
+│   │   ├── trading212/ # Investment sync from Trading212
+│   │   └── unified/    # Cross-provider unified sync
 │   ├── postgres/       # SQLAlchemy models & operations (see postgres/CLAUDE.md)
 │   │   ├── auth/       # Users, refresh tokens
 │   │   ├── common/     # Provider-agnostic models (connections, accounts, recurring)
 │   │   │   └── operations/  # CRUD operations by entity
 │   │   ├── gocardless/ # GoCardless raw data (requisitions, bank_accounts)
+│   │   ├── telegram/   # Telegram bot state (polling cursor)
+│   │   ├── trading212/ # Trading212 raw data (holdings, transactions)
 │   │   └── core.py     # Base, engine, session utilities
-│   ├── providers/      # External API clients (GoCardless)
+│   ├── duckdb/         # DuckDB client for analytics queries
+│   ├── providers/      # External API clients (GoCardless, Dagster)
 │   └── utils/          # Shared utilities (config, logging, security)
 ├── testing/            # Tests (see testing/CLAUDE.md)
 ├── alembic/            # Database migrations
@@ -104,7 +120,7 @@ The database uses a two-layer approach for multi-provider support:
 
 - **Standardised tables** (`postgres/common/`): Provider-agnostic, used by API endpoints
 - **Raw tables** (`postgres/gocardless/`): Provider-specific, source of truth for Dagster
-- **Enums** in `postgres/common/enums.py`: Provider, ConnectionStatus, AccountStatus, RecurringStatus, RecurringSource
+- **Enums** in `postgres/common/enums.py`: Provider, AccountType, ConnectionStatus, AccountStatus, AccountCategory, JobType/Status, RecurringFrequency/Status/Source/Direction, BudgetPeriod, GoalStatus/TrackingMode, TransactionStatus, NotificationType, ManualAssetType
 - **Recurring patterns**: Use opt-in model with status workflow (pending → active ⟷ paused / cancelled)
 
 ## File Placement

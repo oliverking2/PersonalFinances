@@ -52,25 +52,36 @@ make check         # Full validation (lint + typecheck)
 ```
 app/
 ├── components/          # Reusable Vue components
-│   ├── App*.vue         # Design system (AppButton, AppInput, AppSelect)
+│   ├── App*.vue         # Design system (AppButton, AppInput, AppSelect, AppToast)
 │   ├── accounts/        # Account/connection components
 │   ├── analytics/       # Charts and analytics components
+│   ├── assets/          # Manual assets/liabilities
+│   ├── budgets/         # Budget tracking
+│   ├── cashflow/        # Cash flow forecast
+│   ├── datasets/        # Dataset explorer/export
+│   ├── goals/           # Savings goals
+│   ├── home/            # Home page widgets
+│   ├── jobs/            # Background job status
+│   ├── milestones/      # Financial milestones
+│   ├── notifications/   # Notification bell/panel
+│   ├── planning/        # Planning tab components
+│   ├── subscriptions/   # Recurring patterns
 │   ├── tags/            # Tag management components
 │   └── transactions/    # Transaction list components
 ├── composables/         # Reusable logic
 │   ├── useAuthenticatedFetch.ts  # API client with auth
-│   └── use*Api.ts       # Domain-specific API composables
+│   └── use*Api.ts       # Domain-specific API composables (19 total)
 ├── layouts/             # Page layouts
 │   └── default.vue      # Main layout with header/nav
 ├── middleware/          # Route guards
 │   └── auth.global.ts   # SSR auth validation
 ├── pages/               # File-based routing
-│   ├── index.vue        # Dashboard
-│   ├── accounts.vue     # Bank connections
+│   ├── index.vue        # Home dashboard
 │   ├── transactions.vue # Transaction list
-│   ├── analytics.vue    # Spending analytics
-│   ├── login.vue        # Login page (public)
-│   └── settings/        # Settings pages
+│   ├── insights.vue     # Analytics (tabs: analytics, net-worth, datasets)
+│   ├── planning.vue     # Planning (tabs: budgets, goals, subscriptions, forecasting)
+│   ├── settings.vue     # Settings (tabs: accounts, tags, rules, jobs, assets)
+│   └── login.vue        # Login page (public)
 ├── stores/              # Pinia stores
 │   ├── auth.ts          # Authentication state
 │   └── toast.ts         # Toast notifications

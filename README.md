@@ -174,8 +174,10 @@ backend/src/
 │   ├── budgets/         # Tag-based budget tracking
 │   ├── connections/     # OAuth flow, connection management
 │   ├── goals/           # Savings goals and progress tracking
+│   ├── institutions/    # Bank institution lookup
 │   ├── jobs/            # Background job status API
-│   ├── milestones/      # Goal milestones
+│   ├── manual_assets/   # Manual assets and liabilities
+│   ├── milestones/      # Financial milestones
 │   ├── notifications/   # In-app notifications
 │   ├── planned_transactions/  # Future planned transactions
 │   ├── recurring/       # Recurring patterns (opt-in detection)
@@ -183,7 +185,7 @@ backend/src/
 │   ├── tags/            # Tag CRUD
 │   ├── trading212/      # Trading212 investment integration
 │   ├── transactions/    # Transaction queries and tagging
-│   └── user/            # User settings and preferences
+│   └── user/            # User settings and Telegram linking
 ├── orchestration/       # Dagster definitions
 │   ├── dbt/             # dbt asset definitions
 │   ├── exports/         # Data export jobs
@@ -195,9 +197,11 @@ backend/src/
 ├── postgres/            # Database layer
 │   ├── auth/            # Users, refresh tokens
 │   ├── common/          # Standardised models (connections, accounts, transactions, recurring)
-│   └── gocardless/      # Raw provider data (requisitions, bank accounts)
-├── providers/           # External API clients
-│   └── gocardless/      # GoCardless API wrapper
+│   ├── gocardless/      # Raw provider data (requisitions, bank accounts)
+│   ├── telegram/        # Telegram bot state (polling cursor)
+│   └── trading212/      # Trading212 raw data (holdings, transactions)
+├── duckdb/              # DuckDB client for analytics queries
+├── providers/           # External API clients (GoCardless, Dagster)
 └── utils/               # Logging, security, shared utilities
 
 frontend/app/

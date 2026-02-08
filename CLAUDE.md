@@ -29,14 +29,16 @@ PersonalFinances/
 
 ## Technology Stack
 
-| Layer      | Technology                                 |
-|------------|--------------------------------------------|
-| Backend    | Python 3.12+, FastAPI, SQLAlchemy, Dagster |
-| Frontend   | Vue 3, Nuxt 4, Tailwind CSS, TypeScript    |
-| Database   | PostgreSQL                                 |
-| Analytics  | DuckDB (reads from PostgreSQL via dbt)     |
-| Transforms | dbt                                        |
-| Bank API   | GoCardless                                 |
+| Layer        | Technology                                 |
+|--------------|--------------------------------------------|
+| Backend      | Python 3.12+, FastAPI, SQLAlchemy, Dagster |
+| Frontend     | Vue 3, Nuxt 4, Tailwind CSS, TypeScript    |
+| Database     | PostgreSQL                                 |
+| Analytics    | DuckDB (reads from PostgreSQL via dbt)     |
+| Transforms   | dbt                                        |
+| Bank API     | GoCardless                                 |
+| Investments  | Trading212                                 |
+| Notifications| Telegram bot                               |
 
 ## Shared Commands
 
@@ -63,9 +65,14 @@ Backend environment variables in `backend/.env` (copy from `backend/.env_example
 
 - `ENVIRONMENT` - local/prod
 - `POSTGRES_*` - Database connection (also used by dbt/DuckDB)
+- `JWT_SECRET`, `ADMIN_TOKEN` - Security credentials
+- `COOKIE_DOMAIN` - Cross-subdomain cookie sharing (e.g., `.oliverking.me.uk`)
 - `GC_SECRET_ID`, `GC_SECRET_KEY` - GoCardless API credentials
 - `GC_CALLBACK_URL` - GoCardless OAuth callback
 - `CORS_ORIGINS` - Additional allowed origins (comma-separated) for production/tunnel domains
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS` - Telegram bot config
+- `T212_ENCRYPTION_KEY` - Trading212 API key encryption
+- `S3_EXPORTS_BUCKET`, `AWS_*` - S3 export storage
 
 Frontend environment variables in `frontend/.env` (copy from `frontend/.env.example`):
 

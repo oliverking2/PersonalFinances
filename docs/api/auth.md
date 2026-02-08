@@ -389,7 +389,7 @@ function scheduleRefresh(expiresIn: number) {
 
 The backend allows:
 
-- Origin: `http://localhost:3001` (frontend dev server)
+- Origin: `http://localhost:3000` (frontend dev server)
 - Credentials: `true` (required for cookies)
 - Methods: `GET, POST, PUT, DELETE, OPTIONS`
 - Headers: `Authorization, Content-Type`
@@ -411,12 +411,12 @@ Frontend requests must include `credentials: 'include'` for cookies to work.
 
 Before considering auth complete, verify:
 
-- [ ] Login with valid credentials shows user info
-- [ ] Login with wrong password shows error
-- [ ] Login with non-existent username shows same error
-- [ ] Protected route redirects to login when not authenticated
-- [ ] Access token refresh happens automatically before expiry
-- [ ] Logout clears state and redirects to login
-- [ ] Refreshing browser maintains session (cookie persists)
-- [ ] Opening new tab maintains session (shared cookie)
-- [ ] After logout, back button doesn't show protected content
+- [x] Login with valid credentials shows user info
+- [x] Login with wrong password shows error
+- [x] Login with non-existent username shows same error
+- [x] Protected route redirects to login when not authenticated
+- [x] Access token refresh happens automatically before expiry
+- [x] Logout clears state and redirects to login
+- [x] Refreshing browser maintains session (cookie persists)
+- [x] Opening new tab maintains session (shared cookie)
+- [x] After logout, back button doesn't show protected content

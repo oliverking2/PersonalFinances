@@ -321,7 +321,7 @@ Track financial progress over time.
 
 ---
 
-## Phase 9: Mobile Responsiveness
+## Phase 9: Mobile Responsiveness ✅
 
 Make the app usable on mobile devices.
 
@@ -468,12 +468,26 @@ Items to tackle when higher priority work is complete.
 
 ---
 
+## Phase 13: Analytics Evolution
+
+AI-powered analytics and natural language queries. See PRDs in `prds/` for details.
+
+Implementation order: Parquet → Cube semantic layer → Agent API → (Langfuse + Chat UI in parallel) → Refinement loop
+
+- [ ] Parquet migration (replace DuckDB PostgreSQL reads with Parquet files)
+- [ ] Cube semantic layer (structured analytics queries)
+- [ ] Agent API (LLM-powered query generation)
+- [ ] Langfuse observability (trace agent queries)
+- [ ] Chat UI (natural language query interface)
+- [ ] Refinement loop (iterative query improvement)
+
+---
+
 ## Out of Scope
 
 Items explicitly not needed for this project:
 
 - **CI/CD Pipeline**: This is a personal app; local `make check` is sufficient
-- **Multi-user Support**: Single-user application
 - **High Availability**: Runs locally or on personal server
 
 ---
@@ -493,22 +507,30 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260123-backend-code-quality.md` - Linting, types, test coverage
 - `20260123-backend-test-suite.md` - pytest infrastructure
 - `20260123-frontend-authentication.md` - Login/logout flow
-- `20260124-frontend-accounts-view.md` - Accounts list page
-- `20260124-fullstack-accounts-api-integration.md` - Connect frontend to real API
+- `20260124-backend-delete-connection.md` - Connection deletion endpoint
+- `20260124-backend-gocardless-oauth.md` - GoCardless OAuth flow (create, callback, reauthorise endpoints)
 - `20260124-backend-provider-sync.md` - Dagster sync pipeline, Postgres extraction, investment account fields
 - `20260124-backend-unified-connections.md` - Provider-agnostic data layer
-- `20260124-backend-gocardless-oauth.md` - GoCardless OAuth flow (create, callback, reauthorise endpoints)
+- `20260124-frontend-accounts-view.md` - Accounts list page
 - `20260124-frontend-gocardless-callback.md` - OAuth callback handling and toast notifications
+- `20260124-fullstack-accounts-api-integration.md` - Connect frontend to real API
 - `20260124-fullstack-background-jobs-dagster.md` - Background jobs table, Dagster sync triggers, connection-scoped sync
 - `20260124-fullstack-transaction-tagging.md` - User-defined tags for transactions
 - `20260125-backend-analytics-visualisation.md` - Analytics API with dbt marts and DuckDB
+- `20260125-frontend-analytics-page.md` - Analytics page with charts, filters, and comparison view
 - `20260125-frontend-transaction-detail-modal.md` - Transaction detail modal with tag management
 - `20260125-frontend-transaction-filters.md` - Date presets and value filter dropdowns
-- `20260125-frontend-analytics-page.md` - Analytics page with charts, filters, and comparison view
+- `20260125-fullstack-analytics-export-engine.md` - Dagster export jobs, S3 storage, download URLs
+- `20260125-fullstack-analytics-polish.md` - Analytics accuracy and home page improvements
+- `20260125-fullstack-home-page.md` - Dashboard with metric cards and widgets
+- `20260125-fullstack-smart-tagging.md` - Auto-tagging rules, standard tags, transaction splits
 - `20260127-fullstack-budgeting-goals.md` - Budgets, savings goals, and spending alerts
 - `20260127-fullstack-recurring-transactions.md` - Recurring transaction detection and subscription management
+- `20260128-fullstack-trading212-integration.md` - Trading212 investment integration
 - `20260130-fullstack-balance-history-net-worth.md` - Balance history, net worth tracking, forecasting, milestones
+- `20260130-fullstack-notification-system.md` - In-app notifications, Telegram alerts
 - `20260131-fullstack-recurring-patterns-redesign.md` - Opt-in recurring patterns, status workflow, matching rules
+- `20260201-fullstack-manual-assets.md` - Manual assets and liabilities for net worth
 
 ### Implemented Without PRD
 
