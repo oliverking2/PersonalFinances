@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.accounts.endpoints import router as accounts_router
+from src.api.agent.endpoints import router as agent_router
 from src.api.analytics.endpoints import router as analytics_router
 from src.api.auth.endpoints import router as auth_router
 from src.api.budgets.endpoints import router as budgets_router
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(accounts_router, prefix="/api/accounts", tags=["accounts"])
+    app.include_router(agent_router, prefix="/api/agent", tags=["agent"])
     app.include_router(analytics_router, prefix="/api/analytics", tags=["analytics"])
     app.include_router(budgets_router, prefix="/api/budgets", tags=["budgets"])
     app.include_router(connections_router, prefix="/api/connections", tags=["connections"])

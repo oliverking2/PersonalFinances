@@ -10,6 +10,7 @@ backend/
 │   ├── api/            # FastAPI endpoints (see src/api/CLAUDE.md)
 │   │   ├── auth/       # Authentication (login, register, refresh)
 │   │   ├── accounts/   # Bank accounts and balances
+│   │   ├── agent/      # Natural language analytics (LLM-powered)
 │   │   ├── analytics/  # Spending analytics (queries dbt marts)
 │   │   ├── budgets/    # Tag-based budgets
 │   │   ├── connections/# Bank connections (OAuth flow)
@@ -42,6 +43,8 @@ backend/
 │   │   ├── telegram/   # Telegram bot state (polling cursor)
 │   │   ├── trading212/ # Trading212 raw data (holdings, transactions)
 │   │   └── core.py     # Base, engine, session utilities
+│   ├── agent/          # Agent service (LLM orchestration, guardrails)
+│   ├── metadata/       # Schema metadata for LLM context
 │   ├── duckdb/         # DuckDB client for analytics queries
 │   ├── providers/      # External API clients (GoCardless, Dagster)
 │   └── utils/          # Shared utilities (config, logging, security)

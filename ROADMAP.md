@@ -449,7 +449,7 @@ Items to tackle when higher priority work is complete.
 
 ### AI Features
 
-- [ ] Natural language queries ("How much did I spend on groceries last month?")
+- [x] Natural language queries ("How much did I spend on groceries last month?")
 - [ ] Budget allocation suggestions
 - [ ] Spending pattern insights
 - [ ] Anomaly detection (unusual transactions)
@@ -476,7 +476,7 @@ Implementation order: Parquet → Semantic layer → Agent API → Chat UI → R
 
 - [x] Parquet migration (replace DuckDB PostgreSQL reads with Parquet files)
 - [x] Semantic layer (structured analytics queries)
-- [ ] Agent API (LLM-powered query generation)
+- [x] Agent API (LLM-powered query generation)
 - [ ] Chat UI (natural language query interface)
 - [ ] Refinement loop (iterative query improvement)
 
@@ -530,6 +530,7 @@ Once a PRD is fully implemented, move it to `prds/complete/`.
 - `20260130-fullstack-notification-system.md` - In-app notifications, Telegram alerts
 - `20260131-fullstack-recurring-patterns-redesign.md` - Opt-in recurring patterns, status workflow, matching rules
 - `20260201-fullstack-manual-assets.md` - Manual assets and liabilities for net worth
+- `20260207-fullstack-agent-api.md` - Natural language agent API with AWS Bedrock
 
 ### Implemented Without PRD
 

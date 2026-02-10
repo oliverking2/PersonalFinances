@@ -20,6 +20,9 @@ os.environ.setdefault("GC_SECRET_ID", "test-secret-id")
 os.environ.setdefault("GC_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ADMIN_TOKEN", "test-admin-token-for-registration")
 os.environ.setdefault("T212_ENCRYPTION_KEY", "I2bDZ1RTbAvAoYcf304u3XqUtWUO4zSWzSugt4tst_M=")
+os.environ.setdefault("AWS_BEDROCK_REGION", "us-east-1")
+os.environ.setdefault("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-v1-0")
+os.environ.setdefault("AGENT_RATE_LIMIT", "50")
 
 from collections.abc import Generator
 from datetime import datetime
