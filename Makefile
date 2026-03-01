@@ -144,6 +144,7 @@ setup-server:
 	@echo "=== Bootstrapping DuckDB ==="
 	@mkdir -p data
 	@cd backend && DUCKDB_PATH=$(CURDIR)/data/analytics.duckdb poetry run bootstrap-duckdb
+	@chmod -R 777 data/
 	@echo ""
 	@echo "=== Starting all services ==="
 	@$(COMPOSE) up -d --build
