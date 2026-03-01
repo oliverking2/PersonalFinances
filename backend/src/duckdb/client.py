@@ -58,10 +58,10 @@ def get_connection() -> duckdb.DuckDBPyConnection:
 
     if parquet_files:
         conn = duckdb.connect(":memory:")
-        conn.execute("CREATE SCHEMA IF NOT EXISTS mart")
+        conn.execute("CREATE SCHEMA IF NOT EXISTS main_mart")
         for pf in parquet_files:
             view_name = pf.stem
-            conn.execute(f"CREATE VIEW mart.{view_name} AS SELECT * FROM read_parquet('{pf}')")
+            conn.execute(f"CREATE VIEW main_mart.{view_name} AS SELECT * FROM read_parquet('{pf}')")
         logger.debug(f"Opened in-memory DuckDB with {len(parquet_files)} Parquet views")
         return conn
 

@@ -73,7 +73,7 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # Temporary DuckDB for dbt builds (source/staging layers)
+      # Not used by webserver (no dbt builds), but required by shared config
       DUCKDB_PATH: /tmp/dbt_build.duckdb
       # Parquet directory for mart model outputs
       PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
@@ -81,7 +81,7 @@ services:
     ports:
       - "${DAGSTER_WEBSERVER_PORT:-3001}:3000"
     volumes:
-      - ./data/parquet:/opt/dagster/dagster_home/data/parquet
+      - ./data/parquet:/opt/dagster/dagster_home/data/parquet:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,8 +99,8 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # Temporary DuckDB for dbt builds (source/staging layers)
-      DUCKDB_PATH: /tmp/dbt_build.duckdb
+      # Persistent DuckDB for dbt builds - survives restarts so partial builds work
+      DUCKDB_PATH: /opt/dagster/dagster_home/data/dbt_build.duckdb
       # Parquet directory for mart model outputs (rw for dbt writes)
       PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
     command:
@@ -109,7 +109,7 @@ services:
       - -w
       - /opt/dagster/dagster_home/workspace.yaml
     volumes:
-      - ./data/parquet:/opt/dagster/dagster_home/data/parquet
+      - ./data:/opt/dagster/dagster_home/data
     depends_on:
       dagster-webserver:
         condition: service_started
