@@ -118,7 +118,7 @@ def gocardless_extract_transactions(
                 context.log.info(f"Watermark for account {account.id}: {watermark}")
                 date_start = today + relativedelta(days=-90) if watermark is None else watermark
                 # Go a few days further back to add some overlap in case any data was missed
-                date_start += relativedelta(days=-3)
+                date_start += relativedelta(days=-7)
 
             context.log.info(
                 f"Extracting transactions for account {account.id} from {date_start} to {today}"

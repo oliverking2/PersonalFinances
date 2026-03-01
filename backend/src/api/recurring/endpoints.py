@@ -32,6 +32,7 @@ from src.postgres.common.enums import (
 )
 from src.postgres.common.models import RecurringPattern, RecurringPatternTransaction
 from src.postgres.common.operations.recurring_patterns import (
+    _NOT_SET,
     accept_pattern,
     calculate_monthly_total,
     calculate_monthly_totals_by_direction,
@@ -293,18 +294,29 @@ def update_recurring_pattern(
     if not pattern or pattern.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Pattern not found: {pattern_id}")
 
+    # Determine which fields were explicitly included in the request body.
+    # Pydantic defaults unset optional fields to None, so without this check
+    # we'd accidentally clear nullable fields (e.g. merchant_contains) when
+    # the caller only wants to update e.g. the name.
+    provided = request.model_fields_set
+
     tag_id = UUID(request.tag_id) if request.tag_id else None
     updated = update_pattern(
         db,
         pattern_id,
         name=request.name,
-        notes=request.notes,
         expected_amount=request.expected_amount,
         frequency=request.frequency,
-        tag_id=tag_id,
-        merchant_contains=request.merchant_contains,
         amount_tolerance_pct=request.amount_tolerance_pct,
-        advanced_rules=request.advanced_rules,
+        # Only pass nullable sentinel fields when they were actually in the payload.
+        # Without this, unset Pydantic fields default to None which would unintentionally
+        # clear e.g. merchant_contains when the caller only changed the name.
+        notes=request.notes if "notes" in provided else _NOT_SET,
+        tag_id=tag_id if "tag_id" in provided else _NOT_SET,
+        merchant_contains=request.merchant_contains
+        if "merchant_contains" in provided
+        else _NOT_SET,
+        advanced_rules=request.advanced_rules if "advanced_rules" in provided else _NOT_SET,
     )
 
     if not updated:

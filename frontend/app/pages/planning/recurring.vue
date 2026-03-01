@@ -182,6 +182,24 @@ async function handleDismiss(pattern: RecurringPattern) {
   }
 }
 
+// Delete an accepted (active/paused) pattern
+async function handleRemove(pattern: RecurringPattern) {
+  if (
+    !confirm(
+      `Delete "${pattern.name}"? It may be re-detected on the next sync.`,
+    )
+  )
+    return
+  try {
+    await deletePattern(pattern.id)
+    patterns.value = patterns.value.filter((p) => p.id !== pattern.id)
+    toast.success(`Deleted: ${pattern.name}`)
+    summary.value = await fetchSummary()
+  } catch {
+    toast.error('Failed to delete pattern')
+  }
+}
+
 // Pause an active pattern
 async function handlePause(pattern: RecurringPattern) {
   try {
@@ -470,6 +488,7 @@ function formatCurrency(amount: number): string {
         @dismiss="handleDismiss(pattern)"
         @pause="handlePause(pattern)"
         @resume="handleResume(pattern)"
+        @remove="handleRemove(pattern)"
         @edit="handleEdit(pattern)"
       />
     </div>

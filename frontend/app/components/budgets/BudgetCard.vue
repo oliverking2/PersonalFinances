@@ -13,8 +13,10 @@ import {
 } from '~/types/budgets'
 
 // Props
-defineProps<{
+const props = defineProps<{
   budget: BudgetWithSpending
+  // YYYY-MM-DD reference date; if absent, defaults to today (current period)
+  referenceDate?: string
 }>()
 
 // Emits
@@ -22,6 +24,46 @@ const emit = defineEmits<{
   edit: []
   delete: []
 }>()
+
+// Compute the period start/end dates for the transactions link.
+// Mirrors the backend get_period_date_range() logic so the link filters
+// to exactly the same window the budget spending is calculated over.
+const transactionsUrl = computed(() => {
+  const ref = props.referenceDate
+    ? new Date(props.referenceDate + 'T00:00:00')
+    : new Date()
+
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  let start: string
+  let end: string
+
+  if (props.budget.period === 'weekly') {
+    // ISO week: Monday → Sunday
+    const daysFromMonday = ref.getDay() === 0 ? 6 : ref.getDay() - 1
+    const monday = new Date(ref)
+    monday.setDate(ref.getDate() - daysFromMonday)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    start = fmt(monday)
+    end = fmt(sunday)
+  } else if (props.budget.period === 'quarterly') {
+    const quarter = Math.floor(ref.getMonth() / 3)
+    start = fmt(new Date(ref.getFullYear(), quarter * 3, 1))
+    end = fmt(new Date(ref.getFullYear(), quarter * 3 + 3, 0))
+  } else if (props.budget.period === 'annual') {
+    start = `${ref.getFullYear()}-01-01`
+    end = `${ref.getFullYear()}-12-31`
+  } else {
+    // Monthly (default)
+    start = fmt(new Date(ref.getFullYear(), ref.getMonth(), 1))
+    end = fmt(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
+  }
+
+  const tag = encodeURIComponent(props.budget.tag_name)
+  return `/transactions?tag=${tag}&start_date=${start}&end_date=${end}`
+})
 
 // Format currency
 function formatCurrency(amount: number, currency: string = 'GBP'): string {
@@ -103,11 +145,8 @@ function formatCurrency(amount: number, currency: string = 'GBP'): string {
 
     <!-- Actions -->
     <div class="mt-4 flex items-center justify-between">
-      <!-- View transactions link -->
-      <NuxtLink
-        :to="`/transactions?tag=${encodeURIComponent(budget.tag_name)}`"
-        class="action-btn action-btn-ghost"
-      >
+      <!-- View transactions link — filtered to the budget's period -->
+      <NuxtLink :to="transactionsUrl" class="action-btn action-btn-ghost">
         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path
             fill-rule="evenodd"

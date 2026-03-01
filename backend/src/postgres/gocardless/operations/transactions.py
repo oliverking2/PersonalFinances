@@ -40,7 +40,13 @@ def upsert_transactions(
     """Upsert transactions from GoCardless API response.
 
     Handles both booked and pending transactions. Uses account_id + transaction_id
-    as the unique key for upserting.
+    as the unique key for upserting booked transactions.
+
+    Pending transactions are deleted and re-inserted on each extraction because
+    GoCardless assigns temporary IDs (e.g. P...) to pending transactions that differ
+    from the permanent IDs assigned when they settle (e.g. AT...). Without this,
+    settled transactions would appear as both a stale pending record and a new booked
+    record, causing duplicates.
 
     :param session: SQLAlchemy session.
     :param account_id: The bank account ID.
@@ -61,6 +67,27 @@ def upsert_transactions(
     # Process pending transactions
     for txn in pending:
         count += _upsert_single_transaction(session, account_id, txn, "pending", now)
+
+    # Remove stale pending records — those that are no longer in the API response.
+    # Pending transactions have ephemeral IDs (e.g. P...) that change when they settle
+    # to booked (e.g. AT...). Without this cleanup, settled transactions appear as both
+    # a stale pending row and a new booked row, causing double-counting.
+    # We delete by comparing against what the API returned rather than wiping all pending,
+    # so that long-lived pending transactions outside the incremental date window are preserved.
+    current_pending_ids = {
+        txn.get("transactionId") or txn.get("internalTransactionId")
+        for txn in pending
+        if txn.get("transactionId") or txn.get("internalTransactionId")
+    }
+    query = session.query(GoCardlessTransaction).filter(
+        GoCardlessTransaction.account_id == account_id,
+        GoCardlessTransaction.status == "pending",
+    )
+    if current_pending_ids:
+        query = query.filter(GoCardlessTransaction.transaction_id.not_in(current_pending_ids))
+    deleted = query.delete()
+    if deleted:
+        logger.info(f"Removed {deleted} stale pending transactions for account {account_id}")
 
     session.flush()
     logger.info(f"Upserted {count} transactions for account {account_id}")

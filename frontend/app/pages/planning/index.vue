@@ -1,6 +1,6 @@
-<!-- Redirect /planning to /planning/net-worth -->
+<!-- Redirect /planning to /planning/budgets -->
 <script setup lang="ts">
-navigateTo('/planning/net-worth', { replace: true })
+navigateTo('/planning/budgets', { replace: true })
 </script>
 
 <template>

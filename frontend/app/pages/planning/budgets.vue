@@ -429,6 +429,7 @@ function formatCurrency(amount: number): string {
         v-for="budget in filteredBudgets"
         :key="budget.id"
         :budget="budget"
+        :reference-date="referenceDate"
         @edit="handleEdit(budget)"
         @delete="handleDelete(budget)"
       />
