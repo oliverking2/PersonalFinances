@@ -6,14 +6,17 @@ import json
 import logging
 import os
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
-from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
 
 from src.agent.models import ChartSeries, ChartSpec
 from src.agent.prompts import QUERY_PLANNER_SYSTEM, RESPONSE_GENERATOR_SYSTEM
 from src.duckdb.semantic import QueryFilter, QuerySpec
+
+if TYPE_CHECKING:
+    from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
+
 
 logger = logging.getLogger(__name__)
 
