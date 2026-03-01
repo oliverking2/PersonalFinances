@@ -58,21 +58,20 @@ DAILY_SNAPSHOTS AS (
     WHERE ROW_NUM = 1
 ),
 
--- Get date range per asset (first and last snapshot date)
+-- Get date range per asset (first snapshot date to today)
 ASSET_DATE_RANGE AS (
     SELECT
         ASSET_ID,
-        MIN(VALUE_DATE) AS MIN_DATE,
-        MAX(VALUE_DATE) AS MAX_DATE
+        MIN(VALUE_DATE) AS MIN_DATE
     FROM DAILY_SNAPSHOTS
     GROUP BY ASSET_ID
 ),
 
--- Generate all dates in each asset's range using DuckDB's generate_series
+-- Generate all dates from first snapshot to today using DuckDB's generate_series
 DATE_SPINE AS (
     SELECT
         ADR.ASSET_ID,
-        UNNEST(GENERATE_SERIES(ADR.MIN_DATE, ADR.MAX_DATE, INTERVAL 1 DAY))::DATE AS VALUE_DATE
+        UNNEST(GENERATE_SERIES(ADR.MIN_DATE, CURRENT_DATE, INTERVAL 1 DAY))::DATE AS VALUE_DATE
     FROM ASSET_DATE_RANGE AS ADR
 ),
 
