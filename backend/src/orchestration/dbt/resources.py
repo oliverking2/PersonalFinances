@@ -19,4 +19,4 @@ if "DUCKDB_PATH" not in os.environ or not os.environ["DUCKDB_PATH"]:
 dbt_project = DbtProject(project_dir=DBT_PROJECT_DIR)
 dbt_project.prepare_if_dev()  # Auto-parses manifest in dev mode; no-op in production
 
-dbt_resource = DbtCliResource(project_dir=dbt_project)
+dbt_resource = DbtCliResource(project_dir=dbt_project, profiles_dir=str(DBT_PROJECT_DIR))
