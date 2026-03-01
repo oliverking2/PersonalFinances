@@ -97,6 +97,12 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
+      # Persistent analytics DuckDB - shared with API container via ./data volume
+      DUCKDB_PATH: /opt/dagster/dagster_home/data/analytics.duckdb
+      # Parquet directory for mart post-hook exports
+      PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
+    volumes:
+      - ./data:/opt/dagster/dagster_home/data
     command:
       - dagster-daemon
       - run
