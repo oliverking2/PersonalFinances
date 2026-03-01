@@ -172,13 +172,17 @@ def delete_budget(session: Session, budget_id: UUID) -> bool:
     return True
 
 
-def get_period_date_range(period: BudgetPeriod) -> tuple[datetime, datetime]:
-    """Get the current period date range for a budget period.
+def get_period_date_range(
+    period: BudgetPeriod,
+    reference_date: datetime | None = None,
+) -> tuple[datetime, datetime]:
+    """Get the period date range for a budget period.
 
     :param period: Budget period type.
+    :param reference_date: Date to calculate the period around. Defaults to now (UTC).
     :return: Tuple of (period_start, period_end) as UTC datetimes.
     """
-    now = datetime.now(UTC)
+    now = reference_date if reference_date is not None else datetime.now(UTC)
 
     if period == BudgetPeriod.WEEKLY:
         # ISO week: Monday 00:00 to Sunday 23:59:59

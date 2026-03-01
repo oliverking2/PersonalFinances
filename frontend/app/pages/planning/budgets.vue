@@ -46,6 +46,10 @@ const editingBudget = ref<Budget | null>(null)
 // Filter
 const statusFilter = ref<'all' | 'ok' | 'warning' | 'exceeded'>('all')
 
+// Month navigation — default to current month
+const selectedYear = ref(new Date().getFullYear())
+const selectedMonth = ref(new Date().getMonth()) // 0-indexed
+
 // ---------------------------------------------------------------------------
 // Computed
 // ---------------------------------------------------------------------------
@@ -55,6 +59,34 @@ const filteredBudgets = computed(() => {
   if (statusFilter.value === 'all') return budgets.value
   return budgets.value.filter((b) => b.status === statusFilter.value)
 })
+
+// True when the selected month is the current calendar month
+const isCurrentMonth = computed(() => {
+  const now = new Date()
+  return (
+    selectedYear.value === now.getFullYear() &&
+    selectedMonth.value === now.getMonth()
+  )
+})
+
+// YYYY-MM-DD string for the first day of the selected month, passed to the API.
+// Undefined when on the current month so the API uses its default (today).
+const referenceDate = computed<string | undefined>(() => {
+  if (isCurrentMonth.value) return undefined
+  const month = String(selectedMonth.value + 1).padStart(2, '0')
+  return `${selectedYear.value}-${month}-01`
+})
+
+// Human-readable label e.g. "February 2026"
+const monthLabel = computed(() =>
+  new Date(selectedYear.value, selectedMonth.value, 1).toLocaleDateString(
+    'en-GB',
+    {
+      month: 'long',
+      year: 'numeric',
+    },
+  ),
+)
 
 // Tab counts
 const tabCounts = computed(() => ({
@@ -78,16 +110,18 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
+    const ref = referenceDate.value
+
     // Load budgets, summary, and tags in parallel
     const [budgetsResponse, summaryResponse, tagsResponse] = await Promise.all([
-      fetchBudgets(),
-      fetchBudgetSummary(),
+      fetchBudgets(ref),
+      fetchBudgetSummary(ref),
       fetchTags(),
     ])
 
-    // Fetch spending for each budget
+    // Fetch spending for each budget (passes the same reference date)
     const budgetsWithSpending = await Promise.all(
-      budgetsResponse.budgets.map((b) => fetchBudget(b.id)),
+      budgetsResponse.budgets.map((b) => fetchBudget(b.id, ref)),
     )
 
     budgets.value = budgetsWithSpending
@@ -106,7 +140,40 @@ async function loadData() {
   }
 }
 
+// Reload when the selected month changes
+watch(referenceDate, loadData)
+
 onMounted(loadData)
+
+// ---------------------------------------------------------------------------
+// Month navigation
+// ---------------------------------------------------------------------------
+
+function prevMonth() {
+  if (selectedMonth.value === 0) {
+    selectedMonth.value = 11
+    selectedYear.value--
+  } else {
+    selectedMonth.value--
+  }
+}
+
+function nextMonth() {
+  // Don't allow navigating past the current month
+  if (isCurrentMonth.value) return
+  if (selectedMonth.value === 11) {
+    selectedMonth.value = 0
+    selectedYear.value++
+  } else {
+    selectedMonth.value++
+  }
+}
+
+function goToCurrentMonth() {
+  const now = new Date()
+  selectedYear.value = now.getFullYear()
+  selectedMonth.value = now.getMonth()
+}
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -213,6 +280,48 @@ function formatCurrency(amount: number): string {
         @click="openCreateModal"
       >
         + New Budget
+      </button>
+    </div>
+
+    <!-- Month navigation -->
+    <div class="flex items-center gap-2">
+      <!-- Previous month button -->
+      <button
+        type="button"
+        class="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm transition-colors hover:bg-border"
+        aria-label="Previous month"
+        @click="prevMonth"
+      >
+        ←
+      </button>
+
+      <!-- Current month label -->
+      <span class="min-w-[140px] text-center text-sm font-medium">{{
+        monthLabel
+      }}</span>
+
+      <!-- Next month button — disabled on current month -->
+      <button
+        type="button"
+        class="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm transition-colors"
+        :class="
+          isCurrentMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-border'
+        "
+        :disabled="isCurrentMonth"
+        aria-label="Next month"
+        @click="nextMonth"
+      >
+        →
+      </button>
+
+      <!-- Jump back to current month -->
+      <button
+        v-if="!isCurrentMonth"
+        type="button"
+        class="rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-muted transition-colors hover:bg-border hover:text-foreground"
+        @click="goToCurrentMonth"
+      >
+        Current Month
       </button>
     </div>
 

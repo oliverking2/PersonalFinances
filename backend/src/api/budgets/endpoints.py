@@ -1,10 +1,11 @@
 """Budget API endpoints."""
 
 import logging
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -51,14 +52,18 @@ router = APIRouter()
 def list_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    reference_date: str | None = Query(
+        default=None, description="YYYY-MM-DD date within the desired period"
+    ),
 ) -> BudgetListResponse:
-    """List all budgets for the authenticated user with current spending."""
+    """List all budgets for the authenticated user with spending for the given period."""
     budgets = get_budgets_by_user_id(db, current_user.id)
+    ref_dt = _parse_reference_date(reference_date)
 
     # Calculate spending for each budget
     budget_responses = []
     for budget in budgets:
-        spent = _calculate_budget_spending(db, budget, current_user.id)
+        spent = _calculate_budget_spending(db, budget, current_user.id, ref_dt)
         budget_responses.append(_to_response_with_spending(budget, spent))
 
     return BudgetListResponse(
@@ -76,9 +81,13 @@ def list_budgets(
 def get_budget_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    reference_date: str | None = Query(
+        default=None, description="YYYY-MM-DD date within the desired period"
+    ),
 ) -> BudgetSummaryResponse:
-    """Get summary statistics for all budgets."""
+    """Get summary statistics for all budgets for the given period."""
     budgets = get_budgets_by_user_id(db, current_user.id)
+    ref_dt = _parse_reference_date(reference_date)
 
     total_budgeted = Decimal("0")
     total_spent = Decimal("0")
@@ -91,7 +100,7 @@ def get_budget_summary(
         if budget.enabled:
             active_budgets += 1
             total_budgeted += budget.amount
-            spent = _calculate_budget_spending(db, budget, current_user.id)
+            spent = _calculate_budget_spending(db, budget, current_user.id, ref_dt)
             total_spent += spent
 
             percentage = (spent / budget.amount * 100) if budget.amount > 0 else Decimal("0")
@@ -264,13 +273,17 @@ def get_budget(
     budget_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    reference_date: str | None = Query(
+        default=None, description="YYYY-MM-DD date within the desired period"
+    ),
 ) -> BudgetWithSpendingResponse:
-    """Retrieve a specific budget by its UUID."""
+    """Retrieve a specific budget by its UUID with spending for the given period."""
     budget = get_budget_by_id(db, budget_id)
     if not budget or budget.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Budget not found: {budget_id}")
 
-    spent = _calculate_budget_spending(db, budget, current_user.id)
+    ref_dt = _parse_reference_date(reference_date)
+    spent = _calculate_budget_spending(db, budget, current_user.id, ref_dt)
     return _to_response_with_spending(budget, spent)
 
 
@@ -334,20 +347,40 @@ def delete_budget_endpoint(
     logger.info(f"Deleted budget: id={budget_id}")
 
 
+def _parse_reference_date(date_str: str | None) -> datetime | None:
+    """Parse an optional YYYY-MM-DD date string to a UTC datetime.
+
+    :param date_str: ISO date string (e.g. "2026-01-15"), or None.
+    :return: UTC datetime at midnight of that date, or None if not provided.
+    :raises HTTPException: If the date string is not a valid YYYY-MM-DD format.
+    """
+    if date_str is None:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid reference_date format '{date_str}'. Expected YYYY-MM-DD.",
+        ) from e
+
+
 def _calculate_budget_spending(
     db: Session,
     budget: Budget,
     user_id: UUID,
+    reference_date: datetime | None = None,
 ) -> Decimal:
-    """Calculate total spending for a budget in the current period.
+    """Calculate total spending for a budget in the given period.
 
     :param db: Database session.
     :param budget: Budget entity.
     :param user_id: User's UUID.
-    :return: Total spent amount for the budget's tag in current period.
+    :param reference_date: Date within the desired period. Defaults to current period.
+    :return: Total spent amount for the budget's tag in the period.
     """
-    # Get period date range based on budget period
-    period_start, period_end = get_period_date_range(budget.period_enum)
+    # Get period date range based on budget period and optional reference date
+    period_start, period_end = get_period_date_range(budget.period_enum, reference_date)
 
     # Query spending from transaction splits for this tag in current period
     # Spending is recorded as positive amounts in splits (absolute value)

@@ -28,14 +28,21 @@ export function useBudgetsApi() {
   // Budgets CRUD
   // ---------------------------------------------------------------------------
 
-  // Fetch all budgets for the current user
-  async function fetchBudgets(): Promise<BudgetListResponse> {
-    return authFetch<BudgetListResponse>('/api/budgets')
+  // Fetch all budgets for the current user, optionally for a historical period
+  async function fetchBudgets(
+    referenceDate?: string,
+  ): Promise<BudgetListResponse> {
+    const query = referenceDate ? `?reference_date=${referenceDate}` : ''
+    return authFetch<BudgetListResponse>(`/api/budgets${query}`)
   }
 
-  // Get a single budget by ID (includes current spending)
-  async function fetchBudget(budgetId: string): Promise<BudgetWithSpending> {
-    return authFetch<BudgetWithSpending>(`/api/budgets/${budgetId}`)
+  // Get a single budget by ID (includes spending for the given period)
+  async function fetchBudget(
+    budgetId: string,
+    referenceDate?: string,
+  ): Promise<BudgetWithSpending> {
+    const query = referenceDate ? `?reference_date=${referenceDate}` : ''
+    return authFetch<BudgetWithSpending>(`/api/budgets/${budgetId}${query}`)
   }
 
   // Create a new budget for a tag
@@ -68,9 +75,12 @@ export function useBudgetsApi() {
   // Summary Statistics
   // ---------------------------------------------------------------------------
 
-  // Fetch budget summary statistics
-  async function fetchBudgetSummary(): Promise<BudgetSummaryResponse> {
-    return authFetch<BudgetSummaryResponse>('/api/budgets/summary')
+  // Fetch budget summary statistics, optionally for a historical period
+  async function fetchBudgetSummary(
+    referenceDate?: string,
+  ): Promise<BudgetSummaryResponse> {
+    const query = referenceDate ? `?reference_date=${referenceDate}` : ''
+    return authFetch<BudgetSummaryResponse>(`/api/budgets/summary${query}`)
   }
 
   // ---------------------------------------------------------------------------
