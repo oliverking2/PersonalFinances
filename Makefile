@@ -142,6 +142,7 @@ setup-server:
 	@cd backend && poetry run alembic upgrade head
 	@echo ""
 	@echo "=== Bootstrapping DuckDB ==="
+	@mkdir -p data
 	@cd backend && DUCKDB_PATH=$(CURDIR)/data/analytics.duckdb poetry run bootstrap-duckdb
 	@echo ""
 	@echo "=== Starting all services ==="
