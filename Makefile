@@ -1,4 +1,4 @@
-.PHONY: help setup setup-demo up up-db up-backend up-frontend up-dagster up-telegram down reset check logs clone-prod seed-demo
+.PHONY: help setup setup-demo setup-server up up-db up-backend up-frontend up-dagster up-telegram down reset check logs clone-prod seed-demo
 
 # Default target
 help:
@@ -14,9 +14,10 @@ help:
 	@echo "  make up-telegram  Start Telegram bot (polling mode)"
 	@echo ""
 	@echo "Server:"
-	@echo "  make up           Start all services (docker-compose)"
-	@echo "  make down         Stop all services"
-	@echo "  make reset        Destroy all data and run setup again"
+	@echo "  make setup-server  First-time initialisation on a fresh server"
+	@echo "  make up            Start all services (docker-compose)"
+	@echo "  make down          Stop all services"
+	@echo "  make reset         Destroy all data and run setup again"
 	@echo ""
 	@echo "Database:"
 	@echo "  make seed-demo    Seed/reset demo user with fake data"
@@ -134,6 +135,23 @@ setup-demo:
 # Server (docker-compose)
 # =============================================================================
 COMPOSE := docker compose --env-file .env.compose
+
+setup-server:
+	@echo "=== Running migrations ==="
+	@$(COMPOSE) up -d --wait postgres
+	@cd backend && poetry run alembic upgrade head
+	@echo ""
+	@echo "=== Bootstrapping DuckDB ==="
+	@cd backend && DUCKDB_PATH=$(CURDIR)/data/analytics.duckdb poetry run bootstrap-duckdb
+	@echo ""
+	@echo "=== Starting all services ==="
+	@$(COMPOSE) up -d --build
+	@echo ""
+	@echo "=== Setup complete! ==="
+	@echo "Services running:"
+	@echo "  Frontend:  http://localhost:3000"
+	@echo "  Backend:   http://localhost:8000"
+	@echo "  Dagster:   http://localhost:3001"
 
 up:
 	@$(COMPOSE) up -d --wait postgres
