@@ -81,7 +81,7 @@ services:
     ports:
       - "${DAGSTER_WEBSERVER_PORT:-3001}:3000"
     volumes:
-      - ./data/parquet:/opt/dagster/dagster_home/data/parquet:ro
+      - ./data/parquet:/opt/dagster/dagster_home/data/parquet
     depends_on:
       postgres:
         condition: service_healthy
