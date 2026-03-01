@@ -35,14 +35,12 @@ services:
       DAGSTER_URL: http://dagster-webserver:3000
       # Disable API docs on public deployments
       DISABLE_API_DOCS: "true"
-      # DuckDB path inside container (fallback only)
+      # Shared analytics DuckDB - same file written by Dagster, read here
       DUCKDB_PATH: /app/data/analytics.duckdb
-      # Parquet directory for mart model reads
-      PARQUET_DIR: /app/data/parquet
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - ./data/parquet:/app/data/parquet:ro
+      - ./data:/app/data:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,15 +71,15 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # Not used by webserver (no dbt builds), but required by shared config
-      DUCKDB_PATH: /tmp/dbt_build.duckdb
-      # Parquet directory for mart model outputs
+      # Persistent analytics DuckDB - shared with API container via ./data volume
+      DUCKDB_PATH: /opt/dagster/dagster_home/data/analytics.duckdb
+      # Parquet directory for mart post-hook exports
       PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
     ports:
       - "${DAGSTER_WEBSERVER_PORT:-3001}:3000"
     volumes:
-      - ./data/parquet:/opt/dagster/dagster_home/data/parquet:ro
+      - ./data:/opt/dagster/dagster_home/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,17 +97,11 @@ services:
       # Override to use Docker internal network
       POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
-      # Persistent DuckDB for dbt builds - survives restarts so partial builds work
-      DUCKDB_PATH: /opt/dagster/dagster_home/data/dbt_build.duckdb
-      # Parquet directory for mart model outputs (rw for dbt writes)
-      PARQUET_DIR: /opt/dagster/dagster_home/data/parquet
     command:
       - dagster-daemon
       - run
       - -w
       - /opt/dagster/dagster_home/workspace.yaml
-    volumes:
-      - ./data:/opt/dagster/dagster_home/data
     depends_on:
       dagster-webserver:
         condition: service_started

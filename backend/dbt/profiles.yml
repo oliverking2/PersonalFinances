@@ -8,4 +8,3 @@ duckdb_local:
       threads: 4
       extensions:
         - postgres
-      external_root: "{{ env_var('PARQUET_DIR', '../data/parquet') }}/mart"

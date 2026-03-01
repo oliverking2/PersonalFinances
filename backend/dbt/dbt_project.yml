@@ -27,7 +27,6 @@ models:
     1_source:
       +materialized: table  # Tables (not views) so data is in DuckDB for API queries
       +schema: source
-      +tags: ["auto_eager"]
       unified:
         +meta:
           dagster:
@@ -42,12 +41,12 @@ models:
       +meta:
         dagster:
           group: dbt_staging
-      +tags: ["auto_eager"]
 
     3_mart:
-      +materialized: external
+      +materialized: table
       +schema: mart
       +meta:
         dagster:
           group: dbt_mart
-      +tags: ["auto_eager", "auto_hourly"]
+      +post-hook:
+        - "COPY {{ this }} TO '{{ env_var(\"PARQUET_DIR\", \"../data/parquet\") }}/mart/{{ this.identifier }}.parquet' (FORMAT PARQUET)"
